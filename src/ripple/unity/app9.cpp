@@ -36,3 +36,5 @@
 #include <ripple/app/transactors/CreateOfferBridged.cpp>
 #include <ripple/app/transactors/CreateTicket.cpp>
 #include <ripple/app/transactors/CancelTicket.cpp>
+#include <ripple/app/transactors/SetSignerList.cpp>
+#include <ripple/app/transactors/impl/SignerEntries.cpp>

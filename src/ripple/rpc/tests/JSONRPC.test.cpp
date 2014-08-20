@@ -29,7 +29,8 @@ namespace ripple {
 
 namespace RPC {
 
-// Struct used to test calls to transactionSign and transactionSubmit.
+// Struct used to test calls to transactionSign, transactionSubmit,
+// transactionGetSigningAccount, and transactionSubmitMultiSigned
 struct TxnTestData
 {
     // Gah, without constexpr I can't make this an enum and initialize
@@ -37,15 +38,22 @@ struct TxnTestData
     static unsigned int const allGood         = 0x0;
     static unsigned int const signFail        = 0x1;
     static unsigned int const submitFail      = 0x2;
+    static unsigned int const monoFail        = signFail | submitFail;
+    static unsigned int const signMultiFail   = 0x4;
+    static unsigned int const submitMultiFail = 0x8;
+    static unsigned int const multiFail       = signMultiFail | submitMultiFail;
+    static unsigned int const allFail         = monoFail | multiFail;
 
+    char const* const description;
     char const* const json;
     unsigned int result;
 
     TxnTestData () = delete;
     TxnTestData (TxnTestData const&) = delete;
     TxnTestData& operator= (TxnTestData const&) = delete;
-    TxnTestData (char const* jsonIn, unsigned int resultIn)
-    : json (jsonIn)
+    TxnTestData (char const* descIn, char const* jsonIn, unsigned int resultIn)
+    : description (descIn)
+    , json (jsonIn)
     , result (resultIn)
     { }
 };
@@ -54,13 +62,18 @@ struct TxnTestData
 unsigned int const TxnTestData::allGood;
 unsigned int const TxnTestData::signFail;
 unsigned int const TxnTestData::submitFail;
+unsigned int const TxnTestData::monoFail;
+unsigned int const TxnTestData::signMultiFail;
+unsigned int const TxnTestData::submitMultiFail;
+unsigned int const TxnTestData::multiFail;
+unsigned int const TxnTestData::allFail;
 
 
 static TxnTestData const txnTestArray [] =
 {
 
-// Minimal payment.
-{R"({
+{ "Minimal payment.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -69,10 +82,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// Pass in Fee with minimal payment.
-{R"({
+{ "Pass in Fee with minimal payment.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -82,10 +95,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// Pass in Sequence.
-{R"({
+{ "Pass in Sequence.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -95,10 +108,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// Pass in Sequence and Fee with minimal payment.
-{R"({
+{ "Pass in Sequence and Fee with minimal payment.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -109,10 +122,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// Add "fee_mult_max" field.
-{R"({
+{ "Add 'fee_mult_max' field.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "fee_mult_max": 7,
@@ -123,10 +136,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// "fee_mult_max is ignored if "Fee" is present.
-{R"({
+{ "fee_mult_max is ignored if 'Fee' is present.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "fee_mult_max": 0,
@@ -138,10 +151,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// Invalid "fee_mult_max" field.
-{R"({
+{ "Invalid 'fee_mult_max' field.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "fee_mult_max": "NotAFeeMultiplier",
@@ -152,10 +165,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// Invalid value for "fee_mult_max" field.
-{R"({
+{ "Invalid value for 'fee_mult_max' field.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "fee_mult_max": 0,
@@ -166,10 +179,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// Missing "Amount".
-{R"({
+{ "Missing 'Amount'.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -177,10 +190,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// Invalid "Amount".
-{R"({
+{ "Invalid 'Amount'.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -189,10 +202,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// Missing "Destination".
-{R"({
+{ "Missing 'Destination'.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -200,10 +213,10 @@ static TxnTestData const txnTestArray [] =
         "Amount": "1000000000",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// Invalid "Destination".
-{R"({
+{ "Invalid 'Destination'.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -212,10 +225,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "NotADestination",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// Cannot create XRP to XRP paths.
-{R"({
+{ "Cannot create XRP to XRP paths.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "build_path": 1,
@@ -225,10 +238,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// Successful "build_path".
-{R"({
+{ "Successful 'build_path'.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "build_path": 1,
@@ -242,10 +255,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// Not valid to include both "Paths" and "build_path".
-{R"({
+{ "Not valid to include both 'Paths' and 'build_path'.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "build_path": 1,
@@ -260,10 +273,10 @@ static TxnTestData const txnTestArray [] =
         "Paths": "",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// Successful "SendMax".
-{R"({
+{ "Successful 'SendMax'.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "build_path": 1,
@@ -282,10 +295,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// Even though "Amount" may not be XRP for pathfinding, "SendMax" may be XRP.
-{R"({
+{ "Even though 'Amount' may not be XRP for pathfinding, 'SendMax' may be XRP.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "build_path": 1,
@@ -300,10 +313,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// "secret" must be present.
-{R"({
+{ "'secret' must be present.",
+R"({
     "command": "submit",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -311,10 +324,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// "secret" must be non-empty.
-{R"({
+{ "'secret' must be non-empty.",
+R"({
     "command": "submit",
     "secret": "",
     "tx_json": {
@@ -323,10 +336,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// "tx_json" must be present.
-{R"({
+{ "'tx_json' must be present.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "rx_json": {
@@ -335,10 +348,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// "TransactionType" must be present.
-{R"({
+{ "'TransactionType' must be present.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -346,10 +359,10 @@ static TxnTestData const txnTestArray [] =
         "Amount": "1000000000",
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// The "TransactionType" must be one of the pre-established transaction types.
-{R"({
+{ "The 'TransactionType' must be one of the pre-established transaction types.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -358,10 +371,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "tt"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// The "TransactionType", however, may be represented with an integer.
-{R"({
+{ "The 'TransactionType', however, may be represented with an integer.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -370,10 +383,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": 0
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// "Account" must be present.
-{R"({
+{ "'Account' must be present.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -381,10 +394,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// "Account" must be well formed.
-{R"({
+{ "'Account' must be well formed.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -393,10 +406,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// The "offline" tag may be added to the transaction.
-{R"({
+{ "The 'offline' tag may be added to the transaction.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "offline": 0,
@@ -406,10 +419,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// If "offline" is true then a "Sequence" field must be supplied.
-{R"({
+{ "If 'offline' is true then a 'Sequence' field must be supplied.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "offline": 1,
@@ -419,10 +432,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// Valid transaction if "offline" is true.
-{R"({
+{ "Valid transaction if 'offline' is true.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "offline": 1,
@@ -433,10 +446,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// A "Flags' field may be specified.
-{R"({
+{ "A 'Flags' field may be specified.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -446,10 +459,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
 
-// The "Flags" field must be numeric.
-{R"({
+{ "The 'Flags' field must be numeric.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "tx_json": {
@@ -459,10 +472,10 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::signFail | TxnTestData::submitFail},
+})", TxnTestData::allFail},
 
-// It's okay to add a "debug_signing" field.
-{R"({
+{ "It's okay to add a 'debug_signing' field.",
+R"({
     "command": "submit",
     "secret": "masterpassphrase",
     "debug_signing": 0,
@@ -472,62 +485,118 @@ static TxnTestData const txnTestArray [] =
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allGood},
+})", TxnTestData::multiFail},
+
+{ "Minimal get_signingaccount.",
+R"({
+    "command": "get_signingaccount",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
+    "secret": "masterpassphrase",
+    "tx_json": {
+        "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
+        "Amount": "1000000000",
+        "Destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+        "Fee": 50,
+        "Flags": 2147483648,
+        "Sequence": 0,
+        "SigningPubKey": "",
+        "TransactionType": "Payment"
+    }
+})", TxnTestData::submitMultiFail},
+
+{ "Minimal submit_multisigned.",
+R"({
+    "command": "submit_multisigned",
+    "SigningAccounts": [
+        {
+            "SigningAccount": {
+                "Account": "rPcNzota6B8YBokhYtcTNqQVCngtbnWfux",
+                "MultiSignature": "3045022100F9ED357606932697A4FAB2BE7F222C21DD93CA4CFDD90357AADD07465E8457D6022038173193E3DFFFB5D78DD738CC0905395F885DA65B98FDB9793901FE3FD26ECE",
+                "PublicKey": "02FE36A690D6973D55F88553F5D2C4202DE75F2CF8A6D0E17C70AC223F044501F8"
+            }
+        }
+    ],
+    "tx_json": {
+        "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+        "Amount": "1000000000",
+        "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
+        "Fee": 50,
+        "Flags": 2147483648,
+        "Sequence": 0,
+        "SigningPubKey": "",
+        "TransactionType": "Payment"
+    }
+})", TxnTestData::monoFail | TxnTestData::signMultiFail},
 
 };
+
 
 class JSONRPC_test : public beast::unit_test::suite
 {
 public:
     void testAutoFillFees ()
     {
+        std::string const secret = "masterpassphrase";
         RippleAddress rootSeedMaster
-                = RippleAddress::createSeedGeneric ("masterpassphrase");
+                = RippleAddress::createSeedGeneric (secret);
+
         RippleAddress rootGeneratorMaster
                 = RippleAddress::createGeneratorPublic (rootSeedMaster);
+
         RippleAddress rootAddress
                 = RippleAddress::createAccountPublic (rootGeneratorMaster, 0);
+
         std::uint64_t startAmount (100000);
         Ledger::pointer ledger (std::make_shared <Ledger> (
             rootAddress, startAmount));
 
-        using namespace RPCDetail;
-        LedgerFacade facade (LedgerFacade::noNetOPs, ledger);
+        using namespace detail;
+        TxnSignApiFacade apiFacade (TxnSignApiFacade::noNetOPs, ledger);
 
-       {
+        {
             Json::Value req;
             Json::Value result;
             Json::Reader ().parse (
-                R"({ "fee_mult_max" : 1, "tx_json" : { } } )"
+                "{ \"fee_mult_max\" : 1, \"tx_json\" : { } } "
                 , req);
-            autofill_fee (req, facade, result, true);
+            detail::autofill_fee (req, apiFacade, result, true);
 
-            expect (! contains_error (result));
+            expect (! contains_error (result), "Legal autofill_fee");
         }
 
         {
             Json::Value req;
             Json::Value result;
             Json::Reader ().parse (
-                R"({ "fee_mult_max" : 0, "tx_json" : { } } )"
+                "{ \"fee_mult_max\" : 0, \"tx_json\" : { } } "
                 , req);
-            autofill_fee (req, facade, result, true);
+            detail::autofill_fee (req, apiFacade, result, true);
 
-            expect (contains_error (result));
+            expect (contains_error (result), "Invalid autofill_fee");
         }
     }
 
     void testTransactionRPC ()
     {
-        // This loop is forward-looking for when there are separate
-        // transactionSign () and transcationSubmit () functions.  For now
-        // they just have a bool (false = sign, true = submit) and a flag
-        // to help classify failure types.
-        using TestStuff = std::pair <bool, unsigned int>;
+        // A list of all the functions we want to test and their fail bits.
+        using transactionFunc = Json::Value (*) (
+            Json::Value params,
+            NetworkOPs::FailHard failType,
+            detail::TxnSignApiFacade& apiFacade,
+            Role role);
+
+        using TestStuff =
+            std::tuple <transactionFunc, char const*, unsigned int>;
+
         static TestStuff const testFuncs [] =
         {
-            TestStuff {false, TxnTestData::signFail},
-            TestStuff {true,  TxnTestData::submitFail},
+            TestStuff {transactionSign,              "sign",               TxnTestData::signFail},
+            TestStuff {transactionSubmit,            "submit",             TxnTestData::submitFail},
+#if RIPPLE_ENABLE_MULTI_SIGN
+            TestStuff {transactionGetSigningAccount, "get_signingaccount", TxnTestData::signMultiFail},
+            TestStuff {transactionSubmitMultiSigned, "submit_multisigned", TxnTestData::submitMultiFail}
+#endif // RIPPLE_ENABLE_MULTI_SIGN
         };
 
         for (auto testFunc : testFuncs)
@@ -547,18 +616,20 @@ public:
                 for (Role testRole : testedRoles)
                 {
                     // Mock so we can run without a ledger.
-                    RPCDetail::LedgerFacade fakeNetOPs (
-                        RPCDetail::LedgerFacade::noNetOPs);
+                    detail::TxnSignApiFacade apiFacade (
+                        detail::TxnSignApiFacade::noNetOPs);
 
-                    Json::Value result = transactionSign (
+                    Json::Value result = get<0>(testFunc) (
                         req,
-                        testFunc.first,
-                        true,
-                        fakeNetOPs,
+                        NetworkOPs::FailHard::yes,
+                        apiFacade,
                         testRole);
 
-                    expect (contains_error (result) ==
-                        static_cast <bool> (txnTest.result & testFunc.second));
+                    bool const expectPass = txnTest.result & get<2>(testFunc);
+                    bool const pass = (contains_error (result) == expectPass);
+                    expect (pass,
+                        std::string (get<1>(testFunc)) +
+                            ": " + txnTest.description);
                 }
             }
         }

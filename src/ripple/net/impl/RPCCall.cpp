@@ -429,6 +429,22 @@ private:
         return jvRequest;
     }
 
+    // get_signingaccount
+    Json::Value parseGetSigningAccount (Json::Value const& jvParams)
+    {
+        Json::Value     params {Json::objectValue};
+        Json::Reader    reader;
+
+        if ((1 == jvParams.size ())
+            && reader.parse (jvParams[0u].asString (), params))
+        {
+            // Extract the only stuff we're interested in from the array.
+            return params;
+        }
+
+        return rpcError (rpcINVALID_PARAMS);
+    }
+
     // json <command> <json>
     Json::Value parseJson (Json::Value const& jvParams)
     {
@@ -655,7 +671,7 @@ private:
     {
         Json::Value     txJSON;
         Json::Reader    reader;
-        bool            bOffline    = 3 == jvParams.size () && jvParams[2u].asString () == "offline";
+        bool const      bOffline    = 3 == jvParams.size () && jvParams[2u].asString () == "offline";
 
         if (1 == jvParams.size ())
         {
@@ -676,6 +692,28 @@ private:
             jvRequest["secret"]     = jvParams[0u].asString ();
             jvRequest["tx_json"]    = txJSON;
 
+            if (bOffline)
+                jvRequest["offline"]    = true;
+
+            return jvRequest;
+        }
+
+        return rpcError (rpcINVALID_PARAMS);
+    }
+
+    // submit any multisigned transaction to the network
+    //
+    // submit_multisigned <json>
+    Json::Value parseSubmitMultiSigned (Json::Value const& jvParams)
+    {
+        Json::Value     jvRequest;
+        Json::Reader    reader;
+        bool const      bOffline    = 2 == jvParams.size () && jvParams[1u].asString () == "offline";
+
+        if ((1 == jvParams.size () || bOffline)
+            && reader.parse (jvParams[0u].asString (), jvRequest))
+        {
+            // Multisigned.
             if (bOffline)
                 jvRequest["offline"]    = true;
 
@@ -882,6 +920,9 @@ public:
             {   "feature",              &RPCParser::parseFeature,               0,  2   },
             {   "fetch_info",           &RPCParser::parseFetchInfo,             0,  1   },
             {   "get_counts",           &RPCParser::parseGetCounts,             0,  1   },
+#if RIPPLE_ENABLE_MULTI_SIGN
+            {   "get_signingaccount",   &RPCParser::parseGetSigningAccount,     1,  1   },
+#endif // RIPPLE_ENABLE_MULTI_SIGN
             {   "json",                 &RPCParser::parseJson,                  2,  2   },
             {   "ledger",               &RPCParser::parseLedger,                0,  2   },
             {   "ledger_accept",        &RPCParser::parseAsIs,                  0,  0   },
@@ -905,6 +946,9 @@ public:
             {   "sign",                 &RPCParser::parseSignSubmit,            2,  3   },
             {   "sms",                  &RPCParser::parseSMS,                   1,  1   },
             {   "submit",               &RPCParser::parseSignSubmit,            1,  3   },
+#if RIPPLE_ENABLE_MULTI_SIGN
+            {   "submit_multisigned",   &RPCParser::parseSubmitMultiSigned,     1,  1   },
+#endif // RIPPLE_ENABLE_MULTI_SIGN
             {   "server_info",          &RPCParser::parseAsIs,                  0,  0   },
             {   "server_state",         &RPCParser::parseAsIs,                  0,  0   },
             {   "stop",                 &RPCParser::parseAsIs,                  0,  0   },

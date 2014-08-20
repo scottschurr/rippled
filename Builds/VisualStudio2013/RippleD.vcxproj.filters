@@ -322,6 +322,9 @@
     <Filter Include="ripple\app\transactors">
       <UniqueIdentifier>{418BEF0D-AAAB-C368-7D9E-0A97636DE5A6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ripple\app\transactors\impl">
+      <UniqueIdentifier>{CFEA25C1-316C-B934-E027-501899E36F85}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ripple\app\tx">
       <UniqueIdentifier>{50FDCDC1-EC9C-9F3B-34C9-EF4137E132B4}</UniqueIdentifier>
     </Filter>
@@ -2994,6 +2997,12 @@
     <ClCompile Include="..\..\src\ripple\app\transactors\CreateTicket.cpp">
       <Filter>ripple\app\transactors</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\app\transactors\impl\SignerEntries.cpp">
+      <Filter>ripple\app\transactors\impl</Filter>
+    </ClCompile>
+    <ClInclude Include="..\..\src\ripple\app\transactors\impl\SignerEntries.h">
+      <Filter>ripple\app\transactors\impl</Filter>
+    </ClInclude>
     <ClCompile Include="..\..\src\ripple\app\transactors\Payment.cpp">
       <Filter>ripple\app\transactors</Filter>
     </ClCompile>
@@ -3001,6 +3010,9 @@
       <Filter>ripple\app\transactors</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\app\transactors\SetRegularKey.cpp">
+      <Filter>ripple\app\transactors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ripple\app\transactors\SetSignerList.cpp">
       <Filter>ripple\app\transactors</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\app\transactors\SetTrust.cpp">
@@ -4026,6 +4038,9 @@
     <ClCompile Include="..\..\src\ripple\rpc\handlers\GetCounts.cpp">
       <Filter>ripple\rpc\handlers</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\rpc\handlers\GetSigningAccount.cpp">
+      <Filter>ripple\rpc\handlers</Filter>
+    </ClCompile>
     <ClInclude Include="..\..\src\ripple\rpc\handlers\Handlers.h">
       <Filter>ripple\rpc\handlers</Filter>
     </ClInclude>
@@ -4105,6 +4120,9 @@
       <Filter>ripple\rpc\handlers</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\rpc\handlers\Submit.cpp">
+      <Filter>ripple\rpc\handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ripple\rpc\handlers\SubmitMultiSigned.cpp">
       <Filter>ripple\rpc\handlers</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\rpc\handlers\Subscribe.cpp">
