@@ -44,6 +44,7 @@ enum TxType
     no_longer_used      = 9,
     ttTICKET_CREATE     = 10,
     ttTICKET_CANCEL     = 11,
+    ttSIGNER_LIST_SET   = 12,
 
     ttTRUST_SET         = 20,
 

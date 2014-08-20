@@ -63,6 +63,8 @@ bool transResultInfo (TER terCode, std::string& strToken, std::string& strHuman)
         {   tefBAD_ADD_AUTH,        "tefBAD_ADD_AUTH",          "Not authorized to add account."                        },
         {   tefBAD_AUTH,            "tefBAD_AUTH",              "Transaction's public key is not authorized."           },
         {   tefBAD_LEDGER,          "tefBAD_LEDGER",            "Ledger in unexpected state."                           },
+        {   tefBAD_QUORUM,          "tefBAD_QUORUM",            "Signatures provided do not meet the quorum"            },
+        {   tefBAD_SIGNATURE,       "tefBAD_SIGNATURE",         "A signature is provided for a non-signer"              },
         {   tefCREATED,             "tefCREATED",               "Can't add an already created account."                 },
         {   tefDST_TAG_NEEDED,      "tefDST_TAG_NEEDED",        "Destination tag required."                             },
         {   tefEXCEPTION,           "tefEXCEPTION",             "Unexpected program state."                             },

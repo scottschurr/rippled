@@ -135,7 +135,7 @@ public:
         , signingField (std::move(sf.signingField))
         , rawJsonName (std::move(sf.rawJsonName))
         , jsonName (rawJsonName.c_str ())
-    {}        
+    {}
 #endif
 
 private:
@@ -303,6 +303,8 @@ extern SField const sfReserveBase;
 extern SField const sfReserveIncrement;
 extern SField const sfSetFlag;
 extern SField const sfClearFlag;
+extern SField const sfSignerWeight;
+extern SField const sfSignerQuorum;
 
 // 64-bit integers
 extern SField const sfIndexNext;

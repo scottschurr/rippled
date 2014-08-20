@@ -143,6 +143,8 @@ SField const sfReserveBase         = make::one(&sfReserveBase,         STI_UINT3
 SField const sfReserveIncrement    = make::one(&sfReserveIncrement,    STI_UINT32, 32, "ReserveIncrement");
 SField const sfSetFlag             = make::one(&sfSetFlag,             STI_UINT32, 33, "SetFlag");
 SField const sfClearFlag           = make::one(&sfClearFlag,           STI_UINT32, 34, "ClearFlag");
+SField const sfSignerWeight        = make::one(&sfSignerWeight,        STI_UINT32, 35, "SignerWeight");
+SField const sfSignerQuorum        = make::one(&sfSignerQuorum,        STI_UINT32, 36, "SignerQuorum");
 
 // 64-bit integers
 SField const sfIndexNext     = make::one(&sfIndexNext,     STI_UINT64, 1, "IndexNext");

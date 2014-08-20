@@ -81,6 +81,11 @@ TxFormats::TxFormats ()
     add ("TicketCancel", ttTICKET_CANCEL)
         << SOElement (sfTicketID,            SOE_REQUIRED)
         ;
+
+    add ("SignerListSet", ttSIGNER_LIST_SET)
+            << SOElement (sfSignerQuorum,        SOE_OPTIONAL)
+            << SOElement (sfSigningAccounts,     SOE_OPTIONAL)
+            ;
 }
 
 void TxFormats::addCommonFields (Item& item)
@@ -89,15 +94,15 @@ void TxFormats::addCommonFields (Item& item)
         << SOElement(sfTransactionType,     SOE_REQUIRED)
         << SOElement(sfFlags,               SOE_OPTIONAL)
         << SOElement(sfSourceTag,           SOE_OPTIONAL)
-        << SOElement(sfAccount,             SOE_REQUIRED) 
-        << SOElement(sfSequence,            SOE_REQUIRED) 
+        << SOElement(sfAccount,             SOE_REQUIRED)
+        << SOElement(sfSequence,            SOE_REQUIRED)
         << SOElement(sfPreviousTxnID,       SOE_OPTIONAL) // Deprecated: Do not use
         << SOElement(sfLastLedgerSequence,  SOE_OPTIONAL)
         << SOElement(sfAccountTxnID,        SOE_OPTIONAL)
-        << SOElement(sfFee,                 SOE_REQUIRED) 
-        << SOElement(sfOperationLimit,      SOE_OPTIONAL) 
+        << SOElement(sfFee,                 SOE_REQUIRED)
+        << SOElement(sfOperationLimit,      SOE_OPTIONAL)
         << SOElement(sfMemos,               SOE_OPTIONAL)
-        << SOElement(sfSigningPubKey,       SOE_REQUIRED) 
+        << SOElement(sfSigningPubKey,       SOE_REQUIRED)
         << SOElement(sfTxnSignature,        SOE_OPTIONAL)
         ;
 }

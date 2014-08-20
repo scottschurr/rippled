@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of rippled: https://github.com/ripple/rippled
-    Copyright (c) 2012, 2013 Ripple Labs Inc.
+    Copyright (c) 2014 Ripple Labs Inc.
 
     Permission to use, copy, modify, and/or distribute this software for any
     purpose  with  or without fee is hereby granted, provided that the above
@@ -17,27 +17,11 @@
 */
 //==============================================================================
 
-#include <BeastConfig.h>
+#ifndef RIPPLE_TX_SET_SIGNER_LIST_H_INCLUDED
+#define RIPPLE_TX_SET_SIGNER_LIST_H_INCLUDED
 
-#include <ripple/unity/app.h>
+namespace ripple {
 
-#include <ripple/app/book/impl/BookTip.cpp>
-#include <ripple/app/book/impl/OfferStream.cpp>
-#include <ripple/app/book/impl/Quality.cpp>
-#include <ripple/app/book/impl/Taker.cpp>
+}
 
-#include <ripple/app/transactors/Transactor.cpp>
-
-#include <ripple/app/transactors/Change.cpp>
-#include <ripple/app/transactors/CancelOffer.cpp>
-#include <ripple/app/transactors/Payment.cpp>
-#include <ripple/app/transactors/SetRegularKey.cpp>
-#include <ripple/app/transactors/SetAccount.cpp>
-#include <ripple/app/transactors/AddWallet.cpp>
-#include <ripple/app/transactors/SetTrust.cpp>
-#include <ripple/app/transactors/CreateOffer.cpp>
-#include <ripple/app/transactors/CreateOfferDirect.cpp>
-#include <ripple/app/transactors/CreateOfferBridged.cpp>
-#include <ripple/app/transactors/CreateTicket.cpp>
-#include <ripple/app/transactors/CancelTicket.cpp>
-#include <ripple/app/transactors/SetSignerList.cpp>
+#endif // RIPPLE_TX_SET_SIGNER_LIST_H_INCLUDED
