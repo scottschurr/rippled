@@ -421,6 +421,12 @@ public:
         Account const& account, std::uint32_t uSequence);
 
     //
+    // SignerList
+    //
+
+    static uint256 getSignerListIndex (Account const& account);
+
+    //
     // Ripple functions : credit lines
     //
     //

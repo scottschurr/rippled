@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of rippled: https://github.com/ripple/rippled
-    Copyright (c) 2012-2014 Ripple Labs Inc.
+    Copyright (c) 2014 Ripple Labs Inc.
 
     Permission to use, copy, modify, and/or distribute this software for any
     purpose  with  or without fee is hereby granted, provided that the above
@@ -17,31 +17,11 @@
 */
 //==============================================================================
 
-#ifndef RIPPLE_RPC_TRANSACTIONSIGN_H_INCLUDED
-#define RIPPLE_RPC_TRANSACTIONSIGN_H_INCLUDED
+#ifndef RIPPLE_TX_SET_SIGNER_LIST_H_INCLUDED
+#define RIPPLE_TX_SET_SIGNER_LIST_H_INCLUDED
 
 namespace ripple {
-namespace RPC {
 
-Json::Value transactionSign (
-    Json::Value jvRequest,
-    NetworkOPs::FailHard failType,
-    NetworkOPs& netOps,
-    int role);
+}
 
-Json::Value transactionSubmit (
-    Json::Value jvRequest,
-    NetworkOPs::FailHard failType,
-    NetworkOPs& netOps,
-    int role);
-
-Json::Value transactionGetMultiSignature (
-    Json::Value jvRequest,
-    NetworkOPs::FailHard failType,
-    NetworkOPs& netOps,
-    int role);
-
-} // RPC
-} // ripple
-
-#endif
+#endif // RIPPLE_TX_SET_SIGNER_LIST_H_INCLUDED
