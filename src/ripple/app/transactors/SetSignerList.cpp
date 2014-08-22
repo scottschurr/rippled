@@ -38,7 +38,48 @@ public:
 
     }
 
-    TER doApply ();
+    TER doApply () override;
+
+private:
+    // Handlers for supported requests
+    TER createSignerList ();
+    TER destroySignerList ();
+    TER addSigners ();
+    TER removeSigners ();
+    TER changeSignerWeights ();
+    TER changeQuorumWeight ();
+
+    // Deserialize SignerEntry
+    struct SignerEntry
+    {
+        Account account;
+        std::uint16_t weight;
+
+        // For sorting to look for duplicate accounts
+        friend bool operator< (SignerEntry const& lhs, SignerEntry const& rhs)
+        {
+            return lhs.account < rhs.account;
+        }
+
+        friend bool operator== (SignerEntry const& lhs, SignerEntry const& rhs)
+        {
+            return lhs.account == rhs.account;
+        }
+    };
+
+    typedef std::vector <SignerEntry> SignerEntryArray;
+
+    struct SignerEntryArrayDecode
+    {
+        SignerEntryArray vec;
+        TER ter = temMALFORMED;
+    };
+    SignerEntryArrayDecode deserializeSignerEntryArray ();
+
+    TER validateQuorumAndSignerEntries (
+        std::uint32_t quorum, SignerEntryArray& signers);
+
+    static std::size_t const maxSigners = 32;
 };
 
 TER SetSignerList::doApply ()
