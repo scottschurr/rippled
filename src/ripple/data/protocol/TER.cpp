@@ -75,6 +75,7 @@ bool transResultInfo (TER terCode, std::string& strToken, std::string& strHuman)
         {   tefMAX_LEDGER,          "tefMAX_LEDGER",            "Ledger sequence too high."                             },
         {   tefNO_AUTH_REQUIRED,    "tefNO_AUTH_REQUIRED",      "Auth is not required."                                 },
         {   tefPAST_SEQ,            "tefPAST_SEQ",              "This sequence number has already past."                },
+        {   tefPRIOR_SIGNER_LIST,   "tefPRIOR_SIGNER_LIST",     "A signer list already exists for this account."        },
         {   tefWRONG_PRIOR,         "tefWRONG_PRIOR",           "This previous transaction does not match."             },
 
         {   telLOCAL_ERROR,         "telLOCAL_ERROR",           "Local failure."                                        },

@@ -115,6 +115,7 @@ enum TER    // aka TransactionEngineResult
     tefBAD_SIGNATURE,
     tefBAD_QUORUM,
     tefBAD_SIGNER_COUNT,
+    tefPRIOR_SIGNER_LIST,
 
     // -99 .. -1: R Retry
     //   sequence too high, no funds for txn fee, originating -account

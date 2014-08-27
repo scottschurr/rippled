@@ -110,8 +110,9 @@ LedgerFormats::LedgerFormats ()
             ;
 
     add ("SignerList", ltSIGNER_LIST)
+            << SOElement (sfOwnerNode,           SOE_REQUIRED)
             << SOElement (sfSignerQuorum,        SOE_REQUIRED)
-            << SOElement (sfSigningAccounts,     SOE_REQUIRED)
+            << SOElement (sfSignerEntryArray,    SOE_REQUIRED)
             ;
 }
 

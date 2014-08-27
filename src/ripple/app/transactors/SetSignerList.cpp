@@ -42,12 +42,12 @@ public:
 
 private:
     // Handlers for supported requests
-    TER createSignerList ();
-    TER destroySignerList ();
-    TER addSigners ();
-    TER removeSigners ();
-    TER changeSignerWeights ();
-    TER changeQuorumWeight ();
+    TER createSignerList (uint256 const& index);
+    TER destroySignerList (uint256 const& index);
+    TER addSigners (uint256 const& index);
+    TER removeSigners (uint256 const& index);
+    TER changeSignerWeights (uint256 const& index);
+    TER changeQuorumWeight (uint256 const& index);
 
     // Deserialize SignerEntry
     struct SignerEntry
@@ -77,7 +77,9 @@ private:
     SignerEntryArrayDecode deserializeSignerEntryArray ();
 
     TER validateQuorumAndSignerEntries (
-        std::uint32_t quorum, SignerEntryArray& signers);
+        std::uint32_t quorum, SignerEntryArray& signers) const;
+
+    void signersToLedger (SLE::pointer ledgerEntry, SignerEntryArray signers);
 
     static std::size_t const maxSigners = 32;
 };
