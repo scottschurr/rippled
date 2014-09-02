@@ -91,7 +91,7 @@ LedgerFormats::LedgerFormats ()
             ;
 
     add ("EnabledAmendments", ltAMENDMENTS)
-            << SOElement (sfAmendments, SOE_REQUIRED)
+            << SOElement (sfAmendments,          SOE_REQUIRED)
             ;
 
     add ("FeeSettings", ltFEE_SETTINGS)

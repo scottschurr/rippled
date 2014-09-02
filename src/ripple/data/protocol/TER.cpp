@@ -65,7 +65,6 @@ bool transResultInfo (TER terCode, std::string& strToken, std::string& strHuman)
         {   tefBAD_LEDGER,          "tefBAD_LEDGER",            "Ledger in unexpected state."                           },
         {   tefBAD_QUORUM,          "tefBAD_QUORUM",            "Signatures provided do not meet the quorum."           },
         {   tefBAD_SIGNATURE,       "tefBAD_SIGNATURE",         "A signature is provided for a non-signer."             },
-        {   tefBAD_SIGNER_COUNT,    "tefBAD_SIGNER_COUNT",      "Too many or too few signers in signer list."           },
         {   tefCREATED,             "tefCREATED",               "Can't add an already created account."                 },
         {   tefDST_TAG_NEEDED,      "tefDST_TAG_NEEDED",        "Destination tag required."                             },
         {   tefEXCEPTION,           "tefEXCEPTION",             "Unexpected program state."                             },
@@ -75,7 +74,6 @@ bool transResultInfo (TER terCode, std::string& strToken, std::string& strHuman)
         {   tefMAX_LEDGER,          "tefMAX_LEDGER",            "Ledger sequence too high."                             },
         {   tefNO_AUTH_REQUIRED,    "tefNO_AUTH_REQUIRED",      "Auth is not required."                                 },
         {   tefPAST_SEQ,            "tefPAST_SEQ",              "This sequence number has already past."                },
-        {   tefPRIOR_SIGNER_LIST,   "tefPRIOR_SIGNER_LIST",     "A signer list already exists for this account."        },
         {   tefWRONG_PRIOR,         "tefWRONG_PRIOR",           "This previous transaction does not match."             },
 
         {   telLOCAL_ERROR,         "telLOCAL_ERROR",           "Local failure."                                        },

@@ -18,6 +18,8 @@
 //==============================================================================
 
 #include "SetSignerList.h"
+#include <cstdint>
+#include <algorithm>
 
 namespace ripple {
 
@@ -38,16 +40,57 @@ public:
 
     }
 
+    /**
+    Applies the transaction if it is well formed and the ledger state permits.
+    <p>
+    This transactor allows two operations:
+    <ul>
+    <li> Create (or replace) a signer list for the target account.
+    <li> Remove any signer list from the target account.
+    </ul>
+    The data for a transaction creating or replacing a signer list has this
+    general form:
+    <pre>
+    <code>
+{
+    "TransactionType": "SignerListSet",
+    "Account": "rDg53Haik2475DJx8bjMDSDPj4VX7htaMd",
+    "SignerQuorum": 7,
+    "SignerEntryArray": [
+        {
+            "SignerEntry": {
+                "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
+                "SignerWeight": 4
+            }
+        },
+        {
+            "SignerEntry": {
+                "Account": "rPcNzota6B8YBokhYtcTNqQVCngtbnWfux",
+                "SignerWeight": 3
+            }
+        }
+    ]
+}
+    <\code>
+    </pre>
+    <p>
+    The data for a transaction that removes any signer list has this form:
+    <pre>
+    <code>
+{
+    "TransactionType": "SignerListSet",
+    "Account": "rDg53Haik2475DJx8bjMDSDPj4VX7htaMd",
+    "SignerQuorum": 0
+}
+    <\code>
+    <\pre>
+    */
     TER doApply () override;
 
 private:
     // Handlers for supported requests
-    TER createSignerList (uint256 const& index);
+    TER replaceSignerList (std::uint32_t quorum, uint256 const& index);
     TER destroySignerList (uint256 const& index);
-    TER addSigners (uint256 const& index);
-    TER removeSigners (uint256 const& index);
-    TER changeSignerWeights (uint256 const& index);
-    TER changeQuorumWeight (uint256 const& index);
 
     // Deserialize SignerEntry
     struct SignerEntry
@@ -74,13 +117,17 @@ private:
         SignerEntryArray vec;
         TER ter = temMALFORMED;
     };
-    SignerEntryArrayDecode deserializeSignerEntryArray ();
+    SignerEntryArrayDecode txDeserializeSignerEntryArray ();
 
     TER validateQuorumAndSignerEntries (
         std::uint32_t quorum, SignerEntryArray& signers) const;
 
-    void signersToLedger (SLE::pointer ledgerEntry, SignerEntryArray signers);
+    void signersToLedger (
+        SLE::pointer ledgerEntry,
+        std::uint32_t quorum,
+        SignerEntryArray const& signers);
 
+    static std::size_t const minSigners = 2;
     static std::size_t const maxSigners = 32;
 };
 
@@ -88,8 +135,290 @@ TER SetSignerList::doApply ()
 {
     assert (mTxnAccount);
 
-    // No implementation yet.  TBD...
-    return tesSUCCESS;    // Don't return tefFAILURE, it can wedge the account
+    // All operations require our ledger index.  Compute that once and pass it
+    // to our handlers.
+    uint256 const index = Ledger::getSignerListIndex (mTxnAccountID);
+
+    // Check the quorum.  A non-zero quorum means we're creating or replacing
+    // the list.  A zero quorum means we're destroying the list.
+    std::uint32_t const quorum (mTxn.getFieldU32 (sfSignerQuorum));
+
+    bool const hasSignerEntryArray (mTxn.isFieldPresent (sfSignerEntryArray));
+    if (quorum && hasSignerEntryArray)
+    {
+        return replaceSignerList (quorum, index);
+    }
+    else if ((quorum == 0) && !hasSignerEntryArray)
+    {
+        return destroySignerList (index);
+    }
+
+    if (m_journal.trace) m_journal.trace <<
+        "Malformed transaction: Invalid signer set list format.";
+    return temMALFORMED;
+}
+
+
+TER
+SetSignerList::replaceSignerList (std::uint32_t quorum, uint256 const& index)
+{
+    if (!mTxn.isFieldPresent (sfSignerEntryArray))
+    {
+        if (m_journal.trace) m_journal.trace <<
+            "Malformed transaction: Need signer array.";
+        return temMALFORMED;
+    }
+
+    SignerEntryArrayDecode signers (txDeserializeSignerEntryArray ());
+    if (signers.ter != tesSUCCESS)
+        return signers.ter;
+
+    // Validate our settings.
+    {
+        TER const ter = validateQuorumAndSignerEntries (quorum, signers.vec);
+        if (ter != tesSUCCESS)
+            return ter;
+    }
+
+    // This may be either a create of a replace.  Preemptively destroy any
+    // old signer list.
+    {
+        TER const ter = destroySignerList (index);
+        if (ter != tesSUCCESS)
+            return ter;
+    }
+
+    // Everything's ducky.  Add the ltSIGNER_LIST to the ledger.
+    SLE::pointer sleSignerList (mEngine->entryCreate (ltSIGNER_LIST, index));
+    signersToLedger (sleSignerList, quorum, signers.vec);
+
+    // Add the signer list to the account's directory.
+    std::uint64_t hint;
+
+    TER result = mEngine->view ().dirAdd (hint,
+        Ledger::getOwnerDirIndex (mTxnAccountID), index,
+        std::bind (&Ledger::ownerDirDescriber,
+           std::placeholders::_1, std::placeholders::_2,
+           mTxnAccountID));
+
+    if (m_journal.trace) m_journal.trace <<
+        "Creating signer list for account " <<
+        mTxnAccountID << ": " << transHuman (result);
+
+    if (result != tesSUCCESS)
+        return result;
+
+    sleSignerList->setFieldU64 (sfOwnerNode, hint);
+
+    // If we succeeded, the new entry counts against the creator's reserve.
+    mEngine->view ().incrementOwnerCount (mTxnAccount);
+
+    return result;
+}
+
+TER SetSignerList::destroySignerList (uint256 const& index)
+{
+    // See if there's an ltSIGNER_LIST for this account.
+    SLE::pointer sleSignerList =
+        mEngine->view ().entryCache (ltSIGNER_LIST, index);
+
+    // If the signer list doesn't exist we've already succeeded in deleting it.
+    if (!sleSignerList)
+        return tesSUCCESS;
+
+    // Remove the node from the account directory.
+    std::uint64_t const hint (sleSignerList->getFieldU64 (sfOwnerNode));
+
+    TER const result  = mEngine->view ().dirDelete (false, hint,
+        Ledger::getOwnerDirIndex (mTxnAccountID), index, false, (hint == 0));
+
+    if (result == tesSUCCESS)
+        mEngine->view ().decrementOwnerCount (mTxnAccount);
+
+    mEngine->view ().entryDelete (sleSignerList);
+
+    return result;
+}
+
+SetSignerList::SignerEntryArrayDecode
+SetSignerList::txDeserializeSignerEntryArray ()
+{
+    SignerEntryArrayDecode s;
+    auto& accountVec (s.vec);
+    accountVec.reserve (maxSigners);
+
+    if (!mTxn.isFieldPresent (sfSignerEntryArray))
+    {
+        if (m_journal.trace) m_journal.trace <<
+            "Malformed transaction: Need signer entry array.";
+        s.ter = temMALFORMED;
+        return s;
+    }
+
+    STArray const& sEntries (mTxn.getFieldArray (sfSignerEntryArray));
+    for (STObject const& sEntry : sEntries)
+    {
+        // Validate the SignerEntry.
+        // SSCHURR NOTE it would be good to do the validation with
+        // STObject::setType().  But setType is a non-const method and we have
+        // a const object in our hands.  So we do the validation manually.
+         auto const signerPtr = dynamic_cast <STObject const*> (&sEntry);
+        if (!signerPtr || (signerPtr->getFName () != sfSignerEntry))
+        {
+            m_journal.trace << "Malformed transaction: Expected signer entry.";
+            s.ter = temMALFORMED;
+            return s;
+        }
+
+        // Extract SignerEntry fields.
+        bool gotAccount (false);
+        Account account;
+        bool gotWeight (false);
+        std::uint16_t weight (0);
+        for (SerializedType const& sType : *signerPtr)
+        {
+            SField::ref const type = sType.getFName ();
+            if (type == sfAccount)
+            {
+                auto const accountPtr =
+                    dynamic_cast <STAccount const*> (&sType);
+                if (!accountPtr)
+                {
+                    if (m_journal.trace) m_journal.trace <<
+                        "Malformed transaction: Expected account.";
+                    s.ter = temMALFORMED;
+                    return s;
+                }
+                bool const success = accountPtr->getValueH160 (account);
+                if (!success)
+                {
+                    if (m_journal.trace) m_journal.trace <<
+                        "Malformed transaction: Expected 160 bit account ID.";
+                    s.ter = temMALFORMED;
+                    return s;
+                }
+                gotAccount = true;
+            }
+            else if (type == sfSignerWeight)
+            {
+                auto const weightPtr = dynamic_cast <STUInt16 const*> (&sType);
+                if (!weightPtr)
+                {
+                    if (m_journal.trace) m_journal.trace <<
+                        "Malformed transaction: Expected weight.";
+                    s.ter = temMALFORMED;
+                    return s;
+                }
+                weight = weightPtr->getValue ();
+                gotWeight = true;
+            }
+            else
+            {
+                if (m_journal.trace) m_journal.trace <<
+                    "Malformed transaction: Unexpected field in signer entry.";
+                s.ter = temMALFORMED;
+                return s;
+            }
+        }
+        if (gotAccount && gotWeight)
+        {
+            // We have deserialized the pair.  Put them in the vector.
+            accountVec.push_back ( {account, weight} );
+        }
+        else
+        {
+            if (m_journal.trace) m_journal.trace <<
+                "Malformed transaction: Missing field in signer entry.";
+            s.ter = temMALFORMED;
+            return s;
+        }
+    }
+
+    s.ter = tesSUCCESS;
+    return s;
+}
+
+TER SetSignerList::validateQuorumAndSignerEntries (
+    std::uint32_t quorum, SignerEntryArray& signers) const
+{
+    // Reject if there are too many or too few signers.
+    {
+        std::size_t const signerCount = signers.size ();
+        if ((signerCount < minSigners) || (signerCount > maxSigners))
+        {
+            if (m_journal.trace) m_journal.trace <<
+                "Too many or too few signers in signer list.";
+            return temMALFORMED;
+        }
+    }
+
+    // Make sure there are no duplicate signers.
+    std::sort (signers.begin (), signers.end ());
+    if (std::adjacent_find (
+        signers.begin (), signers.end ()) != signers.end ())
+    {
+        if (m_journal.trace) m_journal.trace <<
+            "Duplicate signers in signer list";
+        return temBAD_SIGNER;
+    }
+
+    // Make sure no signers reference this account.  Also make sure the
+    // the quorum can be reached.
+    std::uint64_t allSignersWeight (0);
+    for (auto const& signer : signers)
+    {
+        allSignersWeight += signer.weight;
+
+        if (signer.account == mTxnAccountID)
+        {
+            if (m_journal.trace) m_journal.trace <<
+                "A signer may not self reference account.";
+            return temBAD_SIGNER;
+        }
+
+        // Don't verify that the signer accounts exist.  Verifying them is
+        // expensive and they may not exist yet due to network phenomena.
+    }
+    if ((quorum <= 0) || (allSignersWeight < quorum))
+    {
+        if (m_journal.trace) m_journal.trace <<
+            "Quorum is unreachable";
+        return temBAD_QUORUM;
+    }
+    return tesSUCCESS;
+}
+
+void SetSignerList::signersToLedger (
+    SLE::pointer ledgerEntry,
+    std::uint32_t quorum,
+    SignerEntryArray const& signers)
+{
+    // Assign the quorum.
+    ledgerEntry->setFieldU32 (sfSignerQuorum, quorum);
+
+    // Create the SignerListArray one STObject at a time.
+    STArray::vector list (signers.size ());
+    for (auto const& entry : signers)
+    {
+        boost::ptr_vector <SerializedType> data;
+        data.reserve (2);
+
+        auto account = std::make_unique <STAccount> (sfAccount);
+        account->setValueH160 (entry.account);
+        data.push_back (account.release ());
+
+        auto weight (
+            std::make_unique <STUInt16> (sfSignerWeight, entry.weight));
+        data.push_back (weight.release ());
+
+        auto signerEntry (std::make_unique <STObject> (sfSignerEntry, data));
+
+        list.push_back (signerEntry.release ());
+    }
+
+    // Assign the SignerEntryArray.
+    STArray toLedger(sfSignerEntryArray, list);
+    ledgerEntry->setFieldArray (sfSignerEntryArray, toLedger);
 }
 
 TER
@@ -100,16 +429,5 @@ transact_SetSignerList (
 {
     return SetSignerList (txn, params, engine).apply ();
 }
-
-
-// inline
-// std::unique_ptr <Transactor>
-// make_SetSignerList (
-//     SerializedTransaction const& txn,
-//     TransactionEngineParams params,
-//     TransactionEngine* engine)
-// {
-//     return std::make_unique <SetSignerList> (txn, params, engine);
-// }
 
 } // namespace ripple
