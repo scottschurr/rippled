@@ -117,7 +117,13 @@ private:
         SignerEntryArray vec;
         TER ter = temMALFORMED;
     };
-    SignerEntryArrayDecode txDeserializeSignerEntryArray ();
+
+    // The deserializeSignerEntryArray() static function deserializes a signer
+    // entry array that comes from either the network or the ledger.  The
+    // deserialization code will probably move elsewhere in the long term so
+    // it can be used from several places.
+    static SignerEntryArrayDecode deserializeSignerEntryArray (
+        STObject const& obj, beast::Journal& journal, char const* annotation);
 
     TER validateQuorumAndSignerEntries (
         std::uint32_t quorum, SignerEntryArray& signers) const;
@@ -165,11 +171,13 @@ SetSignerList::replaceSignerList (std::uint32_t quorum, uint256 const& index)
     if (!mTxn.isFieldPresent (sfSignerEntryArray))
     {
         if (m_journal.trace) m_journal.trace <<
-            "Malformed transaction: Need signer array.";
+            "Malformed transaction: Need signer entry array.";
         return temMALFORMED;
     }
 
-    SignerEntryArrayDecode signers (txDeserializeSignerEntryArray ());
+    SignerEntryArrayDecode signers (
+        deserializeSignerEntryArray (mTxn, m_journal, "transaction"));
+
     if (signers.ter != tesSUCCESS)
         return signers.ter;
 
@@ -241,31 +249,32 @@ TER SetSignerList::destroySignerList (uint256 const& index)
 }
 
 SetSignerList::SignerEntryArrayDecode
-SetSignerList::txDeserializeSignerEntryArray ()
+SetSignerList::deserializeSignerEntryArray (
+    STObject const& obj, beast::Journal& journal, char const* annotation)
 {
     SignerEntryArrayDecode s;
     auto& accountVec (s.vec);
     accountVec.reserve (maxSigners);
 
-    if (!mTxn.isFieldPresent (sfSignerEntryArray))
+    if (!obj.isFieldPresent (sfSignerEntryArray))
     {
-        if (m_journal.trace) m_journal.trace <<
-            "Malformed transaction: Need signer entry array.";
+        if (journal.trace) journal.trace <<
+            "Malformed " << annotation << ": Need signer entry array.";
         s.ter = temMALFORMED;
         return s;
     }
 
-    STArray const& sEntries (mTxn.getFieldArray (sfSignerEntryArray));
+    STArray const& sEntries (obj.getFieldArray (sfSignerEntryArray));
     for (STObject const& sEntry : sEntries)
     {
         // Validate the SignerEntry.
         // SSCHURR NOTE it would be good to do the validation with
         // STObject::setType().  But setType is a non-const method and we have
         // a const object in our hands.  So we do the validation manually.
-         auto const signerPtr = dynamic_cast <STObject const*> (&sEntry);
-        if (!signerPtr || (signerPtr->getFName () != sfSignerEntry))
+        if (sEntry.getFName () != sfSignerEntry)
         {
-            m_journal.trace << "Malformed transaction: Expected signer entry.";
+            journal.trace <<
+                "Malformed " << annotation << ": Expected signer entry.";
             s.ter = temMALFORMED;
             return s;
         }
@@ -275,7 +284,7 @@ SetSignerList::txDeserializeSignerEntryArray ()
         Account account;
         bool gotWeight (false);
         std::uint16_t weight (0);
-        for (SerializedType const& sType : *signerPtr)
+        for (SerializedType const& sType : sEntry)
         {
             SField::ref const type = sType.getFName ();
             if (type == sfAccount)
@@ -284,16 +293,17 @@ SetSignerList::txDeserializeSignerEntryArray ()
                     dynamic_cast <STAccount const*> (&sType);
                 if (!accountPtr)
                 {
-                    if (m_journal.trace) m_journal.trace <<
-                        "Malformed transaction: Expected account.";
+                    if (journal.trace) journal.trace <<
+                        "Malformed " << annotation << ": Expected account.";
                     s.ter = temMALFORMED;
                     return s;
                 }
                 bool const success = accountPtr->getValueH160 (account);
                 if (!success)
                 {
-                    if (m_journal.trace) m_journal.trace <<
-                        "Malformed transaction: Expected 160 bit account ID.";
+                    if (journal.trace) journal.trace <<
+                        "Malformed " << annotation <<
+                        ": Expected 160 bit account ID.";
                     s.ter = temMALFORMED;
                     return s;
                 }
@@ -304,8 +314,8 @@ SetSignerList::txDeserializeSignerEntryArray ()
                 auto const weightPtr = dynamic_cast <STUInt16 const*> (&sType);
                 if (!weightPtr)
                 {
-                    if (m_journal.trace) m_journal.trace <<
-                        "Malformed transaction: Expected weight.";
+                    if (journal.trace) journal.trace <<
+                        "Malformed " << annotation << ": Expected weight.";
                     s.ter = temMALFORMED;
                     return s;
                 }
@@ -314,8 +324,9 @@ SetSignerList::txDeserializeSignerEntryArray ()
             }
             else
             {
-                if (m_journal.trace) m_journal.trace <<
-                    "Malformed transaction: Unexpected field in signer entry.";
+                if (journal.trace) journal.trace <<
+                    "Malformed " << annotation <<
+                    ": Unexpected field in signer entry.";
                 s.ter = temMALFORMED;
                 return s;
             }
@@ -327,8 +338,9 @@ SetSignerList::txDeserializeSignerEntryArray ()
         }
         else
         {
-            if (m_journal.trace) m_journal.trace <<
-                "Malformed transaction: Missing field in signer entry.";
+            if (journal.trace) journal.trace <<
+                "Malformed " << annotation <<
+                ": Missing field in signer entry.";
             s.ter = temMALFORMED;
             return s;
         }
