@@ -414,7 +414,7 @@ extern SField const sfNecessary;
 extern SField const sfSufficient;
 extern SField const sfAffectedNodes;
 extern SField const sfMemos;
-extern SField const sfSignerEntryArray;
+extern SField const sfSignerEntries;
 
 } // ripple
 

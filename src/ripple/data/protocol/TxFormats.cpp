@@ -84,7 +84,7 @@ TxFormats::TxFormats ()
 
     add ("SignerListSet", ttSIGNER_LIST_SET)
             << SOElement (sfSignerQuorum,     SOE_OPTIONAL)
-            << SOElement (sfSignerEntryArray, SOE_OPTIONAL)
+            << SOElement (sfSignerEntries,    SOE_OPTIONAL)
             ;
 }
 

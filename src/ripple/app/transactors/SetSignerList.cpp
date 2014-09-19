@@ -56,7 +56,7 @@ public:
     "TransactionType": "SignerListSet",
     "Account": "rDg53Haik2475DJx8bjMDSDPj4VX7htaMd",
     "SignerQuorum": 7,
-    "SignerEntryArray": [
+    "SignerEntries": [
         {
             "SignerEntry": {
                 "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
@@ -110,28 +110,28 @@ private:
         }
     };
 
-    typedef std::vector <SignerEntry> SignerEntryArray;
+    typedef std::vector <SignerEntry> SignerEntries;
 
-    struct SignerEntryArrayDecode
+    struct SignerEntriesDecode
     {
-        SignerEntryArray vec;
+        SignerEntries vec;
         TER ter = temMALFORMED;
     };
 
-    // The deserializeSignerEntryArray() static function deserializes a signer
+    // The deserializeSignerEntries() static function deserializes a signer
     // entry array that comes from either the network or the ledger.  The
     // deserialization code will probably move elsewhere in the long term so
     // it can be used from several places.
-    static SignerEntryArrayDecode deserializeSignerEntryArray (
+    static SignerEntriesDecode deserializeSignerEntries (
         STObject const& obj, beast::Journal& journal, char const* annotation);
 
     TER validateQuorumAndSignerEntries (
-        std::uint32_t quorum, SignerEntryArray& signers) const;
+        std::uint32_t quorum, SignerEntries& signers) const;
 
     void signersToLedger (
         SLE::pointer ledgerEntry,
         std::uint32_t quorum,
-        SignerEntryArray const& signers);
+        SignerEntries const& signers);
 
     static std::size_t const minSigners = 2;
     static std::size_t const maxSigners = 32;
@@ -149,12 +149,12 @@ TER SetSignerList::doApply ()
     // the list.  A zero quorum means we're destroying the list.
     std::uint32_t const quorum (mTxn.getFieldU32 (sfSignerQuorum));
 
-    bool const hasSignerEntryArray (mTxn.isFieldPresent (sfSignerEntryArray));
-    if (quorum && hasSignerEntryArray)
+    bool const hasSignerEntries (mTxn.isFieldPresent (sfSignerEntries));
+    if (quorum && hasSignerEntries)
     {
         return replaceSignerList (quorum, index);
     }
-    else if ((quorum == 0) && !hasSignerEntryArray)
+    else if ((quorum == 0) && !hasSignerEntries)
     {
         return destroySignerList (index);
     }
@@ -168,15 +168,15 @@ TER SetSignerList::doApply ()
 TER
 SetSignerList::replaceSignerList (std::uint32_t quorum, uint256 const& index)
 {
-    if (!mTxn.isFieldPresent (sfSignerEntryArray))
+    if (!mTxn.isFieldPresent (sfSignerEntries))
     {
         if (m_journal.trace) m_journal.trace <<
             "Malformed transaction: Need signer entry array.";
         return temMALFORMED;
     }
 
-    SignerEntryArrayDecode signers (
-        deserializeSignerEntryArray (mTxn, m_journal, "transaction"));
+    SignerEntriesDecode signers (
+        deserializeSignerEntries (mTxn, m_journal, "transaction"));
 
     if (signers.ter != tesSUCCESS)
         return signers.ter;
@@ -248,15 +248,15 @@ TER SetSignerList::destroySignerList (uint256 const& index)
     return result;
 }
 
-SetSignerList::SignerEntryArrayDecode
-SetSignerList::deserializeSignerEntryArray (
+SetSignerList::SignerEntriesDecode
+SetSignerList::deserializeSignerEntries (
     STObject const& obj, beast::Journal& journal, char const* annotation)
 {
-    SignerEntryArrayDecode s;
+    SignerEntriesDecode s;
     auto& accountVec (s.vec);
     accountVec.reserve (maxSigners);
 
-    if (!obj.isFieldPresent (sfSignerEntryArray))
+    if (!obj.isFieldPresent (sfSignerEntries))
     {
         if (journal.trace) journal.trace <<
             "Malformed " << annotation << ": Need signer entry array.";
@@ -264,7 +264,7 @@ SetSignerList::deserializeSignerEntryArray (
         return s;
     }
 
-    STArray const& sEntries (obj.getFieldArray (sfSignerEntryArray));
+    STArray const& sEntries (obj.getFieldArray (sfSignerEntries));
     for (STObject const& sEntry : sEntries)
     {
         // Validate the SignerEntry.
@@ -351,7 +351,7 @@ SetSignerList::deserializeSignerEntryArray (
 }
 
 TER SetSignerList::validateQuorumAndSignerEntries (
-    std::uint32_t quorum, SignerEntryArray& signers) const
+    std::uint32_t quorum, SignerEntries& signers) const
 {
     // Reject if there are too many or too few signers.
     {
@@ -403,7 +403,7 @@ TER SetSignerList::validateQuorumAndSignerEntries (
 void SetSignerList::signersToLedger (
     SLE::pointer ledgerEntry,
     std::uint32_t quorum,
-    SignerEntryArray const& signers)
+    SignerEntries const& signers)
 {
     // Assign the quorum.
     ledgerEntry->setFieldU32 (sfSignerQuorum, quorum);
@@ -428,9 +428,9 @@ void SetSignerList::signersToLedger (
         list.push_back (signerEntry.release ());
     }
 
-    // Assign the SignerEntryArray.
-    STArray toLedger(sfSignerEntryArray, list);
-    ledgerEntry->setFieldArray (sfSignerEntryArray, toLedger);
+    // Assign the SignerEntries.
+    STArray toLedger(sfSignerEntries, list);
+    ledgerEntry->setFieldArray (sfSignerEntries, toLedger);
 }
 
 TER

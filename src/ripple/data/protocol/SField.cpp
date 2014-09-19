@@ -254,7 +254,7 @@ SField const sfNecessary        = make::one(&sfNecessary,        STI_ARRAY,  6, 
 SField const sfSufficient       = make::one(&sfSufficient,       STI_ARRAY,  7, "Sufficient");
 SField const sfAffectedNodes    = make::one(&sfAffectedNodes,    STI_ARRAY,  8, "AffectedNodes");
 SField const sfMemos            = make::one(&sfMemos,            STI_ARRAY,  9, "Memos");
-SField const sfSignerEntryArray = make::one(&sfSignerEntryArray, STI_ARRAY, 10, "SignerEntryArray");
+SField const sfSignerEntries    = make::one(&sfSignerEntries,    STI_ARRAY, 10, "SignerEntries");
 
 SField::SField (SerializedTypeID tid, int fv, const char* fn,
                 int meta, bool signing)
