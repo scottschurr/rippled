@@ -374,6 +374,7 @@ extern SField const sfCreateCode;
 extern SField const sfMemoType;
 extern SField const sfMemoData;
 extern SField const sfMemoFormat;
+extern SField const sfMultiSignature;
 
 // account
 extern SField const sfAccount;

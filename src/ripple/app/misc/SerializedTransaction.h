@@ -125,6 +125,7 @@ public:
     {
         mSigBad = true;
     }
+    void multiSign (const RippleAddress & naAccountPrivate);
 
     // SQL Functions
     static std::string getSQLValueHeader ();

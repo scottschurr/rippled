@@ -51,6 +51,7 @@
 #include <ripple/rpc/handlers/Feature.cpp>
 #include <ripple/rpc/handlers/FetchInfo.cpp>
 #include <ripple/rpc/handlers/GetCounts.cpp>
+#include <ripple/rpc/handlers/GetMultiSignature.cpp>
 #include <ripple/rpc/handlers/Internal.cpp>
 #include <ripple/rpc/handlers/Ledger.cpp>
 #include <ripple/rpc/handlers/LedgerAccept.cpp>

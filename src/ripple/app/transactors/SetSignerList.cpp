@@ -118,10 +118,10 @@ private:
         TER ter = temMALFORMED;
     };
 
-    // The deserializeSignerEntries() static function deserializes a signer
-    // entry array that comes from either the network or the ledger.  The
-    // deserialization code will probably move elsewhere in the long term so
-    // it can be used from several places.
+    // The deserializeSignerEntries() static function deserializes a
+    // SignerEntries array that comes from either the network or the ledger.
+    // The deserialization code will probably move elsewhere in the long term
+    // so it can be used from several places.
     static SignerEntriesDecode deserializeSignerEntries (
         STObject const& obj, beast::Journal& journal, char const* annotation);
 
@@ -136,6 +136,8 @@ private:
     static std::size_t const minSigners = 2;
     static std::size_t const maxSigners = 32;
 };
+
+//------------------------------------------------------------------------------
 
 TER SetSignerList::doApply ()
 {
@@ -163,7 +165,6 @@ TER SetSignerList::doApply ()
         "Malformed transaction: Invalid signer set list format.";
     return temMALFORMED;
 }
-
 
 TER
 SetSignerList::replaceSignerList (std::uint32_t quorum, uint256 const& index)

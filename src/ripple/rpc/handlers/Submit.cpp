@@ -20,6 +20,16 @@
 #include <ripple/basics/StringUtilities.h>
 
 namespace ripple {
+namespace DoSubmitDetail {
+
+    static NetworkOPs::FailHard getFailHard (RPC::Context const& context)
+    {
+        return NetworkOPs::doFailHard (
+            context.params_.isMember ("fail_hard")
+            && context.params_["fail_hard"].asBool ());
+    }
+}
+
 
 // {
 //   tx_json: <object>,
@@ -31,10 +41,10 @@ Json::Value doSubmit (RPC::Context& context)
 
     if (!context.params_.isMember ("tx_blob"))
     {
-        bool bFailHard = context.params_.isMember ("fail_hard")
-                && context.params_["fail_hard"].asBool ();
-        return RPC::transactionSign (
-            context.params_, true, bFailHard, context.netOps_, context.role_);
+        auto const failType = DoSubmitDetail::getFailHard (context);
+
+        return RPC::transactionSubmit (
+            context.params_, failType, context.netOps_, context.role_);
     }
 
     Json::Value                 jvResult;
@@ -77,10 +87,10 @@ Json::Value doSubmit (RPC::Context& context)
 
     try
     {
+        auto const failType = DoSubmitDetail::getFailHard (context);
+
         (void) context.netOps_.processTransaction (
-            tpTrans, context.role_ == Config::ADMIN, true,
-            context.params_.isMember ("fail_hard")
-            && context.params_["fail_hard"].asBool ());
+            tpTrans, context.role_ == Config::ADMIN, true, failType);
     }
     catch (std::exception& e)
     {

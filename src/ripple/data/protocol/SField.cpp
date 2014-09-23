@@ -200,20 +200,21 @@ SField const sfRippleEscrow    = make::one(&sfRippleEscrow,    STI_AMOUNT, 17, "
 SField const sfDeliveredAmount = make::one(&sfDeliveredAmount, STI_AMOUNT, 18, "DeliveredAmount");
 
 // variable length
-SField const sfPublicKey     = make::one(&sfPublicKey,     STI_VL,  1, "PublicKey");
-SField const sfMessageKey    = make::one(&sfMessageKey,    STI_VL,  2, "MessageKey");
-SField const sfSigningPubKey = make::one(&sfSigningPubKey, STI_VL,  3, "SigningPubKey");
-SField const sfTxnSignature  = make::one(&sfTxnSignature,  STI_VL,  4, "TxnSignature", SField::sMD_Default, false);
-SField const sfGenerator     = make::one(&sfGenerator,     STI_VL,  5, "Generator");
-SField const sfSignature     = make::one(&sfSignature,     STI_VL,  6, "Signature", SField::sMD_Default, false);
-SField const sfDomain        = make::one(&sfDomain,        STI_VL,  7, "Domain");
-SField const sfFundCode      = make::one(&sfFundCode,      STI_VL,  8, "FundCode");
-SField const sfRemoveCode    = make::one(&sfRemoveCode,    STI_VL,  9, "RemoveCode");
-SField const sfExpireCode    = make::one(&sfExpireCode,    STI_VL, 10, "ExpireCode");
-SField const sfCreateCode    = make::one(&sfCreateCode,    STI_VL, 11, "CreateCode");
-SField const sfMemoType      = make::one(&sfMemoType,      STI_VL, 12, "MemoType");
-SField const sfMemoData      = make::one(&sfMemoData,      STI_VL, 13, "MemoData");
-SField const sfMemoFormat    = make::one(&sfMemoFormat,    STI_VL, 14, "MemoFormat");
+SField const sfPublicKey      = make::one(&sfPublicKey,      STI_VL,  1, "PublicKey");
+SField const sfMessageKey     = make::one(&sfMessageKey,     STI_VL,  2, "MessageKey");
+SField const sfSigningPubKey  = make::one(&sfSigningPubKey,  STI_VL,  3, "SigningPubKey");
+SField const sfTxnSignature   = make::one(&sfTxnSignature,   STI_VL,  4, "TxnSignature", SField::sMD_Default, false);
+SField const sfGenerator      = make::one(&sfGenerator,      STI_VL,  5, "Generator");
+SField const sfSignature      = make::one(&sfSignature,      STI_VL,  6, "Signature", SField::sMD_Default, false);
+SField const sfDomain         = make::one(&sfDomain,         STI_VL,  7, "Domain");
+SField const sfFundCode       = make::one(&sfFundCode,       STI_VL,  8, "FundCode");
+SField const sfRemoveCode     = make::one(&sfRemoveCode,     STI_VL,  9, "RemoveCode");
+SField const sfExpireCode     = make::one(&sfExpireCode,     STI_VL, 10, "ExpireCode");
+SField const sfCreateCode     = make::one(&sfCreateCode,     STI_VL, 11, "CreateCode");
+SField const sfMemoType       = make::one(&sfMemoType,       STI_VL, 12, "MemoType");
+SField const sfMemoData       = make::one(&sfMemoData,       STI_VL, 13, "MemoData");
+SField const sfMemoFormat     = make::one(&sfMemoFormat,     STI_VL, 14, "MemoFormat");
+SField const sfMultiSignature = make::one(&sfMultiSignature, STI_VL, 15, "MultiSignature", SField::sMD_Default, false);
 
 // account
 SField const sfAccount     = make::one(&sfAccount,     STI_ACCOUNT, 1, "Account");
@@ -243,6 +244,7 @@ SField const sfNewFields           = make::one(&sfNewFields,           STI_OBJEC
 SField const sfTemplateEntry       = make::one(&sfTemplateEntry,       STI_OBJECT,  9, "TemplateEntry");
 SField const sfMemo                = make::one(&sfMemo,                STI_OBJECT, 10, "Memo");
 SField const sfSignerEntry         = make::one(&sfSignerEntry,         STI_OBJECT, 11, "SignerEntry");
+SField const sfSigningAccount      = make::one(&sfSigningAccount,      STI_OBJECT, 12, "SigningAccount");
 
 // array of objects
 // ARRAY/1 is reserved for end of array
