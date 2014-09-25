@@ -233,7 +233,10 @@ static Json::Value transactionProcessImpl (
     bool const verify = !(params.isMember ("offline")
                           && params["offline"].asBool ());
 
-    if (!tx_json.isMember ("Sequence") && !verify)
+    // This test covers the case where we're offline so the sequence number
+    // cannot be determined locally.  If we're offline then the caller must
+    // provide the sequence number.
+    if (!verify && !tx_json.isMember ("Sequence"))
         return RPC::missing_field_error ("tx_json.Sequence");
 
     // Check for current ledger
