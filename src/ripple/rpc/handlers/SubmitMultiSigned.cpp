@@ -24,7 +24,6 @@ namespace ripple {
 // {
 //   SigningAccounts <array>,
 //   tx_json: <object>,
-//
 // }
 Json::Value doSubmitMultiSigned (RPC::Context& context)
 {
