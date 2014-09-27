@@ -48,7 +48,7 @@ Ledger::Ledger (RippleAddress const& masterID, std::uint64_t startAmount)
         getApp().getFullBelowCache(),
         getApp().getTreeNodeCache()))
 {
-    // special case: put coins in root account
+    // Special case: put coins in root account.
     auto startAccount = std::make_shared<AccountState> (masterID);
     auto& sle = startAccount->peekSLE ();
     sle.setFieldAmount (sfBalance, startAmount);
@@ -124,7 +124,7 @@ Ledger::Ledger (uint256 const& parentHash,
     initializeFees ();
 }
 
-// Create a new ledger that's a snapshot of this one
+// Create a new ledger that's a snapshot of this one.
 Ledger::Ledger (Ledger& ledger,
                 bool isMutable)
     : mParentHash (ledger.mParentHash)
@@ -146,7 +146,7 @@ Ledger::Ledger (Ledger& ledger,
     initializeFees ();
 }
 
-// Create a new ledger that follows this one
+// Create a new ledger that follows this one.
 Ledger::Ledger (bool /* dummy */,
                 Ledger& prevLedger)
     : mTotCoins (prevLedger.mTotCoins)
@@ -215,7 +215,7 @@ Ledger::Ledger (std::string const& rawLedger, bool hasPrefix)
     initializeFees ();
 }
 
-/** Used for ledgers loaded from JSON files */
+/** Used for ledgers loaded from JSON files. */
 Ledger::Ledger (std::uint32_t ledgerSeq, std::uint32_t closeTime)
     : mTotCoins (0),
       mLedgerSeq (ledgerSeq),
@@ -261,16 +261,16 @@ Ledger::~Ledger ()
 bool Ledger::enforceFreeze () const
 {
 
-    // Temporarily, the freze code can run in either
+    // Temporarily, the freeze code can run in either
     // enforcing mode or non-enforcing mode. In
     // non-enforcing mode, freeze flags can be
     // manipulated, but freezing is not actually
     // enforced. Once freeze enforcing has been
-    // enabled, this function can be removed
+    // enabled, this function can be removed.
 
     // Let freeze enforcement be tested
     // If you wish to test non-enforcing mode,
-    // you must remove this line
+    // you must remove this line.
     if (getConfig().RUN_STANDALONE)
         return true;
 
@@ -284,7 +284,7 @@ bool Ledger::enforceFreeze () const
 
 void Ledger::setImmutable ()
 {
-    // Updates the hash and marks the ledger and its maps immutable
+    // Updates the hash and marks the ledger and its maps immutable.
 
     updateHash ();
     mImmutable = true;
@@ -311,7 +311,7 @@ void Ledger::updateHash ()
             mAccountHash.zero ();
     }
 
-    // VFALCO TODO Fix this hard coded magic number 122
+    // VFALCO TODO Fix this hard coded magic number 122.
     Serializer s (122);
     s.add32 (HashPrefix::ledgerMaster);
     addRaw (s);
@@ -378,7 +378,7 @@ void Ledger::setAccepted (
 
 void Ledger::setAccepted ()
 {
-    // used when we acquired the ledger
+    // Used when we acquired the ledger.
     // FIXME assert(mClosed && (mCloseTime != 0) && (mCloseResolution != 0));
     if ((mCloseFlags & sLCF_NoConsensusTime) == 0)
         mCloseTime = roundCloseTime (mCloseTime, mCloseResolution);
@@ -419,7 +419,7 @@ AccountState::pointer Ledger::getAccountState (RippleAddress const& accountID) c
 
 bool Ledger::addTransaction (uint256 const& txID, const Serializer& txn)
 {
-    // low-level - just add to table
+    // Low-level - just add to table.
     auto item = std::make_shared<SHAMapItem> (txID, txn.peekData ());
 
     if (!mTransactionMap->addGiveItem (item, true, false))
@@ -436,7 +436,7 @@ bool Ledger::addTransaction (uint256 const& txID, const Serializer& txn)
 bool Ledger::addTransaction (
     uint256 const& txID, const Serializer& txn, const Serializer& md)
 {
-    // low-level - just add to table
+    // Low-level - just add to table.
     Serializer s (txn.getDataLength () + md.getDataLength () + 16);
     s.addVL (txn.peekData ());
     s.addVL (md.peekData ());
@@ -546,7 +546,7 @@ bool Ledger::getTransaction (
 
     if (type == SHAMapTreeNode::tnTRANSACTION_NM)
     {
-        // in tree with no metadata
+        // In tree with no metadata.
         txn = getApp().getMasterTransaction ().fetch (txID, false);
         meta.reset ();
 
@@ -555,7 +555,7 @@ bool Ledger::getTransaction (
     }
     else if (type == SHAMapTreeNode::tnTRANSACTION_MD)
     {
-        // in tree with metadata
+        // In tree with metadata.
         SerializerIterator it (item->peekSerializer ());
         txn = getApp().getMasterTransaction ().fetch (txID, false);
 
@@ -663,7 +663,7 @@ bool Ledger::saveValidatedLedger (bool current)
 
     assert (getTransHash () == mTransactionMap->getHash ());
 
-    // Save the ledger header in the hashed object store
+    // Save the ledger header in the hashed object store.
     {
         Serializer s (128);
         s.add32 (HashPrefix::ledgerMaster);
@@ -727,7 +727,7 @@ bool Ledger::saveValidatedLedger (bool current)
 
                 // Try to make an educated guess on how much space we'll need
                 // for our arguments. In argument order we have:
-                // 64 + 34 + 10 + 10 = 118 + 10 extra = 128 bytes
+                // 64 + 34 + 10 + 10 = 118 + 10 extra = 128 bytes.
                 sql.reserve (sql.length () + (accts.size () * 128));
 
                 bool first = true;
@@ -870,7 +870,7 @@ Ledger::pointer Ledger::loadByHash (uint256 const& ledgerHash)
 
 Ledger::pointer Ledger::getSQL (std::string const& sql)
 {
-    // only used with sqlite3 prepared statements not used
+    // Only used with sqlite3 prepared statements not used.
     uint256 ledgerHash, prevHash, accountHash, transHash;
     std::uint64_t totCoins;
     std::uint32_t closingTime, prevClosingTime, ledgerSeq;
@@ -902,7 +902,7 @@ Ledger::pointer Ledger::getSQL (std::string const& sql)
         db->endIterRows ();
     }
 
-    // CAUTION: code below appears in two places
+    // CAUTION: code below appears in two places.
     bool loaded;
     Ledger::pointer ret (new Ledger (
         prevHash, transHash, accountHash, totCoins, closingTime,
@@ -969,7 +969,7 @@ Ledger::pointer Ledger::getSQL1 (SqliteStatement* stmt)
     closeFlags = stmt->getUInt32 (8);
     ledgerSeq = stmt->getUInt32 (9);
 
-    // CAUTION: code below appears in two places
+    // CAUTION: code below appears in two places.
     bool loaded;
     Ledger::pointer ret (new Ledger (
         prevHash, transHash, accountHash, totCoins, closingTime,
@@ -1355,7 +1355,7 @@ SLE::pointer Ledger::getSLEi (uint256 const& uId) const
 void Ledger::visitAccountItems (
     Account const& accountID, std::function<void (SLE::ref)> func) const
 {
-    // Visit each item in this account's owner directory
+    // Visit each item in this account's owner directory.
     uint256 rootIndex       = Ledger::getOwnerDirIndex (accountID);
     uint256 currentIndex    = rootIndex;
 
@@ -1488,7 +1488,7 @@ SLE::pointer Ledger::getASNode (
 
     if (sle->getType () != let)
     {
-        // maybe it's a currency or something
+        // Maybe it's a currency or something.
         parms = parms | lepWRONGTYPE;
         return SLE::pointer ();
     }
@@ -1563,14 +1563,14 @@ uint256 Ledger::getAccountRootIndex (Account const& account)
     Serializer  s (22);
 
     s.add16 (spaceAccount); //  2
-    s.add160 (account);  // 20
+    s.add160 (account);     // 20
 
     return s.getSHA512Half ();
 }
 
 uint256 Ledger::getLedgerFeeIndex ()
 {
-    // get the index of the node that holds the fee schedul
+    // Get the index of the node that holds the fee schedule.
     Serializer s (2);
     s.add16 (spaceFee);
     return s.getSHA512Half ();
@@ -1578,7 +1578,7 @@ uint256 Ledger::getLedgerFeeIndex ()
 
 uint256 Ledger::getLedgerAmendmentIndex ()
 {
-    // get the index of the node that holds the enabled amendments
+    // Get the index of the node that holds the enabled amendments.
     Serializer s (2);
     s.add16 (spaceAmendment);
     return s.getSHA512Half ();
@@ -1586,7 +1586,7 @@ uint256 Ledger::getLedgerAmendmentIndex ()
 
 uint256 Ledger::getLedgerHashIndex ()
 {
-    // get the index of the node that holds the last 256 ledgers
+    // Get the index of the node that holds the last 256 ledgers.
     Serializer s (2);
     s.add16 (spaceSkipList);
     return s.getSHA512Half ();
@@ -1605,7 +1605,7 @@ uint256 Ledger::getLedgerHashIndex (std::uint32_t desiredLedgerIndex)
 
 uint256 Ledger::getLedgerHash (std::uint32_t ledgerIndex)
 {
-    // Return the hash of the specified ledger, 0 if not available
+    // Return the hash of the specified ledger, 0 if not available.
 
     // Easy cases...
     if (ledgerIndex > mLedgerSeq)
@@ -1657,7 +1657,7 @@ uint256 Ledger::getLedgerHash (std::uint32_t ledgerIndex)
         return uint256 ();
     }
 
-    // in skiplist
+    // In skiplist.
     auto hashIndex = getSLEi (getLedgerHashIndex (ledgerIndex));
 
     if (hashIndex)
@@ -1774,7 +1774,17 @@ uint256 Ledger::getOwnerDirIndex (Account const& account)
     Serializer  s (22);
 
     s.add16 (spaceOwnerDir);    //  2
-    s.add160 (account);      // 20
+    s.add160 (account);         // 20
+
+    return s.getSHA512Half ();
+}
+
+uint256 Ledger::getSignerListIndex (Account const& account)
+{
+    Serializer  s (22);
+
+    s.add16 (spaceSignerList);  //  2
+    s.add160 (account);         // 20
 
     return s.getSHA512Half ();
 }
@@ -1858,22 +1868,22 @@ bool Ledger::assertSane () const
     return false;
 }
 
-// update the skip list with the information from our previous ledger
+// Update the skip list with the information from our previous ledger.
 void Ledger::updateSkipList ()
 {
-    if (mLedgerSeq == 0) // genesis ledger has no previous ledger
+    if (mLedgerSeq == 0) // Genesis ledger has no previous ledger.
         return;
 
     std::uint32_t prevIndex = mLedgerSeq - 1;
 
-    // update record of every 256th ledger
+    // Update record of every 256th ledger.
     if ((prevIndex & 0xff) == 0)
     {
         uint256 hash = getLedgerHashIndex (prevIndex);
         SLE::pointer skipList = getSLE (hash);
         std::vector<uint256> hashes;
 
-        // VFALCO TODO Document this skip list concept
+        // VFALCO TODO Document this skip list concept.
         if (!skipList)
             skipList = std::make_shared<SLE> (ltLEDGER_HASHES, hash);
         else
@@ -1890,7 +1900,7 @@ void Ledger::updateSkipList ()
         }
     }
 
-    // update record of past 256 ledger
+    // Update record of past 256 ledger.
     uint256 hash = getLedgerHashIndex ();
 
     SLE::pointer skipList = getSLE (hash);
@@ -1931,8 +1941,8 @@ std::uint32_t Ledger::roundCloseTime (
     return closeTime - (closeTime % closeResolution);
 }
 
-/** Save, or arrange to save, a fully-validated ledger
-    Returns false on error
+/** Save, or arrange to save, a fully-validated ledger.
+    Returns false on error.
 */
 bool Ledger::pendSaveValidated (bool isSynchronous, bool isCurrent)
 {

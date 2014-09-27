@@ -135,7 +135,7 @@ public:
         , signingField (std::move(sf.signingField))
         , rawJsonName (std::move(sf.rawJsonName))
         , jsonName (rawJsonName.c_str ())
-    {}        
+    {}
 #endif
 
 private:
@@ -267,6 +267,7 @@ extern SField const sfTransactionResult;
 // 16-bit integers
 extern SField const sfLedgerEntryType;
 extern SField const sfTransactionType;
+extern SField const sfSignerWeight;
 
 // 32-bit integers (common)
 extern SField const sfFlags;
@@ -303,6 +304,7 @@ extern SField const sfReserveBase;
 extern SField const sfReserveIncrement;
 extern SField const sfSetFlag;
 extern SField const sfClearFlag;
+extern SField const sfSignerQuorum;
 
 // 64-bit integers
 extern SField const sfIndexNext;
@@ -372,6 +374,7 @@ extern SField const sfCreateCode;
 extern SField const sfMemoType;
 extern SField const sfMemoData;
 extern SField const sfMemoFormat;
+extern SField const sfMultiSignature;
 
 // account
 extern SField const sfAccount;
@@ -400,6 +403,7 @@ extern SField const sfFinalFields;
 extern SField const sfNewFields;
 extern SField const sfTemplateEntry;
 extern SField const sfMemo;
+extern SField const sfSignerEntry;
 
 // array of objects
 // ARRAY/1 is reserved for end of array
@@ -411,6 +415,7 @@ extern SField const sfNecessary;
 extern SField const sfSufficient;
 extern SField const sfAffectedNodes;
 extern SField const sfMemos;
+extern SField const sfSignerEntries;
 
 } // ripple
 
