@@ -35,7 +35,7 @@ Json::Value transactionSubmit (
     NetworkOPs& netOps,
     int role);
 
-Json::Value transactionGetMultiSignature (
+Json::Value transactionGetSigningAccount (
     Json::Value jvRequest,
     NetworkOPs::FailHard failType,
     NetworkOPs& netOps,

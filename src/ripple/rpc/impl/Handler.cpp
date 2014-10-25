@@ -52,7 +52,7 @@ HandlerTable HANDLERS({
     {   "connect",              &doConnect,             Config::ADMIN,   NO_CONDITION     },
     {   "consensus_info",       &doConsensusInfo,       Config::ADMIN,   NO_CONDITION     },
     {   "get_counts",           &doGetCounts,           Config::ADMIN,   NO_CONDITION     },
-    {   "get_multisignature",   &doGetMultiSignature,   Config::USER,    NO_CONDITION     },
+    {   "get_signingaccount",   &doGetSigningAccount,   Config::USER,    NO_CONDITION     },
     {   "internal",             &doInternal,            Config::ADMIN,   NO_CONDITION     },
     {   "feature",              &doFeature,             Config::ADMIN,   NO_CONDITION     },
     {   "fetch_info",           &doFetchInfo,           Config::ADMIN,   NO_CONDITION     },
