@@ -27,6 +27,44 @@ namespace ripple {
 
 
 namespace RPC {
+namespace RPCDetail {
+
+// A local class used to pass extra parameters used when returning a
+// a SigningAccount object.
+class SigningAccountParams
+{
+private:
+    RippleAddress const* const raMultiSignAddressID_;
+    RippleAddress const* const raMultiSignPublicKey_;
+public:
+    explicit SigningAccountParams ()
+    : raMultiSignAddressID_ (nullptr)
+    , raMultiSignPublicKey_ (nullptr)
+    { }
+
+    SigningAccountParams (
+        RippleAddress const& multiSignAddressID,
+        RippleAddress const& multiSignPublicKey)
+    : raMultiSignAddressID_ (&multiSignAddressID)
+    , raMultiSignPublicKey_ (&multiSignPublicKey)
+    { }
+
+    bool isMultiSigning () const
+    {
+        return ((raMultiSignAddressID_ != nullptr) &&
+                (raMultiSignPublicKey_ != nullptr));
+    }
+
+    RippleAddress const* getAddressID () const
+    {
+        return raMultiSignAddressID_;
+    }
+
+    RippleAddress const* getPublicKey () const
+    {
+        return raMultiSignPublicKey_;
+    }
+};
 
 /** Fill in the fee on behalf of the client.
     This is called when the client does not explicitly specify the fee.
@@ -184,34 +222,97 @@ static Json::Value signPayment(
     return Json::Value();
 }
 
+static Json::Value transactionSubmitImpl (
+    SerializedTransaction::pointer stpTrans,
+    NetworkOPs::SubmitTxn submit,
+    NetworkOPs::FailHard failType,
+    NetworkOPs& netOps,
+    int role)
+{
+    Transaction::pointer tpTrans;
+    try
+    {
+        tpTrans = std::make_shared<Transaction> (stpTrans, Validate::NO);
+    }
+    catch (std::exception&)
+    {
+        return RPC::make_error (rpcINTERNAL,
+            "Exception occurred during transaction");
+    }
+
+    try
+    {
+        // FIXME: For performance, should use asynch interface
+        tpTrans = netOps.submitTransactionSync (tpTrans,
+            role == Config::ADMIN, true, failType, submit);
+
+        if (!tpTrans)
+        {
+            return RPC::make_error (rpcINTERNAL,
+                "Unable to sterilize transaction.");
+        }
+    }
+    catch (std::exception&)
+    {
+        return RPC::make_error (rpcINTERNAL,
+            "Exception occurred during transaction submission.");
+    }
+
+    try
+    {
+        Json::Value jvResult;
+        jvResult["tx_json"] = tpTrans->getJson (0);
+        jvResult["tx_blob"] = strHex (
+            tpTrans->getSTransaction ()->getSerializer ().peekData ());
+
+        if (temUNCERTAIN != tpTrans->getResult ())
+        {
+            std::string sToken;
+            std::string sHuman;
+
+            transResultInfo (tpTrans->getResult (), sToken, sHuman);
+
+            jvResult["engine_result"]           = sToken;
+            jvResult["engine_result_code"]      = tpTrans->getResult ();
+            jvResult["engine_result_message"]   = sHuman;
+        }
+
+        return jvResult;
+    }
+    catch (std::exception&)
+    {
+        return RPC::make_error (rpcINTERNAL,
+            "Exception occurred during JSON handling.");
+    }
+}
+
 //------------------------------------------------------------------------------
 
 // VFALCO TODO This function should take a reference to the params, modify it
 //             as needed, and then there should be a separate function to
 //             submit the tranaction
 //
-Json::Value transactionSign (
+static Json::Value transactionProcessImpl (
     Json::Value params,
-    bool bSubmit,
-    bool bFailHard,
+    NetworkOPs::SubmitTxn submit,
+    NetworkOPs::FailHard failType,
     NetworkOPs& netOps,
-    int role)
+    int role,
+    SigningAccountParams const& signingArgs = SigningAccountParams())
 {
-    Json::Value jvResult;
-
-    WriteLog (lsDEBUG, RPCHandler) << "transactionSign: " << params;
-
     if (! params.isMember ("secret"))
         return RPC::missing_field_error ("secret");
 
+    {
+        RippleAddress naSeed;
+
+        if (! naSeed.setSeedGeneric (params["secret"].asString ()))
+            return RPC::make_error (rpcBAD_SEED,
+                RPC::invalid_field_message ("secret"));
+    }
+
     if (! params.isMember ("tx_json"))
         return RPC::missing_field_error ("tx_json");
-
-    RippleAddress naSeed;
-
-    if (! naSeed.setSeedGeneric (params["secret"].asString ()))
-        return RPC::make_error (rpcBAD_SEED,
-            RPC::invalid_field_message ("secret"));
 
     Json::Value& tx_json (params ["tx_json"]);
 
@@ -220,8 +321,6 @@ Json::Value transactionSign (
 
     if (! tx_json.isMember ("TransactionType"))
         return RPC::missing_field_error ("tx_json.TransactionType");
-
-    std::string const sType = tx_json ["TransactionType"].asString ();
 
     if (! tx_json.isMember ("Account"))
         return RPC::make_error (rpcSRC_ACT_MISSING,
@@ -236,7 +335,10 @@ Json::Value transactionSign (
     bool const verify = !(params.isMember ("offline")
                           && params["offline"].asBool ());
 
-    if (!tx_json.isMember ("Sequence") && !verify)
+    // This test covers the case where we're offline so the sequence number
+    // cannot be determined locally.  If we're offline then the caller must
+    // provide the sequence number.
+    if (!verify && !tx_json.isMember ("Sequence"))
         return RPC::missing_field_error ("tx_json.Sequence");
 
     // Check for current ledger
@@ -265,11 +367,21 @@ Json::Value transactionSign (
         }
     }
 
-    autofill_fee (params, lSnapshot, jvResult, role == Config::ADMIN);
-    if (RPC::contains_error (jvResult))
-        return jvResult;
+    Json::Value jvResult;
 
-    if ("Payment" == sType)
+    if (!signingArgs.isMultiSigning ())
+    {
+        // Only auto-fill the "Fee" for non-multisign stuff.  Multisign
+        // must come in with the fee already in place or the signature
+        // will be invalid later.
+        autofill_fee (params, lSnapshot, jvResult, role == Config::ADMIN);
+        if (RPC::contains_error (jvResult))
+            return jvResult;
+    }
+
+    auto const& transactionType = tx_json["TransactionType"].asString ();
+
+    if ("Payment" == transactionType)
     {
         auto e = signPayment(
             params,
@@ -312,7 +424,16 @@ Json::Value transactionSign (
         WriteLog (lsWARNING, RPCHandler) <<
                 "verify: " << masterAccountPublic.humanAccountID () <<
                 " : " << raSrcAddressID.humanAccountID ();
-        if (raSrcAddressID.getAccountID () == account)
+
+        // There are two possible signature addresses: the multisign address or
+        // the source address.  If it's not multisign, then use source address.
+        RippleAddress raSignAddressId;
+        if (signingArgs.isMultiSigning ())
+            raSignAddressId = *signingArgs.getAddressID ();
+        else
+            raSignAddressId = raSrcAddressID;
+
+        if (raSignAddressId.getAccountID () == account)
         {
             if (sle.isFlag(lsfDisableMaster))
                 return rpcError (rpcMASTER_DISABLED);
@@ -332,15 +453,21 @@ Json::Value transactionSign (
         jvResult ["error_message"] = parsed.error ["error_message"];
         return jvResult;
     }
-    std::unique_ptr<STObject> sopTrans = std::move(parsed.object);
-    sopTrans->setFieldVL (
-        sfSigningPubKey,
-        masterAccountPublic.getAccountPublic ());
 
     SerializedTransaction::pointer stpTrans;
-
     try
     {
+        // If we're generating a multi-signature the SigningPubKey must be
+        // empty:
+        //  o If we're multi-signing, use an empty blob for the signingPubKey
+        //  o Otherwise use the master account's public key.
+        Blob emptyBlob;
+        Blob const& signingPubKey = signingArgs.isMultiSigning () ?
+            emptyBlob : masterAccountPublic.getAccountPublic ();
+
+        std::unique_ptr<STObject> sopTrans = std::move (parsed.object);
+        sopTrans->setFieldVL (sfSigningPubKey, signingPubKey);
+
         stpTrans = std::make_shared<SerializedTransaction> (*sopTrans);
     }
     catch (std::exception&)
@@ -360,81 +487,373 @@ Json::Value transactionSign (
         jvResult["tx_signing_hash"] = to_string (stpTrans->getSigningHash ());
     }
 
-    // FIXME: For performance, transactions should not be signed in this code
-    // path.
     RippleAddress naAccountPrivate = RippleAddress::createAccountPrivate (
         masterGenerator, secret, 0);
 
-    stpTrans->sign (naAccountPrivate);
+    // If multisign, set SignerEntry field, else set TxnSignature field.
+    if (signingArgs.isMultiSigning ())
+        stpTrans->insertSigningAccount (
+            *signingArgs.getAddressID (),
+            *signingArgs.getPublicKey (),
+            naAccountPrivate);
+    else
+        stpTrans->sign (naAccountPrivate);
 
-    Transaction::pointer tpTrans;
+    return transactionSubmitImpl (stpTrans, submit, failType, netOps, role);
+}
 
-    try
+} // namespace RPCDetail
+
+//------------------------------------------------------------------------------
+
+Json::Value transactionSign (
+    Json::Value jvRequest,
+    NetworkOPs::FailHard failType,
+    NetworkOPs& netOps,
+    int role)
+{
+    WriteLog (lsDEBUG, RPCHandler) << "transactionSign: " << jvRequest;
+
+    RippleAddress raNotMultisign;           // Default constructs to invalid
+
+    // Get the signature
+    return RPCDetail::transactionProcessImpl (
+        jvRequest,
+        NetworkOPs::SubmitTxn::no,
+        failType,
+        netOps,
+        role);
+}
+
+Json::Value transactionSubmit (
+    Json::Value jvRequest,
+    NetworkOPs::FailHard failType,
+    NetworkOPs& netOps,
+    int role)
+{
+    WriteLog (lsDEBUG, RPCHandler) << "transactionSubmit: " << jvRequest;
+
+    RippleAddress raNotMultisign;           // Default constructs to invalid
+
+    // Submit the transaction
+    return RPCDetail::transactionProcessImpl (
+        jvRequest,
+        NetworkOPs::SubmitTxn::yes,
+        failType,
+        netOps,
+        role);
+}
+
+Json::Value transactionGetSigningAccount (
+    Json::Value jvRequest,
+    NetworkOPs::FailHard failType,
+    NetworkOPs& netOps,
+    int role)
+{
+    WriteLog (lsDEBUG, RPCHandler) <<
+        "transactionGetSigningAccount: " << jvRequest;
+
+    // Verify presence of the signer's account field
+    const char accountField[] = "account";
+
+    if (! jvRequest.isMember (accountField))
+        return RPC::missing_field_error (accountField);
+
+    // Verify presence of the signer's publickey field
+    const char publickeyField[] = "publickey";
+
+    if (! jvRequest.isMember (publickeyField))
+        return RPC::missing_field_error (publickeyField);
+
+    // Turn the signer's account into a RippleAddress for multisign
+    RippleAddress multiSignAddressID;
+    if (! multiSignAddressID.setAccountID (
+        jvRequest[accountField].asString ()))
     {
-        tpTrans = std::make_shared<Transaction> (stpTrans, Validate::NO);
+        return RPC::make_error (rpcSRC_ACT_MALFORMED,
+            RPC::invalid_field_message (accountField));
     }
-    catch (std::exception&)
+
+    // Turn the signer's public key into a RippleAddress for multisign
+    RippleAddress multiSignPublicKey;
+    if (! multiSignPublicKey.setAccountPublic (
+        jvRequest[publickeyField].asString ()))
     {
-        return RPC::make_error (rpcINTERNAL,
-            "Exception occurred during transaction");
+        return RPC::make_error (rpcSRC_ACT_MALFORMED,
+            RPC::invalid_field_message (accountField));
     }
 
-    try
-    {
-        // FIXME: For performance, should use asynch interface
-        tpTrans = netOps.submitTransactionSync (tpTrans,
-            role == Config::ADMIN, true, bFailHard, bSubmit);
+    // Get Multisignature
+    using namespace RPCDetail;
+    return transactionProcessImpl (
+        jvRequest,
+        NetworkOPs::SubmitTxn::no,
+        failType,
+        netOps,
+        role,
+        SigningAccountParams (multiSignAddressID, multiSignPublicKey));
+}
 
-        if (!tpTrans)
+// SSCHURR FIXME: transactionSubmit/Sign *must* be refactored.
+//
+// In this implementation the transactionProcessImpl() does a bunch of stuff
+// in an organic sort of way.  The tests and adjustments in there are
+// important, but not well structured.
+//
+// This function, transactionSubmitMultiSigned(), needs to be making many (but
+// not all) of the same adjustments that transactionProcessImpl () does.  But
+// it can't call transactionProcessImpl(), since that function does some of
+// the wrong stuff.
+//
+// Note to reviewers: do not allow this code to be merged to develop until
+// this refactoring issue is addressed.
+Json::Value transactionSubmitMultiSigned (
+    Json::Value jvRequest,
+    NetworkOPs::FailHard failType,
+    NetworkOPs& netOps,
+    int role)
+{
+    WriteLog (lsDEBUG, RPCHandler)
+        << "transactionSubmitMultiSigned: " << jvRequest;
+
+    // Validate tx_json and SigningAccounts before submitting the transaction.
+
+    // We're validating against the serialized transaction.  So start out by
+    // serializing tx_json
+   if (! jvRequest.isMember ("tx_json"))
+        return RPC::missing_field_error ("tx_json");
+
+    Json::Value& tx_json (jvRequest ["tx_json"]);
+
+    if (! tx_json.isObject ())
+        return RPC::object_field_error ("tx_json");
+
+    // Grind through the JSON in tx_json to produce a SerializedTransaction
+    SerializedTransaction::pointer stpTrans;
+    {
+        STParsedJSONObject parsedTx_json ("tx_json", tx_json);
+        if (!parsedTx_json.object)
+        {
+            Json::Value jvResult;
+            jvResult ["error"] = parsedTx_json.error ["error"];
+            jvResult ["error_code"] = parsedTx_json.error ["error_code"];
+            jvResult ["error_message"] = parsedTx_json.error ["error_message"];
+            return jvResult;
+        }
+
+        std::unique_ptr <STObject> sopTrans = std::move (parsedTx_json.object);
+
+        try
+        {
+            stpTrans = std::make_shared<SerializedTransaction> (*sopTrans);
+        }
+        catch (std::exception&)
         {
             return RPC::make_error (rpcINTERNAL,
-                "Unable to sterilize transaction.");
+                "Exception while serializing transaction. Are fields missing?");
         }
-    }
-    catch (std::exception&)
-    {
-        return RPC::make_error (rpcINTERNAL,
-            "Exception occurred during transaction submission.");
+        std::string reason;
+        if (!passesLocalChecks (*stpTrans, reason))
+            return RPC::make_error (rpcINVALID_PARAMS, reason);
     }
 
-    try
+    // Validate the fields in the serialized transaction.
     {
-        jvResult["tx_json"] = tpTrans->getJson (0);
-        jvResult["tx_blob"] = strHex (
-            tpTrans->getSTransaction ()->getSerializer ().peekData ());
+        // We now have the transaction text serialized and in the right format.
+        // Verify the presence and values of select fields.
+        // The SigningPubKey must be present but empty.
+        if (!stpTrans->isFieldPresent (sfSigningPubKey))
+            return RPC::missing_field_error (sfSigningPubKey.getName ());
 
-        if (temUNCERTAIN != tpTrans->getResult ())
+        if (!stpTrans->getFieldVL (sfSigningPubKey).empty ())
         {
-            std::string sToken;
-            std::string sHuman;
-
-            transResultInfo (tpTrans->getResult (), sToken, sHuman);
-
-            jvResult["engine_result"]           = sToken;
-            jvResult["engine_result_code"]      = tpTrans->getResult ();
-            jvResult["engine_result_message"]   = sHuman;
+            std::ostringstream err;
+            err << "Invalid  " << sfSigningPubKey.fieldName
+                << " field.  Field must be empty when multi-signing.";
+            return RPC::make_error (rpcINVALID_PARAMS, err.str ());
         }
 
-        return jvResult;
+        // The Sequence field must be present.
+        if (!stpTrans->isFieldPresent (sfSequence))
+            return RPC::missing_field_error (sfSequence.getName ());
+
+        // The Fee field must be present and greater than zero.
+        if (!stpTrans->isFieldPresent (sfFee))
+            return RPC::missing_field_error (sfFee.getName ());
+
+        if (!stpTrans->getFieldAmount (sfFee) > 0)
+        {
+            std::ostringstream err;
+            err << "Invalid " << sfFee.fieldName
+                << " field.  Value must be greater than zero.";
+            return RPC::make_error (rpcINVALID_PARAMS, err.str ());
+        }
+
+        if (!stpTrans->isFieldPresent (sfAccount))
+            return RPC::missing_field_error (sfAccount.getName ());
     }
-    catch (std::exception&)
+    // Save the Account for testing against the SigningAccounts.
+    RippleAddress const txnAccount = stpTrans->getFieldAccount (sfAccount);
+
+    // Check SigningAccounts for valid entries.
+    const char* signingAccocuntsArrayName {
+        sfSigningAccounts.getJsonName ().c_str ()};
+
+    std::unique_ptr <STArray> signingAccounts;
     {
-        return RPC::make_error (rpcINTERNAL,
-            "Exception occurred during JSON handling.");
+        // Verify that the SigningAccounts field is present and an array.
+        if (! jvRequest.isMember (signingAccocuntsArrayName))
+            return RPC::missing_field_error (signingAccocuntsArrayName);
+
+        Json::Value& signingAccountsValue (
+            jvRequest [signingAccocuntsArrayName]);
+
+        if (! signingAccountsValue.isArray ())
+        {
+            std::ostringstream err;
+                err << "Expected "
+                << signingAccocuntsArrayName << " to be an array";
+            return RPC::make_param_error (err.str ());
+        }
+
+        // Convert the SigningAccounts into SerializedTypes.
+        STParsedJSONArray parsedSigningAccounts (
+            signingAccocuntsArrayName, signingAccountsValue);
+
+        if (!parsedSigningAccounts.array)
+        {
+            Json::Value jvResult;
+            jvResult ["error"] = parsedSigningAccounts.error ["error"];
+            jvResult ["error_code"] =
+                parsedSigningAccounts.error ["error_code"];
+            jvResult ["error_message"] =
+                parsedSigningAccounts.error ["error_message"];
+            return jvResult;
+        }
+        signingAccounts = std::move (parsedSigningAccounts.array);
     }
+
+    for (STObject const& signingAccount : *signingAccounts)
+    {
+        // We want to make sure the SigningAccounts contains the right fields,
+        // and only the right fields,  So there should be exactly 3 fields and
+        // there should be one each of the fields we need.
+        if (signingAccount.getCount () != 3)
+        {
+            std::ostringstream err;
+            err << "Expecting exactly three fields in "
+                << signingAccocuntsArrayName << "."
+                << sfSigningAccount.getName ();
+            return RPC::make_param_error(err.str ());
+        }
+
+        if (!signingAccount.isFieldPresent (sfAccount))
+        {
+            // Return an error that we're expecting a
+            // SigningAccounts.SigningAccount.Account
+            std::ostringstream fieldName;
+            fieldName << signingAccocuntsArrayName << "."
+                << sfSigningAccount.getName () << "."
+                << sfAccount.getName ();
+            return RPC::missing_field_error (fieldName.str ());
+        }
+
+        if (!signingAccount.isFieldPresent (sfPublicKey))
+        {
+            // Return an error that we're expecting a
+            // SigningAccounts.SigningAccount.Account.PublicKey
+                std::ostringstream fieldName;
+            fieldName << signingAccocuntsArrayName << "."
+                << sfSigningAccount.getName () << "."
+                << sfPublicKey.getName ();
+            return RPC::missing_field_error (fieldName.str ());
+        }
+
+        if (!signingAccount.isFieldPresent (sfMultiSignature))
+        {
+            // Return an error that we're expecting a
+            // SigningAccounts.SigningAccount.Account
+            std::ostringstream fieldName;
+            fieldName << signingAccocuntsArrayName << "."
+                << sfSigningAccount.getName () << "."
+                << sfAccount.getName ();
+            return RPC::missing_field_error (fieldName.str ());
+        }
+
+        // All required fields are present.
+        RippleAddress const signer =
+            signingAccount.getFieldAccount (sfAccount);
+
+        if (signer == txnAccount)
+        {
+            std::ostringstream err;
+            err << "The transaction Account, " << signer.humanAccountPublic ()
+                << ", may not be a signer of a multi-signed transaction.";
+            return RPC::make_param_error(err.str ());
+        }
+    }
+
+    // SigningAccounts are submitted sorted in Account order.  This
+    // assures that the same list will always have the same hash.
+    signingAccounts->sort (
+        [] (STObject const& a, STObject const& b) {
+            return (a.getFieldAccount (sfAccount).getAccountID () <
+                b.getFieldAccount (sfAccount).getAccountID ()); });
+
+    // There may be no duplicate Accounts in SigningAccounts
+    auto const signingAccountsEnd = signingAccounts->end ();
+
+    auto const dupAccountItr = std::adjacent_find (
+        signingAccounts->begin (), signingAccountsEnd,
+            [] (STObject const& a, STObject const& b) {
+                return (a.getFieldAccount (sfAccount).getAccountID () ==
+                    b.getFieldAccount (sfAccount).getAccountID ()); });
+
+    if (dupAccountItr != signingAccountsEnd)
+    {
+        std::ostringstream err;
+        err << "Duplicate multi-signing AccountIDs ("
+            << dupAccountItr->getFieldAccount (sfAccount).humanAccountID ()
+            << ") are not allowed.";
+        return RPC::make_param_error(err.str ());
+    }
+
+    // Insert the SigningAccounts into the transaction.
+    stpTrans->setFieldArray (sfSigningAccounts, *signingAccounts);
+
+    // Finally, submit the transaction.
+    return RPCDetail::transactionSubmitImpl (
+        stpTrans, NetworkOPs::SubmitTxn::yes, failType, netOps, role);
 }
+
+//------------------------------------------------------------------------------
 
 class JSONRPC_test : public beast::unit_test::suite
 {
 public:
     void testAutoFillFees ()
     {
+        std::string const secret = "masterpassphrase";
         RippleAddress rootSeedMaster
-                = RippleAddress::createSeedGeneric ("masterpassphrase");
+                = RippleAddress::createSeedGeneric (secret);
+//      std::cerr << "secret: " << secret << std::endl;
+
         RippleAddress rootGeneratorMaster
                 = RippleAddress::createGeneratorPublic (rootSeedMaster);
+
+//      RippleAddress publicKey
+//              = RippleAddress::createAccountPublic (rootGeneratorMaster, 0);
+//      std::cerr << "public key: " << publicKey.ToString () << std::endl;
+
+//      RippleAddress privateKey
+//              = RippleAddress::createAccountPrivate (
+//                  rootGeneratorMaster, rootSeedMaster, 0);
+//      std::cerr << "private key: " << privateKey.ToString () << std::endl;
+
         RippleAddress rootAddress
                 = RippleAddress::createAccountPublic (rootGeneratorMaster, 0);
+//      std::cerr << "account: " << rootAddress.humanAccountID () << std::endl;
+
         std::uint64_t startAmount (100000);
         Ledger::pointer ledger (std::make_shared <Ledger> (
             rootAddress, startAmount));
@@ -445,7 +864,7 @@ public:
             Json::Reader ().parse (
                 "{ \"fee_mult_max\" : 1, \"tx_json\" : { } } "
                 , req);
-            autofill_fee (req, ledger, result, true);
+            RPCDetail::autofill_fee (req, ledger, result, true);
 
             expect (! contains_error (result));
         }
@@ -456,7 +875,7 @@ public:
             Json::Reader ().parse (
                 "{ \"fee_mult_max\" : 0, \"tx_json\" : { } } "
                 , req);
-            autofill_fee (req, ledger, result, true);
+            RPCDetail::autofill_fee (req, ledger, result, true);
 
             expect (contains_error (result));
         }

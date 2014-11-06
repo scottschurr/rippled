@@ -17,22 +17,23 @@
 */
 //==============================================================================
 
+#include <ripple/basics/StringUtilities.h>
 
 namespace ripple {
 
 // {
+//   SigningAccounts <array>,
 //   tx_json: <object>,
-//   secret: <secret>
 // }
-Json::Value doSign (RPC::Context& context)
+Json::Value doSubmitMultiSigned (RPC::Context& context)
 {
     context.loadType_ = Resource::feeHighBurdenRPC;
-    NetworkOPs::FailHard const failType =
-        NetworkOPs::doFailHard (
+
+    NetworkOPs::FailHard const failType = NetworkOPs::doFailHard (
             context.params_.isMember ("fail_hard")
             && context.params_["fail_hard"].asBool ());
 
-    return RPC::transactionSign (
+    return RPC::transactionSubmitMultiSigned (
         context.params_, failType, context.netOps_, context.role_);
 }
 

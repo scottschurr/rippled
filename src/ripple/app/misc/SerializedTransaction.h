@@ -127,6 +127,10 @@ public:
     {
         sig_state_ = false;
     }
+    void insertSigningAccount (
+        RippleAddress const& accountID,
+        RippleAddress const& accountPublic,
+        RippleAddress const& accountPrivate);
 
     // SQL Functions with metadata
     static
