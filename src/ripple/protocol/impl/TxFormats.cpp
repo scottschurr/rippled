@@ -109,7 +109,6 @@ void TxFormats::addCommonFields (Item& item)
         << SOElement(sfMemos,               SOE_OPTIONAL)
         << SOElement(sfSigningPubKey,       SOE_REQUIRED)
         << SOElement(sfTxnSignature,        SOE_OPTIONAL)
-        << SOElement(sfSigningAccount,      SOE_OPTIONAL) // for get_signingaccount
         << SOElement(sfSigningAccounts,     SOE_OPTIONAL) // for submit_multisigned
         ;
 }

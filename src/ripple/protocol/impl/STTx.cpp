@@ -206,31 +206,6 @@ bool STTx::checkSign () const
     return static_cast<bool> (sig_state_);
 }
 
-void STTx::insertSigningAccount (
-        RippleAddress const& accountID,
-        RippleAddress const& accountPublic,
-        RippleAddress const& accountPrivate)
-{
-    Blob signature;
-    accountPrivate.accountPrivateSign (getSigningHash (), signature);
-
-    boost::ptr_vector <STBase> data;
-    data.reserve (3);
-    {
-        auto acctID = std::make_unique <STAccount> (sfAccount);
-        acctID->setValueNCA (accountID);
-        data.push_back (acctID.release ());
-    }
-
-    data.push_back (
-        new STBlob (sfPublicKey, accountPublic.getAccountPublic ()));
-
-    data.push_back (new STBlob (sfMultiSignature, signature));
-
-    STObject signingAccount (sfSigningAccount, data);
-    setFieldObject (sfSigningAccount, signingAccount);
-}
-
 void STTx::setSigningPubKey (RippleAddress const& naSignPubKey)
 {
     setFieldVL (sfSigningPubKey, naSignPubKey.getAccountPublic ());

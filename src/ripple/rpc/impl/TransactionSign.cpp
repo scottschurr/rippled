@@ -40,35 +40,35 @@ namespace detail {
 class SigningAccountParams
 {
 private:
-    RippleAddress const* const raMultiSignAddressID_;
-    RippleAddress const* const raMultiSignPublicKey_;
+    RippleAddress const* const multiSignAddressID_;
+    Blob* const multiSignature_;
 public:
     explicit SigningAccountParams ()
-    : raMultiSignAddressID_ (nullptr)
-    , raMultiSignPublicKey_ (nullptr)
+    : multiSignAddressID_ (nullptr)
+    , multiSignature_ (nullptr)
     { }
 
     SigningAccountParams (
         RippleAddress const& multiSignAddressID,
-        RippleAddress const& multiSignPublicKey)
-    : raMultiSignAddressID_ (&multiSignAddressID)
-    , raMultiSignPublicKey_ (&multiSignPublicKey)
+        Blob& multiSignature)
+    : multiSignAddressID_ (&multiSignAddressID)
+    , multiSignature_ (&multiSignature)
     { }
 
     bool isMultiSigning () const
     {
-        return ((raMultiSignAddressID_ != nullptr) &&
-                (raMultiSignPublicKey_ != nullptr));
+        return ((multiSignAddressID_ != nullptr) &&
+                (multiSignature_ != nullptr));
     }
 
     RippleAddress const* getAddressID () const
     {
-        return raMultiSignAddressID_;
+        return multiSignAddressID_;
     }
 
-    RippleAddress const* getPublicKey () const
+    void moveMultiSignature (Blob&& multiSignature)
     {
-        return raMultiSignPublicKey_;
+        *multiSignature_ = std::move (multiSignature);
     }
 };
 
@@ -386,7 +386,7 @@ static transactionPreProcessResult transactionPreProcessImpl (
     Json::Value params,
     TxnSignApiFacade& apiFacade,
     Role role,
-    SigningAccountParams const& signingArgs = SigningAccountParams())
+    SigningAccountParams& signingArgs)
 {
     if (! params.isMember ("secret"))
         return RPC::missing_field_error ("secret");
@@ -563,14 +563,18 @@ static transactionPreProcessResult transactionPreProcessImpl (
     RippleAddress naAccountPrivate = RippleAddress::createAccountPrivate (
         masterGenerator, secret, 0);
 
-    // If multisign, set SignerEntry field, else set TxnSignature field.
+    // If multisign then return multiSignature, else set TxnSignature field.
     if (signingArgs.isMultiSigning ())
-        stpTrans->insertSigningAccount (
-            *signingArgs.getAddressID (),
-            *signingArgs.getPublicKey (),
-            naAccountPrivate);
+    {
+        uint256 const hash = stpTrans->getSigningHash ();
+        Blob multiSignature;
+        naAccountPrivate.accountPrivateSign (hash, multiSignature);
+        signingArgs.moveMultiSignature (std::move (multiSignature));
+    }
     else
+    {
         stpTrans->sign (naAccountPrivate);
+    }
 
     return std::move (stpTrans);
 }
@@ -661,10 +665,31 @@ Json::Value transactionFormatResultImpl (Transaction::pointer tpTrans)
     return jvResult;
 }
 
+void insertSigningAccount (
+    Json::Value& jvResult,
+    RippleAddress const& accountID,
+    RippleAddress const& accountPublic,
+    Blob const& signature)
+{
+    // Build a SigningAccount object to inject into jvResult.
+    Json::Value signingAccount (Json::objectValue);
+
+    signingAccount[sfAccount.getJsonName ()] = accountID.humanAccountID ();
+
+    signingAccount[sfPublicKey.getJsonName ()] =
+        strHex (accountPublic.getAccountPublic ());
+
+    signingAccount[sfMultiSignature.getJsonName ()] = strHex (signature);
+
+    // Inject the SigningAccount object into jvResult.
+    jvResult[sfSigningAccount.getName ()] = signingAccount;
+}
+
 } // detail
 
 //------------------------------------------------------------------------------
 
+/** Returns a Json::objectValue. */
 Json::Value transactionSign (
     Json::Value jvRequest,
     NetworkOPs::FailHard failType,
@@ -676,8 +701,9 @@ Json::Value transactionSign (
     using namespace detail;
 
     // Add and amend fields based on the transaction type.
+    SigningAccountParams multiSignParams;
     transactionPreProcessResult preprocResult =
-        transactionPreProcessImpl (jvRequest, apiFacade, role);
+        transactionPreProcessImpl (jvRequest, apiFacade, role, multiSignParams);
 
     if (!preprocResult.second)
         return preprocResult.first;
@@ -692,6 +718,7 @@ Json::Value transactionSign (
     return transactionFormatResultImpl (txn.second);
 }
 
+/** Returns a Json::objectValue. */
 Json::Value transactionSubmit (
     Json::Value jvRequest,
     NetworkOPs::FailHard failType,
@@ -703,8 +730,9 @@ Json::Value transactionSubmit (
     using namespace detail;
 
     // Add and amend fields based on the transaction type.
+    SigningAccountParams multiSignParams;
     transactionPreProcessResult preprocResult =
-        transactionPreProcessImpl (jvRequest, apiFacade, role);
+        transactionPreProcessImpl (jvRequest, apiFacade, role, multiSignParams);
 
     if (!preprocResult.second)
         return preprocResult.first;
@@ -732,6 +760,7 @@ Json::Value transactionSubmit (
     return transactionFormatResultImpl (txn.second);
 }
 
+/** Returns a Json::objectValue. */
 Json::Value transactionGetSigningAccount (
     Json::Value jvRequest,
     NetworkOPs::FailHard failType,
@@ -774,12 +803,15 @@ Json::Value transactionGetSigningAccount (
     using namespace detail;
 
     // Add and amend fields based on the transaction type.
+    Blob multiSignature;
+    SigningAccountParams multiSignParams (multiSignAddressID, multiSignature);
+
     transactionPreProcessResult preprocResult =
         transactionPreProcessImpl (
             jvRequest,
             apiFacade,
             role,
-            SigningAccountParams (multiSignAddressID, multiSignPublicKey));
+            multiSignParams);
 
     if (!preprocResult.second)
         return preprocResult.first;
@@ -791,7 +823,15 @@ Json::Value transactionGetSigningAccount (
     if (!txn.second)
         return txn.first;
 
-    return transactionFormatResultImpl (txn.second);
+    Json::Value json = transactionFormatResultImpl (txn.second);
+    if (contains_error (json))
+        return json;
+
+    // Finally, do what we were called for: return a SigningAccount object.
+    insertSigningAccount (
+        json, multiSignAddressID, multiSignPublicKey, multiSignature);
+
+    return json;
 }
 
 // SSCHURR FIXME: transactionPreProcessImpl *must* be refactored.
@@ -804,6 +844,8 @@ Json::Value transactionGetSigningAccount (
 // not all) of the same tests that transactionSubmitMultiSigned () does.  But
 // it can't call transactionSubmitMultiSigned (), since that function does
 // some of the wrong stuff.
+
+/** Returns a Json::objectValue. */
 Json::Value transactionSubmitMultiSigned (
     Json::Value jvRequest,
     NetworkOPs::FailHard failType,

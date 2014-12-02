@@ -252,7 +252,9 @@ SField const sfNewFields           = make::one(&sfNewFields,           STI_OBJEC
 SField const sfTemplateEntry       = make::one(&sfTemplateEntry,       STI_OBJECT,  9, "TemplateEntry");
 SField const sfMemo                = make::one(&sfMemo,                STI_OBJECT, 10, "Memo");
 SField const sfSignerEntry         = make::one(&sfSignerEntry,         STI_OBJECT, 11, "SignerEntry");
-SField const sfSigningAccount      = make::one(&sfSigningAccount,      STI_OBJECT, 12, "SigningAccount");
+
+// inner object (uncommon)
+SField const sfSigningAccount      = make::one(&sfSigningAccount,      STI_OBJECT, 16, "SigningAccount");
 
 // array of objects
 // ARRAY/1 is reserved for end of array

@@ -54,7 +54,7 @@ public:
 
     explicit STTx (SerializerIterator& sit);
     explicit STTx (TxType type);
-    
+
     // Only called from ripple::RPC::transactionSign - can we eliminate this?
     explicit STTx (STObject const& object);
 
@@ -130,10 +130,6 @@ public:
     {
         sig_state_ = false;
     }
-    void insertSigningAccount (
-        RippleAddress const& accountID,
-        RippleAddress const& accountPublic,
-        RippleAddress const& accountPrivate);
 
     // SQL Functions with metadata
     static
