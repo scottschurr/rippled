@@ -32,80 +32,8 @@
 namespace ripple {
 
 /**
-The ttSIGNER_LIST_SET transaction hits bottom right here.
-<p>
-Let's start with a little background.  Your typical account has a single owner.
-Transactions on that account require a single signature from that account
-owner.  In the larger world accounts can be more complicated with, say,
-multiple owners or multiple signers.  That's where SignerLists come into play.
-<p>
-Any account can have one SignerList attached to it.  A SignerList contains the
-following elements:
-<p><ul>
-<li> A list of from 2 to a protocol-defined maximum of 32 signers.  Each
-signer in the array consists of:
-<ul>
-<li> The signer's 160-bit account ID and
-<li> The signer's 16-bit weight (used to calculate whether a quorum is met).
-</ul>
-<li> And, for the entire list, a single 32-bit quorum value.
-</ul><p>
-Giving the signers different weights allows an account to organize signers so
-some are more important than others.  A signer with a larger weight has more
-significance in a vote.
-<p>
-A multi-signed transaction is validated like this:
-<p><ul>
-<li> Each signer of the transaction  has their signature validated.
-<li> The weights of all valid signers are summed.
-<li> If the sum of the weights equals or exceeds the quorum value then the
-entire transaction is considered signed.  If the sum is below the quorum,
-then the signature fails with a tefBAD_QUORUM.
-</ul><p>
-By making the signer weights 16 bits and the quorum value 32 bits we can avoid
-concerns about overflows and still have plenty of resolution.
-<p>
-This transactor allows two operations:
-<ul>
-<li> Create (or replace) a signer list for the target account.
-<li> Remove any signer list from the target account.
-</ul>
-The data for a transaction creating or replacing a signer list has this
-general form:
-<pre>
-<code>
-{
-    "TransactionType": "SignerListSet",
-    "Account": "rDg53Haik2475DJx8bjMDSDPj4VX7htaMd",
-    "SignerQuorum": 7,
-    "SignerEntries": [
-        {
-            "SignerEntry": {
-                "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
-                "SignerWeight": 4
-            }
-        },
-        {
-            "SignerEntry": {
-                "Account": "rPcNzota6B8YBokhYtcTNqQVCngtbnWfux",
-                "SignerWeight": 3
-            }
-        }
-    ]
-}
-<\code>
-</pre>
-<p>
-The data for a transaction that removes any signer list has this form:
-<pre>
-<code>
-{
-    "TransactionType": "SignerListSet",
-    "Account": "rDg53Haik2475DJx8bjMDSDPj4VX7htaMd",
-    "SignerQuorum": 0
-}
-<\code>
-<\pre>
+See the README.md for an overview of the SetSignerList transaction that
+this class implements.
 */
 class SetSignerList final
     : public Transactor
