@@ -2655,6 +2655,9 @@
     <ClCompile Include="..\..\src\ripple\protocol\impl\Indexes.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\protocol\impl\InnerObjectFormats.cpp">
+      <ExcludedFromBuild>True</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\src\ripple\protocol\impl\LedgerFormats.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
@@ -2720,6 +2723,8 @@
     </ClCompile>
     <ClInclude Include="..\..\src\ripple\protocol\Indexes.h">
     </ClInclude>
+    <ClInclude Include="..\..\src\ripple\protocol\InnerObjectFormats.h">
+    </ClInclude>
     <ClInclude Include="..\..\src\ripple\protocol\Issue.h">
     </ClInclude>
     <ClInclude Include="..\..\src\ripple\protocol\JsonFields.h">
@@ -2777,6 +2782,9 @@
     <ClInclude Include="..\..\src\ripple\protocol\TER.h">
     </ClInclude>
     <ClCompile Include="..\..\src\ripple\protocol\tests\BuildInfo.test.cpp">
+      <ExcludedFromBuild>True</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ripple\protocol\tests\InnerObjectFormats.test.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\protocol\tests\Issue.test.cpp">

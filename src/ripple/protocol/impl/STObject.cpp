@@ -26,6 +26,7 @@
 #include <ripple/protocol/STArray.h>
 #include <ripple/protocol/STObject.h>
 #include <ripple/protocol/STParsedJSON.h>
+#include <ripple/protocol/InnerObjectFormats.h>
 #include <beast/module/core/text/LexicalCast.h>
 #include <beast/cxx14/memory.h> // <memory>
 #include <beast/cxx14/algorithm.h> // std::equal
@@ -233,6 +234,20 @@ bool STObject::setType (const SOTemplate& type)
     return valid;
 }
 
+STObject::ResultOfSetTypeFromSField
+STObject::setTypeFromSField (SField::ref sField)
+{
+    ResultOfSetTypeFromSField ret = noTemplate;
+
+    SOTemplate const* elements =
+        InnerObjectFormats::getInstance ().findSOTemplateBySField (sField);
+    if (elements)
+    {
+        ret = setType (*elements) ? typeIsSet : typeSetFail;
+    }
+    return ret;
+}
+
 bool STObject::isValidForType ()
 {
     boost::ptr_vector<STBase>::iterator it = mData.begin ();
@@ -304,8 +319,16 @@ bool STObject::set (SerializerIterator& sit, int depth)
 
             // Unflatten the field
             //
-            giveObject (
-                makeDeserializedObject (fn.fieldType, fn, sit, depth + 1));
+            std::unique_ptr<STBase> typ =
+                makeDeserializedObject (fn.fieldType, fn, sit, depth + 1);
+
+            // If the object type has a known SOTemplate then set it.
+            STObject* const obj = dynamic_cast <STObject*> (typ.get ());
+            if (obj && (obj->setTypeFromSField (fn) == typeSetFail))
+            {
+                throw std::runtime_error ("field deserialization error");
+            }
+            giveObject (std::move (typ));
         }
     }
 
@@ -318,6 +341,9 @@ STObject::deserialize (SerializerIterator& sit, SField::ref name)
 {
     std::unique_ptr <STObject> object (std::make_unique <STObject> (name));
     object->set (sit, 1);
+    if (object->setTypeFromSField (name) == typeSetFail)
+        throw std::runtime_error ("Field deserialization error");
+
     return std::move (object);
 }
 

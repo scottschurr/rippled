@@ -17,6 +17,7 @@
 */
 //==============================================================================
 
+#include <BeastConfig.h>
 #include <ripple/app/transactors/Transactor.h>
 #include <ripple/app/transactors/impl/SignerEntries.h>
 #include <ripple/protocol/STObject.h>
@@ -275,7 +276,7 @@ TER SetSignerList::validateQuorumAndSignerEntries (
     }
 
     // Make sure no signers reference this account.  Also make sure the
-    // the quorum can be reached.
+    // quorum can be reached.
     std::uint64_t allSignersWeight (0);
     for (auto const& signer : signers)
     {

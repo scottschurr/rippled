@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of rippled: https://github.com/ripple/rippled
-    Copyright (c) 2012-2014 Ripple Labs Inc.
+    Copyright (c) 2012, 2013 Ripple Labs Inc.
 
     Permission to use, copy, modify, and/or distribute this software for any
     purpose  with  or without fee is hereby granted, provided that the above
@@ -17,26 +17,31 @@
 */
 //==============================================================================
 
-#include <BeastConfig.h>
-#include <ripple/rpc/impl/TransactionSign.h>
+#ifndef RIPPLE_PROTOCOL_INNER_OBJECT_FORMATS_H_INCLUDED
+#define RIPPLE_PROTOCOL_INNER_OBJECT_FORMATS_H_INCLUDED
+
+#include <ripple/protocol/KnownFormats.h>
 
 namespace ripple {
 
-// {
-//   tx_json: <object>,
-//   account: <signing account>
-//   secret: <secret of signing account>
-// }
-Json::Value doGetSigningAccount (RPC::Context& context)
+/** Manages the list of known inner object formats.
+*/
+class InnerObjectFormats : public KnownFormats <int>
 {
-    context.loadType = Resource::feeHighBurdenRPC;
-    NetworkOPs::FailHard const failType =
-        NetworkOPs::doFailHard (
-            context.params.isMember ("fail_hard")
-            && context.params["fail_hard"].asBool ());
+private:
+    void addCommonFields (Item& item);
 
-    return RPC::transactionGetSigningAccount (
-        context.params, failType, context.netOps, context.role);
-}
+public:
+    /** Create the object.
+        This will load the object will all the known inner object formats.
+    */
+    InnerObjectFormats ();
+
+    static InnerObjectFormats const& getInstance ();
+
+    SOTemplate const* findSOTemplateBySField (SField::ref sField) const;
+};
 
 } // ripple
+
+#endif

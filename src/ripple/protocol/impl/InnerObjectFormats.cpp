@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of rippled: https://github.com/ripple/rippled
-    Copyright (c) 2012-2014 Ripple Labs Inc.
+    Copyright (c) 2012, 2013 Ripple Labs Inc.
 
     Permission to use, copy, modify, and/or distribute this software for any
     purpose  with  or without fee is hereby granted, provided that the above
@@ -18,25 +18,44 @@
 //==============================================================================
 
 #include <BeastConfig.h>
-#include <ripple/rpc/impl/TransactionSign.h>
+#include <ripple/protocol/InnerObjectFormats.h>
 
 namespace ripple {
 
-// {
-//   tx_json: <object>,
-//   account: <signing account>
-//   secret: <secret of signing account>
-// }
-Json::Value doGetSigningAccount (RPC::Context& context)
+InnerObjectFormats::InnerObjectFormats ()
 {
-    context.loadType = Resource::feeHighBurdenRPC;
-    NetworkOPs::FailHard const failType =
-        NetworkOPs::doFailHard (
-            context.params.isMember ("fail_hard")
-            && context.params["fail_hard"].asBool ());
+    add (sfSignerEntry.getJsonName ().c_str (), sfSignerEntry.getCode ())
+        << SOElement (sfAccount,              SOE_REQUIRED)
+        << SOElement (sfSignerWeight,         SOE_REQUIRED)
+        ;
 
-    return RPC::transactionGetSigningAccount (
-        context.params, failType, context.netOps, context.role);
+    add (sfSigningAccount.getJsonName ().c_str (), sfSigningAccount.getCode ())
+        << SOElement (sfAccount,              SOE_REQUIRED)
+        << SOElement (sfPublicKey,            SOE_REQUIRED)
+        << SOElement (sfMultiSignature,       SOE_REQUIRED)
+        ;
+}
+
+void InnerObjectFormats::addCommonFields (Item& item)
+{
+}
+
+InnerObjectFormats const&
+InnerObjectFormats::getInstance ()
+{
+    static InnerObjectFormats instance;
+    return instance;
+}
+
+SOTemplate const*
+InnerObjectFormats::findSOTemplateBySField (SField::ref sField) const
+{
+    SOTemplate const* ret = nullptr;
+    auto itemPtr = findByType (sField.getCode ());
+    if (itemPtr)
+        ret = &(itemPtr->elements);
+
+    return ret;
 }
 
 } // ripple

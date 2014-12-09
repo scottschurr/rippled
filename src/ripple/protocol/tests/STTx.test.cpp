@@ -79,6 +79,116 @@ public:
     }
 };
 
+class InnerObjectFormatsSerializer_test : public beast::unit_test::suite
+{
+public:
+    void run()
+    {
+        // Create a transaction
+        RippleAddress txnSeed;
+        txnSeed.setSeedRandom ();
+        RippleAddress txnGenerator = txnSeed.createGeneratorPublic (txnSeed);
+        RippleAddress txnPublicAcct = txnSeed.createAccountPublic (txnGenerator, 1);
+
+        STTx txn (ttACCOUNT_SET);
+        txn.setSourceAccount (txnPublicAcct);
+        txn.setSigningPubKey (txnPublicAcct);
+        txn.setFieldVL (sfMessageKey, txnPublicAcct.getAccountPublic ());
+        Blob const emptyBlob;  // Make empty signature for multi-signing
+        txn.setFieldVL (sfSigningPubKey, emptyBlob);
+
+        // Get the hash of the transaction for use in multi-signing.
+        uint256 const txnHash = txn.getSigningHash ();
+
+        // Create fields for a SigningAccount
+        RippleAddress saSeed;
+        saSeed.setSeedGeneric ("masterpassphrase");
+        RippleAddress const saGenerator = saSeed.createGeneratorPublic (saSeed);
+        RippleAddress const saPublicAcct =
+            saSeed.createAccountPublic (saGenerator, 1);
+        Account const saID = saPublicAcct.getAccountID ();
+
+        RippleAddress saPrivateAcct =
+            saSeed.createAccountPrivate(saGenerator, saSeed, 0);
+
+        Blob saMultiSignature;
+        saPrivateAcct.accountPrivateSign (txnHash, saMultiSignature);
+
+        // The InnerObjectFormats say a SigningAccount is supposed to look
+        // like this:
+        // SigningAccount {
+        //     Account: "...",
+        //     MultiSignature: "...",
+        //     PublicKey: "...""
+        // }
+        // Make one well formed SigningAccount and several mal-formed ones.
+        // See whether the serializer lets the good one through and catches
+        // the bad ones.
+
+        // This lambda contains the bulk of the test code.
+        auto testMalformedSigningAccount =
+            [this, &txn] (STObject const& testObj, bool expectPass)
+        {
+            STArray saTest (sfSigningAccounts, 1);
+            saTest.push_back (testObj);
+
+            STTx tempTxn (txn);
+            tempTxn.setFieldArray (sfSigningAccounts, saTest);
+
+            Serializer rawTxn;
+            tempTxn.add (rawTxn);
+            SerializerIterator sit (rawTxn);
+            bool serialized = false;
+            try
+            {
+                STTx copy (sit);
+                serialized = true;
+            }
+            catch (...)
+            {
+                ; // If it threw then serialization failed.
+            }
+            expect (serialized == expectPass,
+                "Unexpected serialized = " + std::to_string (serialized) +
+                      ".  Object:\n" + testObj.getFullText () + "\n");
+        };
+
+        {
+            // Test case 1.  Make a valid SigningAccount object.
+            STObject soTest1 (sfSigningAccount);
+            soTest1.setFieldAccount (sfAccount, saID);
+            soTest1.setFieldVL (sfPublicKey, txnPublicAcct.getAccountPublic ());
+            soTest1.setFieldVL (sfMultiSignature, saMultiSignature);
+            testMalformedSigningAccount (soTest1, true);
+        }
+        {
+            // Test case 2.  Omit sfPublicKey from SigningAccount.
+            STObject soTest2 (sfSigningAccount);
+            soTest2.setFieldAccount (sfAccount, saID);
+            soTest2.setFieldVL (sfMultiSignature, saMultiSignature);
+            testMalformedSigningAccount (soTest2, false);
+        }
+        {
+            // Test case 3.  Extra sfAmount in SigningAccount.
+            STObject soTest3 (sfSigningAccount);
+            soTest3.setFieldAccount (sfAccount, saID);
+            soTest3.setFieldVL (sfPublicKey, txnPublicAcct.getAccountPublic ());
+            soTest3.setFieldVL (sfMultiSignature, saMultiSignature);
+            soTest3.setFieldAmount (sfAmount, STAmount (10000));
+            testMalformedSigningAccount (soTest3, false);
+        }
+        {
+            // Test case 4.  Right number of fields, but wrong ones.
+            STObject soTest4 (sfSigningAccount);
+            soTest4.setFieldVL (sfPublicKey, txnPublicAcct.getAccountPublic ());
+            soTest4.setFieldVL (sfMultiSignature, saMultiSignature);
+            soTest4.setFieldAmount (sfAmount, STAmount (10000));
+            testMalformedSigningAccount (soTest4, false);
+        }
+    }
+};
+
 BEAST_DEFINE_TESTSUITE(STTx,ripple_app,ripple);
+BEAST_DEFINE_TESTSUITE(InnerObjectFormatsSerializer,ripple_app,ripple);
 
 } // ripple

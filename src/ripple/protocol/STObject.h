@@ -57,14 +57,14 @@ public:
     }
 
     STObject (const SOTemplate & type, SField::ref name)
-        : STBase (name)
+        : STBase (name), mType (nullptr)
     {
         set (type);
     }
 
     STObject (
         const SOTemplate & type, SerializerIterator & sit, SField::ref name)
-        : STBase (name)
+        : STBase (name), mType (nullptr)
     {
         set (sit);
         setType (type);
@@ -87,6 +87,12 @@ public:
     deserialize (SerializerIterator & sit, SField::ref name);
 
     bool setType (const SOTemplate & type);
+
+    enum ResultOfSetTypeFromSField : unsigned char
+    {typeSetFail, typeIsSet, noTemplate};
+
+    ResultOfSetTypeFromSField setTypeFromSField (SField::ref);
+
     bool isValidForType ();
     bool isFieldAllowed (SField::ref);
     bool isFree () const

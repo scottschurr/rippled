@@ -17,6 +17,7 @@
 */
 //==============================================================================
 
+#include <BeastConfig.h>
 #include <ripple/app/transactors/impl/SignerEntries.h>
 #include <ripple/protocol/STObject.h>
 #include <ripple/protocol/STArray.h>
@@ -45,81 +46,18 @@ SignerEntries::deserialize (
     for (STObject const& sEntry : sEntries)
     {
         // Validate the SignerEntry.
-        // SSCHURR NOTE it would be good to do the validation with
-        // STObject::setType().  But setType is a non-const method and we have
-        // a const object in our hands.  So we do the validation manually.
         if (sEntry.getFName () != sfSignerEntry)
         {
             journal.trace <<
-                "Malformed " << annotation << ": Expected signer entry.";
+                "Malformed " << annotation << ": Expected SignerEntry.";
             s.ter = temMALFORMED;
             return s;
         }
 
         // Extract SignerEntry fields.
-        bool gotAccount (false);
-        Account account;
-        bool gotWeight (false);
-        std::uint16_t weight (0);
-        for (auto const& sType : sEntry)
-        {
-            SField::ref const type = sType.getFName ();
-            if (type == sfAccount)
-            {
-                auto const accountPtr =
-                    dynamic_cast <STAccount const*> (&sType);
-                if (!accountPtr)
-                {
-                    if (journal.trace) journal.trace <<
-                        "Malformed " << annotation << ": Expected account.";
-                    s.ter = temMALFORMED;
-                    return s;
-                }
-                if (!accountPtr->getValueH160 (account))
-                {
-                    if (journal.trace) journal.trace <<
-                        "Malformed " << annotation <<
-                        ": Expected 160 bit account ID.";
-                    s.ter = temMALFORMED;
-                    return s;
-                }
-                gotAccount = true;
-            }
-            else if (type == sfSignerWeight)
-            {
-                auto const weightPtr = dynamic_cast <STUInt16 const*> (&sType);
-                if (!weightPtr)
-                {
-                    if (journal.trace) journal.trace <<
-                        "Malformed " << annotation << ": Expected weight.";
-                    s.ter = temMALFORMED;
-                    return s;
-                }
-                weight = weightPtr->getValue ();
-                gotWeight = true;
-            }
-            else
-            {
-                if (journal.trace) journal.trace <<
-                    "Malformed " << annotation <<
-                    ": Unexpected field in signer entry.";
-                s.ter = temMALFORMED;
-                return s;
-            }
-        }
-        if (gotAccount && gotWeight)
-        {
-            // We have deserialized the pair.  Put them in the vector.
-            accountVec.emplace_back (account, weight);
-        }
-        else
-        {
-            if (journal.trace) journal.trace <<
-                "Malformed " << annotation <<
-                ": Missing field in signer entry.";
-            s.ter = temMALFORMED;
-            return s;
-        }
+        Account const account = sEntry.getFieldAccount160 (sfAccount);
+        std::uint16_t const weight = sEntry.getFieldU16 (sfSignerWeight);
+        accountVec.emplace_back (account, weight);
     }
 
     s.ter = tesSUCCESS;

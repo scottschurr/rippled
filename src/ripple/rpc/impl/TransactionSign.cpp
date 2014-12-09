@@ -932,8 +932,6 @@ Json::Value transactionSubmitMultiSigned (
         if (!stpTrans->isFieldPresent (sfAccount))
             return RPC::missing_field_error (sfAccount.getName ());
     }
-    // Save the Account for testing against the SigningAccounts.
-    RippleAddress const txnAccount = stpTrans->getFieldAccount (sfAccount);
 
     // Check SigningAccounts for valid entries.
     const char* signingAccocuntsArrayName {
@@ -975,61 +973,11 @@ Json::Value transactionSubmitMultiSigned (
 
     for (STObject const& signingAccount : *signingAccounts)
     {
-        // We want to make sure the SigningAccounts contains the right fields,
-        // and only the right fields,  So there should be exactly 3 fields and
-        // there should be one each of the fields we need.
-        if (signingAccount.getCount () != 3)
+        // Only allow SigningAccount objects in the SigingAccounts array.
+        if (signingAccount.getFName () != sfSigningAccount)
         {
-            std::ostringstream err;
-            err << "Expecting exactly three fields in "
-                << signingAccocuntsArrayName << "."
-                << sfSigningAccount.getName ();
-            return RPC::make_param_error(err.str ());
-        }
-
-        if (!signingAccount.isFieldPresent (sfAccount))
-        {
-            // Return an error that we're expecting a
-            // SigningAccounts.SigningAccount.Account
-            std::ostringstream fieldName;
-            fieldName << signingAccocuntsArrayName << "."
-                << sfSigningAccount.getName () << "."
-                << sfAccount.getName ();
-            return RPC::missing_field_error (fieldName.str ());
-        }
-
-        if (!signingAccount.isFieldPresent (sfPublicKey))
-        {
-            // Return an error that we're expecting a
-            // SigningAccounts.SigningAccount.Account.PublicKey
-                std::ostringstream fieldName;
-            fieldName << signingAccocuntsArrayName << "."
-                << sfSigningAccount.getName () << "."
-                << sfPublicKey.getName ();
-            return RPC::missing_field_error (fieldName.str ());
-        }
-
-        if (!signingAccount.isFieldPresent (sfMultiSignature))
-        {
-            // Return an error that we're expecting a
-            // SigningAccounts.SigningAccount.Account
-            std::ostringstream fieldName;
-            fieldName << signingAccocuntsArrayName << "."
-                << sfSigningAccount.getName () << "."
-                << sfAccount.getName ();
-            return RPC::missing_field_error (fieldName.str ());
-        }
-
-        // All required fields are present.
-        RippleAddress const signer =
-            signingAccount.getFieldAccount (sfAccount);
-
-        if (signer == txnAccount)
-        {
-            std::ostringstream err;
-            err << "The transaction Account, " << signer.humanAccountPublic ()
-                << ", may not be a signer of a multi-signed transaction.";
-            return RPC::make_param_error(err.str ());
+            return RPC::make_param_error (
+                "SigningAccounts array has a non-SigningAccount entry");
         }
     }
 
