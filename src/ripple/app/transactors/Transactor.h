@@ -54,8 +54,6 @@ protected:
     beast::Journal m_journal;
 
     virtual TER preCheck ();
-
-    TER preCheckSign ();
     virtual TER checkSeq ();
     virtual TER payFee ();
 
@@ -79,9 +77,6 @@ protected:
     }
 
 private:
-    TER preCheckSingleSign ();
-    TER preCheckMultiSign ();
-
     TER checkSingleSign ();
     TER checkMultiSign ();
 };

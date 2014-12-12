@@ -20,6 +20,7 @@
 #ifndef RIPPLE_TX_IMPL_SIGNER_ENTRIES_H_INCLUDED
 #define RIPPLE_TX_IMPL_SIGNER_ENTRIES_H_INCLUDED
 
+#include <ripple/protocol/STTx.h>      // STTx::maxMultiSigners
 #include <ripple/protocol/UintTypes.h> // Account
 #include <ripple/protocol/TER.h>       // temMALFORMED
 #include <beast/utility/Journal.h>     // beast::Journal
@@ -68,7 +69,7 @@ public:
         std::string const& annotation);
 
     static std::size_t const minEntries = 2;
-    static std::size_t const maxEntries = 32;
+    static std::size_t const maxEntries = STTx::maxMultiSigners;
 };
 
 } // ripple

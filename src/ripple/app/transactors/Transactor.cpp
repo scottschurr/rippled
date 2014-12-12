@@ -231,42 +231,18 @@ TER Transactor::preCheck ()
     // Consistency: really signed.
     if (!mTxn.isKnownGood ())
     {
-        if (mTxn.isKnownBad ())
+        if (mTxn.isKnownBad () ||
+            (!(mParams & tapNO_CHECK_SIGN) && !mTxn.checkSign ()))
         {
             mTxn.setBad ();
             m_journal.warning << "applyTransaction: Invalid transaction (bad signature)";
             return temINVALID;
         }
 
-        TER const signingTER = preCheckSign ();
-        if (signingTER != tesSUCCESS)
-            return signingTER;
-
         mTxn.setGood ();
     }
 
     return tesSUCCESS;
-}
-
-TER Transactor::preCheckSign ()
-{
-    // Only check signature if we need to
-    if (mParams & tapNO_CHECK_SIGN)
-        return tesSUCCESS;
-
-    // We use the state of the public key as a flag to determine whether
-    // we are single- or multi-signing.  If we're multi-signing, then there's
-    // no sensible single value for the public key.  But the public key is a
-    // required field.  So when a multi-signed transaction is submitted the
-    // public key must be present but empty.  Therefore the only case when
-    // the public key may legitimately be empty is when we're multi-signing.
-    TER const signingTER = mSigningPubKey.getAccountPublic ().empty () ?
-        preCheckMultiSign () : preCheckSingleSign ();
-
-    if (signingTER != tesSUCCESS)
-        mTxn.setBad ();
-
-    return signingTER;
 }
 
 TER Transactor::apply ()
@@ -326,114 +302,6 @@ TER Transactor::checkSign ()
         checkMultiSign () : checkSingleSign ();
 
     return signingTER;
-}
-
-TER Transactor::preCheckSingleSign ()
-{
-    // If we're single-signing, then there *may not* be a SigningAccounts
-    // field.  That would leave us with two signature sources.
-    if (mTxn.isFieldPresent (sfSigningAccounts))
-    {
-        m_journal.trace <<
-            "applyTransaction: SignerEntries not allowed in a single-signed transaction.";
-        return temBAD_AUTH_MASTER;
-    }
-
-    if (mTxn.checkSign ())
-        return tesSUCCESS;
-
-    m_journal.warning << "applyTransaction: Invalid transaction (bad signature)";
-    return temINVALID;
-}
-
-namespace detail
-{
-    // Check shared between preCheckMultiSign () and checkMultiSign ()
-    TER signingAccountSanityCheck (
-        STObject const& signingAccount, beast::Journal journal)
-    {
-        if ((signingAccount.getCount () != 3) ||
-            (!signingAccount.isFieldPresent (sfAccount)) ||
-            (!signingAccount.isFieldPresent (sfPublicKey)) ||
-            (!signingAccount.isFieldPresent (sfMultiSignature)))
-        {
-            journal.trace <<
-                "applyTransaction: Malformed SigningAccount.";
-            return temMALFORMED;
-        }
-        return tesSUCCESS;
-    }
-}
-
-TER Transactor::preCheckMultiSign ()
-{
-    // Make sure the SignerEntries are present.  Otherwise they are not
-    // attempting multi-signing and we just have a bad AccountID
-    if (!mTxn.isFieldPresent (sfSigningAccounts))
-    {
-        m_journal.trace <<
-            "applyTransaction: Invalid: Not authorized to use account.";
-        return temBAD_AUTH_MASTER;
-    }
-    STArray const& txnSigners (mTxn.getFieldArray (sfSigningAccounts));
-
-    // The transaction hash is needed repeatedly inside the loop.  Compute
-    // it once outside the loop.
-    uint256 const trans_hash = mTxn.getSigningHash ();
-
-    // txnSigners must be in sorted order by AccountID.
-    Account lastSignerID (0);
-
-    // Every signature must verify or we reject the transaction.  Later
-    // (not now) we'll check that the signers are actually legitimate signers
-    // on the TxnAccount.
-    for (auto const& txnSigner : txnSigners)
-    {
-        // Sanity check this SigningAccount
-        {
-            TER err = detail::signingAccountSanityCheck (txnSigner, m_journal);
-            if (err != tesSUCCESS)
-                return err;
-        }
-        // Accounts must be in order by account ID.  No duplicates allowed.
-        {
-            Account const txnSignerID =
-                txnSigner.getFieldAccount (sfAccount).getAccountID ();
-            if (lastSignerID >= txnSignerID)
-            {
-                m_journal.trace <<
-                    "applyTransaction: Invalid MultiSignature. Mis-ordered.";
-                return temBAD_SIGNATURE;
-            }
-            lastSignerID = txnSignerID;
-        }
-        // Verify the signature.
-        bool validSig = false;
-        try
-        {
-            RippleAddress const pubKey = RippleAddress::createAccountPublic (
-                txnSigner.getFieldVL (sfPublicKey));
-
-            Blob const signature = txnSigner.getFieldVL (sfMultiSignature);
-
-            validSig = pubKey.accountPublicVerify (
-                trans_hash, signature, ECDSA::not_strict);
-        }
-        catch (...)
-        {
-            // We assume any problem lies with the signature.  That's better
-            // than returning "internal error".
-        }
-        if (!validSig)
-        {
-            m_journal.trace <<
-                "applyTransaction: Invalid SignerEntry.MultiSignature.";
-            return temBAD_SIGNATURE;
-        }
-    }
-
-    // All signatures verified.  Continue.
-    return tesSUCCESS;
 }
 
 TER Transactor::checkSingleSign ()
@@ -513,13 +381,6 @@ TER Transactor::checkMultiSign ()
     auto accountSignersItr = accountSigners.begin ();
     for (auto const& txnSigner : txnSigners)
     {
-        // Sanity check this SigningAccount
-        {
-            TER err = detail::signingAccountSanityCheck (txnSigner, m_journal);
-            if (err != tesSUCCESS)
-                return err;
-        }
-
         // See if this is a valid signer.
         Account const txnSignerID =
             txnSigner.getFieldAccount (sfAccount).getAccountID ();
