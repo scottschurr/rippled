@@ -70,6 +70,8 @@ private:
         SLE::pointer ledgerEntry,
         std::uint32_t quorum,
         std::vector<SignerEntries::SignerEntry> const& signers);
+
+    static std::size_t ownerCountDelta (std::size_t entryCount);
 };
 
 //------------------------------------------------------------------------------
@@ -119,9 +121,20 @@ SetSignerList::replaceSignerList (std::uint32_t quorum, uint256 const& index)
         return ter;
 
     // This may be either a create or a replace.  Preemptively destroy any
-    // old signer list.
+    // old signer list.  May reduce the reserve, so this is done before
+    // checking the reserve.
     if (TER const ter = destroySignerList (index))
         return ter;
+
+    // Compute new reserve.  Verify the account has funds to meet the reserve.
+    std::size_t const oldOwnerCount = mTxnAccount->getFieldU32 (sfOwnerCount);
+    std::size_t const addedOwnerCount = ownerCountDelta (signers.vec.size ());
+
+    std::uint64_t const newReserve =
+        mEngine->getLedger ()->getReserve (oldOwnerCount + addedOwnerCount);
+
+    if (mPriorBalance.getNValue () < newReserve)
+        return tecINSUFFICIENT_RESERVE;
 
     // Everything's ducky.  Add the ltSIGNER_LIST to the ledger.
     SLE::pointer signerList (mEngine->entryCreate (ltSIGNER_LIST, index));
@@ -148,7 +161,7 @@ SetSignerList::replaceSignerList (std::uint32_t quorum, uint256 const& index)
     signerList->setFieldU64 (sfOwnerNode, hint);
 
     // If we succeeded, the new entry counts against the creator's reserve.
-    mEngine->view ().incrementOwnerCount (mTxnAccount);
+    mEngine->view ().increaseOwnerCount (mTxnAccount, addedOwnerCount);
 
     return result;
 }
@@ -163,6 +176,19 @@ TER SetSignerList::destroySignerList (uint256 const& index)
     if (!signerList)
         return tesSUCCESS;
 
+    // We have to examine the current SignerList so we know how much to
+    // reduce the OwnerCount.
+    std::size_t removeFromOwnerCount = 0;
+    uint256 const signerListIndex = getSignerListIndex (mTxnAccountID);
+    SLE::pointer accountSignersList =
+        mEngine->view ().entryCache (ltSIGNER_LIST, signerListIndex);
+    if (accountSignersList)
+    {
+        STArray const& actualList =
+            accountSignersList->getFieldArray (sfSignerEntries);
+        removeFromOwnerCount = ownerCountDelta (actualList.size ());
+    }
+
     // Remove the node from the account directory.
     std::uint64_t const hint (signerList->getFieldU64 (sfOwnerNode));
 
@@ -170,7 +196,7 @@ TER SetSignerList::destroySignerList (uint256 const& index)
         getOwnerDirIndex (mTxnAccountID), index, false, (hint == 0));
 
     if (result == tesSUCCESS)
-        mEngine->view ().decrementOwnerCount (mTxnAccount);
+        mEngine->view ().decreaseOwnerCount (mTxnAccount, removeFromOwnerCount);
 
     mEngine->view ().entryDelete (signerList);
 
@@ -256,6 +282,32 @@ void SetSignerList::writeSignersToLedger (
     // Assign the SignerEntries.
     STArray toLedger(sfSignerEntries, list);
     ledgerEntry->setFieldArray (sfSignerEntries, toLedger);
+}
+
+std::size_t SetSignerList::ownerCountDelta (std::size_t entryCount)
+{
+    // We always compute the full change in OwnerCount, taking into account:
+    //  o The fact that we're adding/removing a SignerList and
+    //  o Accounting for the number of entries in the list.
+    // We can get away with that because lists are not adjusted incrementally;
+    // we add or remove an entire list.
+
+    // The wiki currently says (December 2014) the reserve should be
+    //   Reserve * (N + 1) / 2
+    // That's not making sense to me right now, since I'm working in
+    // integral OwnerCount units.  If, say, N is 4 I don't know how to return
+    // 4.5 units as an integer.
+    //
+    // So, just to get started, I'm saying that:
+    //  o Simply having a SignerList costs 2 OwnerCount units.
+    //  o And each signer in the list costs 1 more OwnerCount unit.
+    // So, at a minimum, adding a SignerList with 2 entries costs 4 OwnerCount
+    // units.  A SignerList with 32 entries would cost 34 OwnerCount units.
+    //
+    // It's worth noting that once this reserve policy has gotten into the
+    // wild it will be very difficult to change.  So think hard about what
+    // we want for the long term.
+    return 2 + entryCount;
 }
 
 TER
