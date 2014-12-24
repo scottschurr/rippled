@@ -95,6 +95,19 @@ public:
     bool isLoadedCluster () const;
 };
 
+// A function to auto-fill fees.
+enum class AutoFill : unsigned char
+{
+    dont,
+    might
+};
+
+static Json::Value checkFee (
+    Json::Value& request,
+    TxnSignApiFacade& apiFacade,
+    Role const role,
+    AutoFill const doAutoFill);
+
 } // namespace detail
 
 

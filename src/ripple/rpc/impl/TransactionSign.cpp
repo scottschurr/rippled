@@ -61,6 +61,12 @@ public:
                 (multiSignature_ != nullptr));
     }
 
+    // When multi-signing we should not edit the tx_json fields.
+    bool editFields () const
+    {
+        return !isMultiSigning();
+    }
+
     RippleAddress const* getAddressID () const
     {
         return multiSignAddressID_;
@@ -220,20 +226,25 @@ bool TxnSignApiFacade::isLoadedCluster () const
                     If this optional field is not specified, then a default
                     multiplier is used.
 
-    @param tx       The JSON corresponding to the transaction to fill in
-    @param ledger   A ledger for retrieving the current fee schedule
-    @param result   A JSON object for injecting error results, if any
-    @param admin    `true` if this is called by an administrative endpoint.
+    @param tx       The JSON corresponding to the transaction to fill in.
+    @param ledger   A ledger for retrieving the current fee schedule.
+    @param roll     Identifies if this is called by an administrative endpoint.
+
+    @return         A JSON object containing the error results, if any
 */
-static void autofill_fee (
+
+static Json::Value checkFee (
     Json::Value& request,
     TxnSignApiFacade& apiFacade,
-    Json::Value& result,
-    bool admin)
+    Role const role,
+    AutoFill const doAutoFill)
 {
     Json::Value& tx (request["tx_json"]);
     if (tx.isMember ("Fee"))
-        return;
+        return Json::Value();
+
+    if (doAutoFill == AutoFill::dont)
+        return RPC::missing_field_error ("tx_json.Fee");
 
     int mult = Tuning::defaultAutoFillFeeMultiplier;
     if (request.isMember ("fee_mult_max"))
@@ -244,9 +255,8 @@ static void autofill_fee (
         }
         else
         {
-            RPC::inject_error (rpcHIGH_FEE, RPC::expected_field_message (
-                "fee_mult_max", "a number"), result);
-            return;
+            return RPC::make_error (rpcHIGH_FEE,
+                RPC::expected_field_message ("fee_mult_max", "a number"));
         }
     }
 
@@ -254,7 +264,9 @@ static void autofill_fee (
     std::uint64_t const feeDefault = getConfig().TRANSACTION_FEE_BASE;
 
     // Administrative endpoints are exempt from local fees.
-    std::uint64_t const fee = apiFacade.scaleFeeLoad (feeDefault, admin);
+    std::uint64_t const fee =
+        apiFacade.scaleFeeLoad (feeDefault, role == Role::ADMIN);
+
     std::uint64_t const limit = mult * apiFacade.scaleFeeBase (feeDefault);
 
     if (fee > limit)
@@ -263,20 +275,31 @@ static void autofill_fee (
         ss <<
             "Fee of " << fee <<
             " exceeds the requested tx limit of " << limit;
-        RPC::inject_error (rpcHIGH_FEE, ss.str(), result);
-        return;
+        return RPC::make_error (rpcHIGH_FEE, ss.str());
     }
 
     tx ["Fee"] = static_cast<int>(fee);
+    return Json::Value();
 }
 
-static Json::Value signPayment(
+enum class PathFind : unsigned char
+{
+    dont,
+    might
+};
+
+static Json::Value checkPayment(
     Json::Value const& params,
     Json::Value& tx_json,
     RippleAddress const& raSrcAddressID,
-    TxnSignApiFacade& apiFacade,
-    Role role)
+    TxnSignApiFacade const& apiFacade,
+    Role const role,
+    PathFind const doPath)
 {
+    // Only path find for Payments.
+    if (tx_json["TransactionType"].asString () != "Payment")
+        return Json::Value();
+
     RippleAddress dstAccountID;
 
     if (!tx_json.isMember ("Amount"))
@@ -293,13 +316,15 @@ static Json::Value signPayment(
     if (!dstAccountID.setAccountID (tx_json["Destination"].asString ()))
         return RPC::invalid_field_error ("tx_json.Destination");
 
+    if ((doPath == PathFind::dont) && params.isMember ("build_path"))
+        return RPC::make_error (rpcINVALID_PARAMS,
+            "Field 'build_path' not allowed in this context.");
+
     if (tx_json.isMember ("Paths") && params.isMember ("build_path"))
         return RPC::make_error (rpcINVALID_PARAMS,
             "Cannot specify both 'tx_json.Paths' and 'build_path'");
 
-    if (!tx_json.isMember ("Paths")
-        && tx_json.isMember ("Amount")
-        && params.isMember ("build_path"))
+    if (!tx_json.isMember ("Paths") && params.isMember ("build_path"))
     {
         STAmount    saSendMax;
 
@@ -354,6 +379,73 @@ static Json::Value signPayment(
 
 //------------------------------------------------------------------------------
 
+// Validate (but don't modify) the contents of the tx_json.
+//
+// Returns a pair<Json::Value, RippleAddress>.  The Json::Value is non-empty
+// and contains as error if there was an error.  The returned RippleAddress
+// is the "Account" addressID if there was no error.
+//
+// This code does not check the "Sequence" field, since the expectations
+// for that field are particularly context sensitive.
+static std::pair<Json::Value, RippleAddress>
+checkTxJsonFields (
+    Json::Value const& tx_json,
+    TxnSignApiFacade const& apiFacade,
+    Role const role,
+    bool const verify)
+{
+    std::pair<Json::Value, RippleAddress> ret;
+
+    if (! tx_json.isObject ())
+    {
+        ret.first = RPC::object_field_error ("tx_json");
+        return ret;
+    }
+
+    if (! tx_json.isMember ("TransactionType"))
+    {
+        ret.first = RPC::missing_field_error ("tx_json.TransactionType");
+        return ret;
+    }
+
+    if (! tx_json.isMember ("Account"))
+    {
+        ret.first = RPC::make_error (rpcSRC_ACT_MISSING,
+            RPC::missing_field_message ("tx_json.Account"));
+        return ret;
+    }
+
+    RippleAddress srcAddressID;
+
+    if (! srcAddressID.setAccountID (tx_json["Account"].asString ()))
+    {
+        ret.first = RPC::make_error (rpcSRC_ACT_MALFORMED,
+            RPC::invalid_field_message ("tx_json.Account"));
+        return ret;
+    }
+
+    // Check for current ledger.
+    if (verify && !getConfig ().RUN_STANDALONE &&
+        (apiFacade.getValidatedLedgerAge() > 120))
+    {
+        ret.first = rpcError (rpcNO_CURRENT);
+        return ret;
+    }
+
+    // Check for load.
+    if (apiFacade.isLoadedCluster() && (role != Role::ADMIN))
+    {
+        ret.first = rpcError(rpcTOO_BUSY);
+        return ret;
+    }
+
+    // It's all good.  Return the AddressID.
+    ret.second = std::move (srcAddressID);
+    return ret;
+}
+
+//------------------------------------------------------------------------------
+
 // A move-only struct that makes it easy to return either a Json::Value or a
 // STTx::pointer from transactionPreProcessImpl ().
 struct transactionPreProcessResult
@@ -383,7 +475,7 @@ struct transactionPreProcessResult
 };
 
 static transactionPreProcessResult transactionPreProcessImpl (
-    Json::Value params,
+    Json::Value& params,
     TxnSignApiFacade& apiFacade,
     Role role,
     SigningAccountParams& signingArgs)
@@ -399,44 +491,26 @@ static transactionPreProcessResult transactionPreProcessImpl (
                 RPC::invalid_field_message ("secret"));
     }
 
+    bool const verify = !(params.isMember ("offline")
+                          && params["offline"].asBool ());
+
     if (! params.isMember ("tx_json"))
         return RPC::missing_field_error ("tx_json");
 
     Json::Value& tx_json (params ["tx_json"]);
 
-    if (! tx_json.isObject ())
-        return RPC::object_field_error ("tx_json");
+    // Check tx_json fields, but don't add any.
+    auto txJsonResult = checkTxJsonFields (tx_json, apiFacade, role, verify);
+    if (RPC::contains_error (txJsonResult.first))
+        return std::move (txJsonResult.first);
 
-    if (! tx_json.isMember ("TransactionType"))
-        return RPC::missing_field_error ("tx_json.TransactionType");
-
-    if (! tx_json.isMember ("Account"))
-        return RPC::make_error (rpcSRC_ACT_MISSING,
-            RPC::missing_field_message ("tx_json.Account"));
-
-    RippleAddress raSrcAddressID;
-
-    if (! raSrcAddressID.setAccountID (tx_json["Account"].asString ()))
-        return RPC::make_error (rpcSRC_ACT_MALFORMED,
-            RPC::invalid_field_message ("tx_json.Account"));
-
-    bool const verify = !(params.isMember ("offline")
-                          && params["offline"].asBool ());
+    RippleAddress const raSrcAddressID = std::move (txJsonResult.second);
 
     // This test covers the case where we're offline so the sequence number
     // cannot be determined locally.  If we're offline then the caller must
     // provide the sequence number.
     if (!verify && !tx_json.isMember ("Sequence"))
         return RPC::missing_field_error ("tx_json.Sequence");
-
-    // Check for current ledger.
-    if (verify && !getConfig ().RUN_STANDALONE &&
-        (apiFacade.getValidatedLedgerAge() > 120))
-        return rpcError (rpcNO_CURRENT);
-
-    // Check for load.
-    if (apiFacade.isLoadedCluster() && (role != Role::ADMIN))
-        return rpcError(rpcTOO_BUSY);
 
     apiFacade.snapshotAccountState (raSrcAddressID);
 
@@ -453,36 +527,36 @@ static transactionPreProcessResult transactionPreProcessImpl (
         }
     }
 
-    if (!signingArgs.isMultiSigning ())
     {
-        // Only auto-fill the "Fee" for non-multisign stuff.  Multisign
-        // must come in with the fee already in place or the signature
-        // will be invalid later.
-        Json::Value jvResult;
-        autofill_fee (params, apiFacade, jvResult, role == Role::ADMIN);
-        if (RPC::contains_error (jvResult))
-            return std::move (jvResult);
-    }
+        Json::Value err = checkFee (
+            params,
+            apiFacade,
+            role,
+            signingArgs.editFields() ? AutoFill::might : AutoFill::dont);
 
-    auto const& transactionType = tx_json["TransactionType"].asString ();
+        if (RPC::contains_error (err))
+            return std::move (err);
 
-    if ("Payment" == transactionType)
-    {
-        Json::Value e = signPayment(
+        err = checkPayment (
             params,
             tx_json,
             raSrcAddressID,
             apiFacade,
-            role);
-        if (contains_error(e))
-            return std::move (e);
+            role,
+            signingArgs.editFields() ? PathFind::might : PathFind::dont);
+
+        if (RPC::contains_error(err))
+            return std::move (err);
     }
 
-    if (!tx_json.isMember ("Sequence"))
-        tx_json["Sequence"] = apiFacade.getSeq ();
+    if (signingArgs.editFields())
+    {
+        if (!tx_json.isMember ("Sequence"))
+            tx_json["Sequence"] = apiFacade.getSeq ();
 
-    if (!tx_json.isMember ("Flags"))
-        tx_json["Flags"] = tfFullyCanonicalSig;
+        if (!tx_json.isMember ("Flags"))
+            tx_json["Flags"] = tfFullyCanonicalSig;
+    }
 
     if (verify)
     {
@@ -760,6 +834,35 @@ Json::Value transactionSubmit (
     return transactionFormatResultImpl (txn.second);
 }
 
+namespace detail
+{
+// There are a some field checks shared by transactionGetSigningAccount
+// and transactionSubmitMultiSigned.  Gather them together here.
+Json::Value checkMultiSignFields (Json::Value const& jvRequest)
+{
+   if (! jvRequest.isMember ("tx_json"))
+        return RPC::missing_field_error ("tx_json");
+
+    Json::Value const& tx_json (jvRequest ["tx_json"]);
+
+    // There are a couple of additional fields we need to check before
+    // we serialize.  If we serialize first then we generate less useful
+    //error messages.
+    if (!tx_json.isMember ("Sequence"))
+        return RPC::missing_field_error ("tx_json.Sequence");
+
+    if (!tx_json.isMember ("SigningPubKey"))
+        return RPC::missing_field_error ("tx_json.SigningPubKey");
+
+    if (!tx_json["SigningPubKey"].asString().empty())
+        return RPC::make_error (rpcINVALID_PARAMS,
+            "When multi-signing 'tx_json.SigningPubKey' must be empty.");
+
+    return Json::Value ();
+}
+
+} // detail
+
 /** Returns a Json::objectValue. */
 Json::Value transactionGetSigningAccount (
     Json::Value jvRequest,
@@ -800,7 +903,14 @@ Json::Value transactionGetSigningAccount (
             RPC::invalid_field_message (accountField));
     }
 
+    // When multi-signing, the "Sequence" and "SigningPubKey" fields must
+    // be passed in by the caller.
     using namespace detail;
+    {
+        Json::Value err = checkMultiSignFields (jvRequest);
+        if (RPC::contains_error (err))
+            return std::move (err);
+    }
 
     // Add and amend fields based on the transaction type.
     Blob multiSignature;
@@ -824,7 +934,7 @@ Json::Value transactionGetSigningAccount (
         return txn.first;
 
     Json::Value json = transactionFormatResultImpl (txn.second);
-    if (contains_error (json))
+    if (RPC::contains_error (json))
         return json;
 
     // Finally, do what we were called for: return a SigningAccount object.
@@ -833,17 +943,6 @@ Json::Value transactionGetSigningAccount (
 
     return json;
 }
-
-// SSCHURR FIXME: transactionPreProcessImpl *must* be refactored.
-//
-// In this implementation the transactionPreProcessImpl() does a bunch of
-// stuff in an organic sort of way.  The tests and adjustments in there are
-// important, but not well structured.
-//
-// This function, transactionSubmitMultiSigned(), needs to be making many (but
-// not all) of the same tests that transactionSubmitMultiSigned () does.  But
-// it can't call transactionSubmitMultiSigned (), since that function does
-// some of the wrong stuff.
 
 /** Returns a Json::objectValue. */
 Json::Value transactionSubmitMultiSigned (
@@ -855,17 +954,37 @@ Json::Value transactionSubmitMultiSigned (
     WriteLog (lsDEBUG, RPCHandler)
         << "transactionSubmitMultiSigned: " << jvRequest;
 
-    // Validate tx_json and SigningAccounts before submitting the transaction.
-
-    // We're validating against the serialized transaction.  So start out by
-    // serializing tx_json
-   if (! jvRequest.isMember ("tx_json"))
-        return RPC::missing_field_error ("tx_json");
+    // When multi-signing, the "Sequence" and "SigningPubKey" fields must
+    // be passed in by the caller.
+    using namespace detail;
+    {
+        Json::Value err = checkMultiSignFields (jvRequest);
+        if (RPC::contains_error (err))
+            return std::move (err);
+    }
 
     Json::Value& tx_json (jvRequest ["tx_json"]);
 
-    if (! tx_json.isObject ())
-        return RPC::object_field_error ("tx_json");
+    auto const txJsonResult = checkTxJsonFields(tx_json, apiFacade, role, true);
+    if (RPC::contains_error (txJsonResult.first))
+        return std::move (txJsonResult.first);
+
+    {
+        Json::Value err = checkFee (jvRequest, apiFacade, role, AutoFill::dont);
+        if (RPC::contains_error(err))
+            return std::move (err);
+
+        err = checkPayment (
+            jvRequest,
+            tx_json,
+            txJsonResult.second,
+            apiFacade,
+            role,
+            PathFind::dont);
+
+        if (RPC::contains_error(err))
+            return std::move (err);
+    }
 
     // Grind through the JSON in tx_json to produce a STTx
     STTx::pointer stpTrans;
@@ -900,11 +1019,9 @@ Json::Value transactionSubmitMultiSigned (
     // Validate the fields in the serialized transaction.
     {
         // We now have the transaction text serialized and in the right format.
-        // Verify the presence and values of select fields.
+        // Verify the values of select fields.
+        //
         // The SigningPubKey must be present but empty.
-        if (!stpTrans->isFieldPresent (sfSigningPubKey))
-            return RPC::missing_field_error (sfSigningPubKey.getName ());
-
         if (!stpTrans->getFieldVL (sfSigningPubKey).empty ())
         {
             std::ostringstream err;
@@ -913,14 +1030,7 @@ Json::Value transactionSubmitMultiSigned (
             return RPC::make_error (rpcINVALID_PARAMS, err.str ());
         }
 
-        // The Sequence field must be present.
-        if (!stpTrans->isFieldPresent (sfSequence))
-            return RPC::missing_field_error (sfSequence.getName ());
-
-        // The Fee field must be present and greater than zero.
-        if (!stpTrans->isFieldPresent (sfFee))
-            return RPC::missing_field_error (sfFee.getName ());
-
+        // The Fee field must be greater than zero.
         if (!stpTrans->getFieldAmount (sfFee) > 0)
         {
             std::ostringstream err;
@@ -928,9 +1038,6 @@ Json::Value transactionSubmitMultiSigned (
                 << " field.  Value must be greater than zero.";
             return RPC::make_error (rpcINVALID_PARAMS, err.str ());
         }
-
-        if (!stpTrans->isFieldPresent (sfAccount))
-            return RPC::missing_field_error (sfAccount.getName ());
     }
 
     // Check SigningAccounts for valid entries.
@@ -1009,8 +1116,7 @@ Json::Value transactionSubmitMultiSigned (
     // Insert the SigningAccounts into the transaction.
     stpTrans->setFieldArray (sfSigningAccounts, *signingAccounts);
 
-    // Make sure the SrializedTransaction makes a legitimate Transaction.
-    using namespace detail;
+    // Make sure the SerializedTransaction makes a legitimate Transaction.
     std::pair <Json::Value, Transaction::pointer> txn =
         transactionConstructImpl (stpTrans);
 

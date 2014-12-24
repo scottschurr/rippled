@@ -29,52 +29,26 @@ namespace ripple {
 
 namespace RPC {
 
-// Struct used to test calls to transactionSign, transactionSubmit,
-// transactionGetSigningAccount, and transactionSubmitMultiSigned
 struct TxnTestData
 {
-    // Gah, without constexpr I can't make this an enum and initialize
-    // OR operators at compile time.  Punting with integer constants.
-    static unsigned int const allGood         = 0x0;
-    static unsigned int const signFail        = 0x1;
-    static unsigned int const submitFail      = 0x2;
-    static unsigned int const monoFail        = signFail | submitFail;
-    static unsigned int const signMultiFail   = 0x4;
-    static unsigned int const submitMultiFail = 0x8;
-    static unsigned int const multiFail       = signMultiFail | submitMultiFail;
-    static unsigned int const allFail         = monoFail | multiFail;
-
     char const* const description;
     char const* const json;
-    unsigned int result;
+    char const* const expMsg[4];
 
-    TxnTestData () = delete;
-    TxnTestData (TxnTestData const&) = delete;
+    // Default and copy ctors should be deleted, but that displeases gcc 4.6.3.
+//  TxnTestData () = delete;
+//  TxnTestData (TxnTestData const&) = delete;
+//  TxnTestData (TxnTestData&&) = delete;
     TxnTestData& operator= (TxnTestData const&) = delete;
-    TxnTestData (char const* descIn, char const* jsonIn, unsigned int resultIn)
-    : description (descIn)
-    , json (jsonIn)
-    , result (resultIn)
-    { }
+    TxnTestData& operator= (TxnTestData&&) = delete;
 };
-
-// Declare storage for statics to avoid link errors.
-unsigned int const TxnTestData::allGood;
-unsigned int const TxnTestData::signFail;
-unsigned int const TxnTestData::submitFail;
-unsigned int const TxnTestData::monoFail;
-unsigned int const TxnTestData::signMultiFail;
-unsigned int const TxnTestData::submitMultiFail;
-unsigned int const TxnTestData::multiFail;
-unsigned int const TxnTestData::allFail;
-
 
 static TxnTestData const txnTestArray [] =
 {
 
 { "Minimal payment.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -82,11 +56,17 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'account'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Pass in Fee with minimal payment.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
     "secret": "masterpassphrase",
     "tx_json": {
         "Fee": 10,
@@ -95,11 +75,17 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'publickey'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Pass in Sequence.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Sequence": 0,
@@ -108,11 +94,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'account'.",
+"Missing field 'tx_json.SigningPubKey'."}},
 
 { "Pass in Sequence and Fee with minimal payment.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Sequence": 0,
@@ -122,11 +115,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.SigningPubKey'.",
+"Missing field 'tx_json.SigningPubKey'."}},
 
 { "Add 'fee_mult_max' field.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "fee_mult_max": 7,
     "tx_json": {
@@ -136,11 +136,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.SigningPubKey'.",
+"Missing field 'tx_json.SigningPubKey'."}},
 
 { "fee_mult_max is ignored if 'Fee' is present.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "fee_mult_max": 0,
     "tx_json": {
@@ -151,11 +158,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.SigningPubKey'.",
+"Missing field 'tx_json.SigningPubKey'."}},
 
 { "Invalid 'fee_mult_max' field.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "fee_mult_max": "NotAFeeMultiplier",
     "tx_json": {
@@ -165,11 +179,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Invalid field 'fee_mult_max', not a number.",
+"Invalid field 'fee_mult_max', not a number.",
+"Missing field 'tx_json.SigningPubKey'.",
+"Missing field 'tx_json.SigningPubKey'."}},
 
 { "Invalid value for 'fee_mult_max' field.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "fee_mult_max": 0,
     "tx_json": {
@@ -179,22 +200,36 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Fee of 10 exceeds the requested tx limit of 0",
+"Fee of 10 exceeds the requested tx limit of 0",
+"Missing field 'tx_json.SigningPubKey'.",
+"Missing field 'tx_json.SigningPubKey'."}},
 
 { "Missing 'Amount'.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Missing field 'tx_json.Amount'.",
+"Missing field 'tx_json.Amount'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Invalid 'Amount'.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -202,22 +237,36 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Invalid field 'tx_json.Amount'.",
+"Invalid field 'tx_json.Amount'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Missing 'Destination'.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
         "Amount": "1000000000",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Missing field 'tx_json.Destination'.",
+"Missing field 'tx_json.Destination'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Invalid 'Destination'.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -225,11 +274,18 @@ R"({
         "Destination": "NotADestination",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Invalid field 'tx_json.Destination'.",
+"Invalid field 'tx_json.Destination'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Cannot create XRP to XRP paths.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "build_path": 1,
     "tx_json": {
@@ -238,11 +294,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Cannot build XRP to XRP paths.",
+"Cannot build XRP to XRP paths.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Successful 'build_path'.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "build_path": 1,
     "tx_json": {
@@ -255,11 +318,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Not valid to include both 'Paths' and 'build_path'.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "build_path": 1,
     "tx_json": {
@@ -273,11 +343,18 @@ R"({
         "Paths": "",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Cannot specify both 'tx_json.Paths' and 'build_path'",
+"Cannot specify both 'tx_json.Paths' and 'build_path'",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Successful 'SendMax'.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "build_path": 1,
     "tx_json": {
@@ -295,11 +372,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Even though 'Amount' may not be XRP for pathfinding, 'SendMax' may be XRP.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "build_path": 1,
     "tx_json": {
@@ -313,22 +397,36 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "'secret' must be present.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
         "Amount": "1000000000",
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Missing field 'secret'.",
+"Missing field 'secret'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "'secret' must be non-empty.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -336,11 +434,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Invalid field 'secret'.",
+"Invalid field 'secret'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "'tx_json' must be present.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "rx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -348,22 +453,36 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Missing field 'tx_json'.",
+"Missing field 'tx_json'.",
+"Missing field 'tx_json'.",
+"Missing field 'tx_json'."}},
 
 { "'TransactionType' must be present.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
         "Amount": "1000000000",
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
     }
-})", TxnTestData::allFail},
+})",
+{
+"Missing field 'tx_json.TransactionType'.",
+"Missing field 'tx_json.TransactionType'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "The 'TransactionType' must be one of the pre-established transaction types.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -371,11 +490,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "tt"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Field 'tx_json.TransactionType' has invalid data.",
+"Field 'tx_json.TransactionType' has invalid data.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "The 'TransactionType', however, may be represented with an integer.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -383,22 +509,36 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": 0
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "'Account' must be present.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Amount": "1000000000",
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Missing field 'tx_json.Account'.",
+"Missing field 'tx_json.Account'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "'Account' must be well formed.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "NotAnAccount",
@@ -406,11 +546,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Invalid field 'tx_json.Account'.",
+"Invalid field 'tx_json.Account'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "The 'offline' tag may be added to the transaction.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "offline": 0,
     "tx_json": {
@@ -419,11 +566,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "If 'offline' is true then a 'Sequence' field must be supplied.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "offline": 1,
     "tx_json": {
@@ -432,11 +586,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Valid transaction if 'offline' is true.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "offline": 1,
     "tx_json": {
@@ -446,11 +607,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.SigningPubKey'.",
+"Missing field 'tx_json.SigningPubKey'."}},
 
 { "A 'Flags' field may be specified.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Flags": 0,
@@ -459,11 +627,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "The 'Flags' field must be numeric.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Flags": "NotGoodFlags",
@@ -472,11 +647,18 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::allFail},
+})",
+{
+"Field 'tx_json.Flags' has invalid data.",
+"Field 'tx_json.Flags' has invalid data.",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "It's okay to add a 'debug_signing' field.",
 R"({
-    "command": "submit",
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "debug_signing": 0,
     "tx_json": {
@@ -485,11 +667,16 @@ R"({
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "TransactionType": "Payment"
     }
-})", TxnTestData::multiFail},
+})",
+{
+"",
+"",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
 
 { "Minimal get_signingaccount.",
 R"({
-    "command": "get_signingaccount",
+    "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
     "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
@@ -498,12 +685,185 @@ R"({
         "Amount": "1000000000",
         "Destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
         "Fee": 50,
-        "Flags": 2147483648,
         "Sequence": 0,
         "SigningPubKey": "",
         "TransactionType": "Payment"
     }
-})", TxnTestData::submitMultiFail},
+})",
+{
+"",
+"",
+"",
+"Missing field 'SigningAccounts'."}},
+
+{ "Missing 'Account' in get_signingaccount.",
+R"({
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
+    "secret": "masterpassphrase",
+    "tx_json": {
+        "Amount": "1000000000",
+        "Destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+        "Fee": 50,
+        "Sequence": 0,
+        "SigningPubKey": "",
+        "TransactionType": "Payment"
+    }
+})",
+{
+"Missing field 'tx_json.Account'.",
+"Missing field 'tx_json.Account'.",
+"Missing field 'tx_json.Account'.",
+"Missing field 'tx_json.Account'."}},
+
+{ "Missing 'Amount' in get_signingaccount.",
+R"({
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
+    "secret": "masterpassphrase",
+    "tx_json": {
+        "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
+        "Destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+        "Fee": 50,
+        "Sequence": 0,
+        "SigningPubKey": "",
+        "TransactionType": "Payment"
+    }
+})",
+{
+"Missing field 'tx_json.Amount'.",
+"Missing field 'tx_json.Amount'.",
+"Missing field 'tx_json.Amount'.",
+"Missing field 'tx_json.Amount'."}},
+
+{ "Missing 'Destination' in get_signingaccount.",
+R"({
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
+    "secret": "masterpassphrase",
+    "tx_json": {
+        "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
+        "Amount": "1000000000",
+        "Fee": 50,
+        "Sequence": 0,
+        "SigningPubKey": "",
+        "TransactionType": "Payment"
+    }
+})",
+{
+"Missing field 'tx_json.Destination'.",
+"Missing field 'tx_json.Destination'.",
+"Missing field 'tx_json.Destination'.",
+"Missing field 'tx_json.Destination'."}},
+
+{ "Missing 'Fee' in get_signingaccount.",
+R"({
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
+    "secret": "masterpassphrase",
+    "tx_json": {
+        "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
+        "Amount": "1000000000",
+        "Destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+        "Sequence": 0,
+        "SigningPubKey": "",
+        "TransactionType": "Payment"
+    }
+})",
+{
+"",
+"",
+"Missing field 'tx_json.Fee'.",
+"Missing field 'tx_json.Fee'."}},
+
+{ "Missing 'Sequence' in get_signingaccount.",
+R"({
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
+    "secret": "masterpassphrase",
+    "tx_json": {
+        "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
+        "Amount": "1000000000",
+        "Destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+        "Fee": 50,
+        "SigningPubKey": "",
+        "TransactionType": "Payment"
+    }
+})",
+{
+"",
+"",
+"Missing field 'tx_json.Sequence'.",
+"Missing field 'tx_json.Sequence'."}},
+
+{ "Missing 'SigningPubKey' in get_signingaccount.",
+R"({
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
+    "secret": "masterpassphrase",
+    "tx_json": {
+        "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
+        "Amount": "1000000000",
+        "Destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+        "Fee": 50,
+        "Sequence": 0,
+        "TransactionType": "Payment"
+    }
+})",
+{
+"",
+"",
+"Missing field 'tx_json.SigningPubKey'.",
+"Missing field 'tx_json.SigningPubKey'."}},
+
+{ "Non-empty 'SigningPubKey' in get_signingaccount.",
+R"({
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
+    "secret": "masterpassphrase",
+    "tx_json": {
+        "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
+        "Amount": "1000000000",
+        "Destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+        "Fee": 50,
+        "Sequence": 0,
+        "SigningPubKey": "1",
+        "TransactionType": "Payment"
+    }
+})",
+{
+"",
+"",
+"When multi-signing 'tx_json.SigningPubKey' must be empty.",
+"When multi-signing 'tx_json.SigningPubKey' must be empty."}},
+
+{ "Missing 'TransactionType' in get_signingaccount.",
+R"({
+    "command": "doesnt_matter",
+    "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
+    "secret": "masterpassphrase",
+    "tx_json": {
+        "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
+        "Amount": "1000000000",
+        "Destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+        "Fee": 50,
+        "Sequence": 0,
+        "SigningPubKey": "",
+    }
+})",
+{
+"Missing field 'tx_json.TransactionType'.",
+"Missing field 'tx_json.TransactionType'.",
+"Missing field 'tx_json.TransactionType'.",
+"Missing field 'tx_json.TransactionType'."}},
 
 { "Minimal submit_multisigned.",
 R"({
@@ -522,12 +882,16 @@ R"({
         "Amount": "1000000000",
         "Destination": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
         "Fee": 50,
-        "Flags": 2147483648,
         "Sequence": 0,
         "SigningPubKey": "",
         "TransactionType": "Payment"
     }
-})", TxnTestData::monoFail | TxnTestData::signMultiFail},
+})",
+{
+"Missing field 'secret'.",
+"Missing field 'secret'.",
+"Missing field 'account'.",
+""}},
 
 };
 
@@ -556,24 +920,22 @@ public:
 
         {
             Json::Value req;
-            Json::Value result;
             Json::Reader ().parse (
-                "{ \"fee_mult_max\" : 1, \"tx_json\" : { } } "
-                , req);
-            detail::autofill_fee (req, apiFacade, result, true);
+                "{ \"fee_mult_max\" : 1, \"tx_json\" : { } } ", req);
+            Json::Value result =
+                checkFee (req, apiFacade, Role::ADMIN, AutoFill::might);
 
-            expect (! contains_error (result), "Legal autofill_fee");
+            expect (! RPC::contains_error (result), "Legal checkFee");
         }
 
         {
             Json::Value req;
-            Json::Value result;
             Json::Reader ().parse (
-                "{ \"fee_mult_max\" : 0, \"tx_json\" : { } } "
-                , req);
-            detail::autofill_fee (req, apiFacade, result, true);
+                "{ \"fee_mult_max\" : 0, \"tx_json\" : { } } ", req);
+            Json::Value result =
+                checkFee (req, apiFacade, Role::ADMIN, AutoFill::might);
 
-            expect (contains_error (result), "Invalid autofill_fee");
+            expect (RPC::contains_error (result), "Invalid checkFee");
         }
     }
 
@@ -591,11 +953,11 @@ public:
 
         static TestStuff const testFuncs [] =
         {
-            TestStuff {transactionSign,              "sign",               TxnTestData::signFail},
-            TestStuff {transactionSubmit,            "submit",             TxnTestData::submitFail},
+            TestStuff {transactionSign,              "sign",               0},
+            TestStuff {transactionSubmit,            "submit",             1},
 #if RIPPLE_ENABLE_MULTI_SIGN
-            TestStuff {transactionGetSigningAccount, "get_signingaccount", TxnTestData::signMultiFail},
-            TestStuff {transactionSubmitMultiSigned, "submit_multisigned", TxnTestData::submitMultiFail}
+            TestStuff {transactionGetSigningAccount, "get_signingaccount", 2},
+            TestStuff {transactionSubmitMultiSigned, "submit_multisigned", 3}
 #endif // RIPPLE_ENABLE_MULTI_SIGN
         };
 
@@ -606,7 +968,7 @@ public:
             {
                 Json::Value req;
                 Json::Reader ().parse (txnTest.json, req);
-                if (contains_error (req))
+                if (RPC::contains_error (req))
                     throw std::runtime_error (
                         "Internal JSONRPC_test error.  Bad test JSON.");
 
@@ -625,10 +987,14 @@ public:
                         apiFacade,
                         testRole);
 
-                    bool const expectPass = txnTest.result & get<2>(testFunc);
-                    bool const pass = (contains_error (result) == expectPass);
-                    expect (pass,
-                        std::string (get<1>(testFunc)) +
+                    std::string errStr;
+                    if (RPC::contains_error (result))
+                        errStr = result["error_message"].asString ();
+
+                    std::string const expStr (txnTest.expMsg[get<2>(testFunc)]);
+                    expect (errStr == expStr,
+                        "Expected: \"" + expStr + "\"\n  Got: \"" + errStr +
+                        "\"\nIn " + std::string (get<1>(testFunc)) +
                             ": " + txnTest.description);
                 }
             }
@@ -646,3 +1012,4 @@ BEAST_DEFINE_TESTSUITE(JSONRPC,ripple_app,ripple);
 
 } // RPC
 } // ripple
+
