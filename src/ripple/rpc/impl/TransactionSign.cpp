@@ -578,23 +578,29 @@ static transactionPreProcessResult transactionPreProcessImpl (
             "verify: " << masterAccountPublic.humanAccountID () <<
             " : " << raSrcAddressID.humanAccountID ();
 
-        // There are two possible signature addresses: the multisign address or
-        // the source address.  If it's not multisign, then use source address.
-        RippleAddress raSignAddressId;
-        if (signingArgs.isMultiSigning ())
-            raSignAddressId = *signingArgs.getAddressID ();
-        else
-            raSignAddressId = raSrcAddressID;
+        // There are three possible signature addresses: the multisign address,
+        // the master key, or the regular key.
+        Account const secretAccountID = masterAccountPublic.getAccountID();
 
-        Account const signAccount = raSignAddressId.getAccountID ();
-        if (signAccount == masterAccountPublic.getAccountID())
+        // If multisigning then secret must match multi-signing AccountID
+        if (signingArgs.isMultiSigning ())
         {
-            if (apiFacade.accountMasterDisabled ())
-                return rpcError (rpcMASTER_DISABLED);
+            if (secretAccountID != (*signingArgs.getAddressID()).getAccountID())
+                return rpcError (rpcBAD_SECRET);
         }
-        else if (!apiFacade.accountMatchesRegularKey (signAccount))
+        else
         {
-            return rpcError (rpcBAD_SECRET);
+            // If secret matches source AcountID master signing must be enabled.
+            if (raSrcAddressID.getAccountID () == secretAccountID)
+            {
+                if (apiFacade.accountMasterDisabled ())
+                    return rpcError (rpcMASTER_DISABLED);
+            }
+            // Neither multi-signing nor master.  Secret must match regular key.
+            else if (!apiFacade.accountMatchesRegularKey (secretAccountID))
+            {
+                return rpcError (rpcBAD_SECRET);
+            }
         }
     }
 
