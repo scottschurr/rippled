@@ -40,24 +40,24 @@ namespace detail {
 class SigningAccountParams
 {
 private:
-    RippleAddress const* const multiSignAddressID_;
+    RippleAddress const* const multiSignPublicKey_;
     Blob* const multiSignature_;
 public:
     explicit SigningAccountParams ()
-    : multiSignAddressID_ (nullptr)
+    : multiSignPublicKey_ (nullptr)
     , multiSignature_ (nullptr)
     { }
 
     SigningAccountParams (
-        RippleAddress const& multiSignAddressID,
+        RippleAddress const& multiSignPublicKey,
         Blob& multiSignature)
-    : multiSignAddressID_ (&multiSignAddressID)
+    : multiSignPublicKey_ (&multiSignPublicKey)
     , multiSignature_ (&multiSignature)
     { }
 
     bool isMultiSigning () const
     {
-        return ((multiSignAddressID_ != nullptr) &&
+        return ((multiSignPublicKey_ != nullptr) &&
                 (multiSignature_ != nullptr));
     }
 
@@ -67,9 +67,9 @@ public:
         return !isMultiSigning();
     }
 
-    RippleAddress const* getAddressID () const
+    RippleAddress const* getPublicKey () const
     {
-        return multiSignAddressID_;
+        return multiSignPublicKey_;
     }
 
     void moveMultiSignature (Blob&& multiSignature)
@@ -578,28 +578,28 @@ static transactionPreProcessResult transactionPreProcessImpl (
             "verify: " << masterAccountPublic.humanAccountID () <<
             " : " << raSrcAddressID.humanAccountID ();
 
-        // There are three possible signature addresses: the multisign address,
-        // the master key, or the regular key.
-        Account const secretAccountID = masterAccountPublic.getAccountID();
-
-        // If multisigning then secret must match multi-signing AccountID
+        // If multisigning then secret must match multi-signing public key.
         if (signingArgs.isMultiSigning ())
         {
-            if (secretAccountID != (*signingArgs.getAddressID()).getAccountID())
+            if (masterAccountPublic != (*signingArgs.getPublicKey ()))
                 return rpcError (rpcBAD_SECRET);
         }
         else
         {
             // If secret matches source AcountID master signing must be enabled.
-            if (raSrcAddressID.getAccountID () == secretAccountID)
+            Account const secretAcctID = masterAccountPublic.getAccountID();
+            if (raSrcAddressID.getAccountID () == secretAcctID)
             {
                 if (apiFacade.accountMasterDisabled ())
                     return rpcError (rpcMASTER_DISABLED);
             }
             // Neither multi-signing nor master.  Secret must match regular key.
-            else if (!apiFacade.accountMatchesRegularKey (secretAccountID))
+            else
             {
-                return rpcError (rpcBAD_SECRET);
+                if (!apiFacade.accountMatchesRegularKey (secretAcctID))
+                {
+                    return rpcError (rpcBAD_SECRET);
+                }
             }
         }
     }
@@ -920,7 +920,7 @@ Json::Value transactionGetSigningAccount (
 
     // Add and amend fields based on the transaction type.
     Blob multiSignature;
-    SigningAccountParams multiSignParams (multiSignAddressID, multiSignature);
+    SigningAccountParams multiSignParams (multiSignPublicKey, multiSignature);
 
     transactionPreProcessResult preprocResult =
         transactionPreProcessImpl (

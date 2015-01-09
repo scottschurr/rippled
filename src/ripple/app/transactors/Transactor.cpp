@@ -403,34 +403,64 @@ TER Transactor::checkMultiSign ()
             return tefBAD_SIGNATURE;
         }
 
-        // Verify that the AccountID and the PublicKey belong together.
-        // Here are the instructions from David for validating that an
-        // AccountID and PublicKey belong together (November 2014):
+        // We found the txnSignerID in the list of valid signers.  Now we need
+        // to compute the accountID that is associated with the signer's public
+        // key.
+        RippleAddress const txnSignerPubKey =
+            RippleAddress::createAccountPublic (
+                txnSigner.getFieldVL (sfPublicKey));
+
+        Account const txnSignerAcctFromPubKey = txnSignerPubKey.getAccountID ();
+
+        // Verify that the txnSignerID and the txnSignerAcctFromPubKey belong
+        // together.  Here is are the rules:
         //
-        // "Check the ledger for the account. If the public key hashes to the
-        // account, then the master key must not be disabled. If it does not,
-        // then the public key must hash to the account's RegularKey."
+        //   1. "Phantom account": an account that is not in the ledger
+        //      A. If txnSignerID == txnSignerAcctFromPubKey and the
+        //         txnSignerID is not in the ledger then we have a phantom
+        //         account.
+        //      B. Phantom accounts are always allowed as multi-signers.
+        //
+        //   2. "Master Key"
+        //      A. txnSignerID == txnSignerAcctFromPubKey, and txnSignerID is
+        //         in the ledger.
+        //      B. If the txnSignerID in the ledger does not have the
+        //         asfDisableMaster flag set, then the signature is allowed.
+        //
+        //   3. "Regular Key"
+        //      A. txnSignerID != txnSignerAcctFromPubKey, and txnSignerID is
+        //         in the ledger.
+        //      B. If txnSignerAcctFromPubKey == txnSignerID.RegularKey (from
+        //         ledger) then the signature is allowed.
+        //
+        // No other signatures are allowed.  (January 2015)
+
+        // In any of these cases we need to know whether the account is in
+        // the ledger.  Determine that now.
         uint256 const signerAccountIndex = getAccountRootIndex (txnSignerID);
         SLE::pointer signersAccountRoot =
             mEngine->view ().entryCache (ltACCOUNT_ROOT, signerAccountIndex);
 
-        if (!signersAccountRoot)
+        if (txnSignerAcctFromPubKey == txnSignerID)
         {
-            // SigningAccount is not present in the ledger.
-            m_journal.trace <<
-                "applyTransaction: SignerEntry.Account is missing from ledger.";
-            return tefBAD_SIGNATURE;
+            // Either Phantom or Master.  Phantom's automatically get a pass.
+            if (signersAccountRoot)
+            {
+                // Master Key.  Account may not have asfDisableMaster set.
+                std::uint32_t const signerAccountFlags =
+                    signersAccountRoot->getFieldU32 (sfFlags);
+
+                if (signerAccountFlags & lsfDisableMaster)
+                {
+                    m_journal.trace <<
+                        "applyTransaction: MultiSignature lsfDisableMaster.";
+                    return tefMASTER_DISABLED;
+                }
+            }
         }
-
-        RippleAddress const pubKey = RippleAddress::createAccountPublic (
-            txnSigner.getFieldVL (sfPublicKey));
-        Account const accountFromPublicKey = pubKey.getAccountID ();
-
-        std::uint32_t const signerAccountFlags =
-            signersAccountRoot->getFieldU32 (sfFlags);
-
-        if (signerAccountFlags & lsfDisableMaster)
+        else
         {
+            // May be a Regular Key.  Let's find out.
             // Public key must hash to the account's regular key.
             if (!signersAccountRoot->isFieldPresent (sfRegularKey))
             {
@@ -438,22 +468,11 @@ TER Transactor::checkMultiSign ()
                     "applyTransaction: Account lacks RegularKey.";
                 return tefBAD_SIGNATURE;
             }
-            if (accountFromPublicKey !=
+            if (txnSignerAcctFromPubKey !=
                 signersAccountRoot->getFieldAccount160 (sfRegularKey))
             {
                 m_journal.trace <<
                     "applyTransaction: Account doesn't match RegularKey.";
-                return tefBAD_SIGNATURE;
-            }
-        }
-        else
-        {
-            // Public key must hash to AccountID
-            if (accountFromPublicKey != txnSignerID)
-            {
-                // Public key does not match account.  Fail.
-                m_journal.trace <<
-                    "applyTransaction: Public key doesn't match account ID.";
                 return tefBAD_SIGNATURE;
             }
         }
