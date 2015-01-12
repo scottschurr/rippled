@@ -79,13 +79,12 @@ R"({
 {
 "",
 "",
-"Missing field 'publickey'.",
+"Missing field 'tx_json.Sequence'.",
 "Missing field 'tx_json.Sequence'."}},
 
 { "Pass in Sequence.",
 R"({
     "command": "doesnt_matter",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Sequence": 0,
@@ -105,7 +104,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Sequence": 0,
@@ -126,7 +124,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "fee_mult_max": 7,
     "tx_json": {
@@ -147,7 +144,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "fee_mult_max": 0,
     "tx_json": {
@@ -169,7 +165,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "fee_mult_max": "NotAFeeMultiplier",
     "tx_json": {
@@ -190,7 +185,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "fee_mult_max": 0,
     "tx_json": {
@@ -211,7 +205,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -229,7 +222,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -248,7 +240,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -266,7 +257,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -285,7 +275,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "build_path": 1,
     "tx_json": {
@@ -305,7 +294,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "build_path": 1,
     "tx_json": {
@@ -329,7 +317,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "build_path": 1,
     "tx_json": {
@@ -354,7 +341,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "build_path": 1,
     "tx_json": {
@@ -383,7 +369,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "build_path": 1,
     "tx_json": {
@@ -408,7 +393,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
         "Amount": "1000000000",
@@ -426,7 +410,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -445,7 +428,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "rx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -464,7 +446,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -482,7 +463,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -501,7 +481,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -520,7 +499,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Amount": "1000000000",
@@ -538,7 +516,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "NotAnAccount",
@@ -557,7 +534,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "offline": 0,
     "tx_json": {
@@ -577,7 +553,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "offline": 1,
     "tx_json": {
@@ -597,7 +572,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "offline": 1,
     "tx_json": {
@@ -618,7 +592,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Flags": 0,
@@ -638,7 +611,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Flags": "NotGoodFlags",
@@ -658,7 +630,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "debug_signing": 0,
     "tx_json": {
@@ -678,7 +649,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
@@ -700,7 +670,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Amount": "1000000000",
@@ -721,7 +690,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
@@ -742,7 +710,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
@@ -763,7 +730,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
@@ -784,7 +750,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
@@ -805,7 +770,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
@@ -826,7 +790,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",
@@ -848,7 +811,6 @@ R"({
 R"({
     "command": "doesnt_matter",
     "account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-    "publickey": "aBQG8RQAzjs1eTKFEAQXr2gS4utcDiEC9wmi7pfUPTi27VCahwgw",
     "secret": "masterpassphrase",
     "tx_json": {
         "Account": "rnUy2SHTrB9DubsPmkJZUXTf5FcNDGrYEA",

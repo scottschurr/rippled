@@ -86,9 +86,12 @@ public:
 
     bool hasAccountRoot () const;
 
-    bool accountMasterDisabled () const;
+    error_code_i singleAcctMatchesPubKey (
+        RippleAddress const& publicKey) const;
 
-    bool accountMatchesRegularKey (Account account) const;
+    error_code_i multiAcctMatchesPubKey (
+        RippleAddress const& acctID,
+        RippleAddress const& publicKey) const;
 
     int getValidatedLedgerAge () const;
 

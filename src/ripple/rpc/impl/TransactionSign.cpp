@@ -40,7 +40,7 @@ namespace detail {
 class SigningAccountParams
 {
 private:
-    RippleAddress const* const multiSignPublicKey_;
+    RippleAddress* const multiSignPublicKey_;
     Blob* const multiSignature_;
 public:
     explicit SigningAccountParams ()
@@ -49,7 +49,7 @@ public:
     { }
 
     SigningAccountParams (
-        RippleAddress const& multiSignPublicKey,
+        RippleAddress& multiSignPublicKey,
         Blob& multiSignature)
     : multiSignPublicKey_ (&multiSignPublicKey)
     , multiSignature_ (&multiSignature)
@@ -67,9 +67,9 @@ public:
         return !isMultiSigning();
     }
 
-    RippleAddress const* getPublicKey () const
+    void setPublicKey (RippleAddress const& multiSignPublicKey)
     {
-        return multiSignPublicKey_;
+        *multiSignPublicKey_ = multiSignPublicKey;
     }
 
     void moveMultiSignature (Blob&& multiSignature)
@@ -174,23 +174,62 @@ bool TxnSignApiFacade::hasAccountRoot () const
     return static_cast <bool> (sleAccountRoot);
 }
 
-bool TxnSignApiFacade::accountMasterDisabled () const
+error_code_i acctMatchesPubKey (
+    AccountState::pointer accountState,
+    RippleAddress const& accountID,
+    RippleAddress const& publicKey)
 {
-    if (!accountState_) // Unit testing.
-        return false;
+    Account const publicKeyAcctID = publicKey.getAccountID ();
+    bool const isMasterKey = publicKeyAcctID == accountID.getAccountID ();
 
-    STLedgerEntry const& sle = accountState_->peekSLE ();
-    return sle.isFlag(lsfDisableMaster);
+    // If we can't get the accountRoot, but the accountIDs match, that's
+    // good enough.
+    if (!accountState)
+    {
+        if (isMasterKey)
+            return rpcSUCCESS;
+        return rpcBAD_SECRET;
+    }
+
+    // If we *can* get to the accountRoot, check for MASTER_DISABLED
+    STLedgerEntry const& sle = accountState->peekSLE ();
+    if (isMasterKey)
+    {
+        if (sle.isFlag(lsfDisableMaster))
+            return rpcMASTER_DISABLED;
+        return rpcSUCCESS;
+    }
+
+    // The last gasp is that we have public Regular key.
+    if ((sle.isFieldPresent (sfRegularKey)) &&
+        (publicKeyAcctID == sle.getFieldAccount160 (sfRegularKey)))
+    {
+        return rpcSUCCESS;
+    }
+    return rpcBAD_SECRET;
 }
 
-bool TxnSignApiFacade::accountMatchesRegularKey (Account account) const
+error_code_i TxnSignApiFacade::singleAcctMatchesPubKey (
+    RippleAddress const& publicKey) const
 {
-    if (!accountState_) // Unit testing.
-        return true;
+    if (!netOPs_) // Unit testing.
+        return rpcSUCCESS;
 
-    STLedgerEntry const& sle = accountState_->peekSLE ();
-    return ((sle.isFieldPresent (sfRegularKey)) &&
-        (account == sle.getFieldAccount160 (sfRegularKey)));
+    return acctMatchesPubKey (accountState_, accountID_, publicKey);
+}
+
+error_code_i TxnSignApiFacade::multiAcctMatchesPubKey (
+    RippleAddress const& accountID,
+    RippleAddress const& publicKey) const
+{
+    AccountState::pointer accountState;
+    if (netOPs_ && ledger_)
+        // If it's available, get the AccountState for the multi-signer's
+        // accountID.  It's okay if the AccountState is not available,
+        // since they might be signing with a phantom (unfunded) account.
+        accountState = netOPs_->getAccountState (ledger_, accountID);
+
+    return acctMatchesPubKey (accountState, accountID, publicKey);
 }
 
 int TxnSignApiFacade::getValidatedLedgerAge () const
@@ -578,29 +617,19 @@ static transactionPreProcessResult transactionPreProcessImpl (
             "verify: " << masterAccountPublic.humanAccountID () <<
             " : " << raSrcAddressID.humanAccountID ();
 
-        // If multisigning then secret must match multi-signing public key.
+        // If multisigning then we need to return the public key.
         if (signingArgs.isMultiSigning ())
         {
-            if (masterAccountPublic != (*signingArgs.getPublicKey ()))
-                return rpcError (rpcBAD_SECRET);
+            signingArgs.setPublicKey (masterAccountPublic);
         }
         else
         {
-            // If secret matches source AcountID master signing must be enabled.
-            Account const secretAcctID = masterAccountPublic.getAccountID();
-            if (raSrcAddressID.getAccountID () == secretAcctID)
-            {
-                if (apiFacade.accountMasterDisabled ())
-                    return rpcError (rpcMASTER_DISABLED);
-            }
-            // Neither multi-signing nor master.  Secret must match regular key.
-            else
-            {
-                if (!apiFacade.accountMatchesRegularKey (secretAcctID))
-                {
-                    return rpcError (rpcBAD_SECRET);
-                }
-            }
+            // Make sure the account and secret belong together.
+            error_code_i const err =
+                apiFacade.singleAcctMatchesPubKey (masterAccountPublic);
+
+            if (err != rpcSUCCESS)
+                return rpcError (err);
         }
     }
 
@@ -885,25 +914,10 @@ Json::Value transactionGetSigningAccount (
     if (! jvRequest.isMember (accountField))
         return RPC::missing_field_error (accountField);
 
-    // Verify presence of the signer's publickey field
-    const char publickeyField[] = "publickey";
-
-    if (! jvRequest.isMember (publickeyField))
-        return RPC::missing_field_error (publickeyField);
-
     // Turn the signer's account into a RippleAddress for multisign
-    RippleAddress multiSignAddressID;
-    if (! multiSignAddressID.setAccountID (
+    RippleAddress multiSignAddrID;
+    if (! multiSignAddrID.setAccountID (
         jvRequest[accountField].asString ()))
-    {
-        return RPC::make_error (rpcSRC_ACT_MALFORMED,
-            RPC::invalid_field_message (accountField));
-    }
-
-    // Turn the signer's public key into a RippleAddress for multisign
-    RippleAddress multiSignPublicKey;
-    if (! multiSignPublicKey.setAccountPublic (
-        jvRequest[publickeyField].asString ()))
     {
         return RPC::make_error (rpcSRC_ACT_MALFORMED,
             RPC::invalid_field_message (accountField));
@@ -920,7 +934,8 @@ Json::Value transactionGetSigningAccount (
 
     // Add and amend fields based on the transaction type.
     Blob multiSignature;
-    SigningAccountParams multiSignParams (multiSignPublicKey, multiSignature);
+    RippleAddress multiSignPubKey;
+    SigningAccountParams multiSignParams (multiSignPubKey, multiSignature);
 
     transactionPreProcessResult preprocResult =
         transactionPreProcessImpl (
@@ -931,6 +946,15 @@ Json::Value transactionGetSigningAccount (
 
     if (!preprocResult.second)
         return preprocResult.first;
+
+    // Make sure the multiSignAddrID can legitimately multisign.
+    {
+        error_code_i const err =
+            apiFacade.multiAcctMatchesPubKey (multiSignAddrID, multiSignPubKey);
+
+        if (err != rpcSUCCESS)
+            return rpcError (err);
+    }
 
     // Make sure the STTx makes a legitimate Transaction.
     std::pair <Json::Value, Transaction::pointer> txn =
@@ -945,7 +969,7 @@ Json::Value transactionGetSigningAccount (
 
     // Finally, do what we were called for: return a SigningAccount object.
     insertSigningAccount (
-        json, multiSignAddressID, multiSignPublicKey, multiSignature);
+        json, multiSignAddrID, multiSignPubKey, multiSignature);
 
     return json;
 }

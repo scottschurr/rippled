@@ -432,16 +432,24 @@ private:
     // get_signingaccount
     Json::Value parseGetSigningAccount (Json::Value const& jvParams)
     {
-        Json::Value     params {Json::objectValue};
+        Json::Value     txJSON;
         Json::Reader    reader;
 
-        if ((1 == jvParams.size ())
-            && reader.parse (jvParams[0u].asString (), params))
+        if ((3 == jvParams.size ())
+            && reader.parse (jvParams[2u].asString (), txJSON))
         {
-            // Extract the only stuff we're interested in from the array.
-            return params;
-        }
+            if (txJSON.type () == Json::objectValue)
+            {
+                // Return SigningAccount object for the submitted transaction.
+                Json::Value jvRequest;
 
+                jvRequest["account"] = jvParams[0u].asString ();
+                jvRequest["secret"]  = jvParams[1u].asString ();
+                jvRequest["tx_json"] = txJSON;
+
+                return jvRequest;
+            }
+        }
         return rpcError (rpcINVALID_PARAMS);
     }
 
@@ -921,7 +929,7 @@ public:
             {   "fetch_info",           &RPCParser::parseFetchInfo,             0,  1   },
             {   "get_counts",           &RPCParser::parseGetCounts,             0,  1   },
 #if RIPPLE_ENABLE_MULTI_SIGN
-            {   "get_signingaccount",   &RPCParser::parseGetSigningAccount,     1,  1   },
+            {   "get_signingaccount",   &RPCParser::parseGetSigningAccount,     3,  3   },
 #endif // RIPPLE_ENABLE_MULTI_SIGN
             {   "json",                 &RPCParser::parseJson,                  2,  2   },
             {   "ledger",               &RPCParser::parseLedger,                0,  2   },
