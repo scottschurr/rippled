@@ -26,8 +26,10 @@
 #include <ripple/protocol/STArray.h>
 #include <ripple/protocol/STObject.h>
 #include <ripple/protocol/STParsedJSON.h>
+#include <ripple/protocol/InnerObjectFormats.h>
 #include <beast/module/core/text/LexicalCast.h>
 #include <beast/cxx14/memory.h> // <memory>
+#include <beast/cxx14/algorithm.h> // std::equal
 
 namespace ripple {
 
@@ -232,6 +234,20 @@ bool STObject::setType (const SOTemplate& type)
     return valid;
 }
 
+STObject::ResultOfSetTypeFromSField
+STObject::setTypeFromSField (SField::ref sField)
+{
+    ResultOfSetTypeFromSField ret = noTemplate;
+
+    SOTemplate const* elements =
+        InnerObjectFormats::getInstance ().findSOTemplateBySField (sField);
+    if (elements)
+    {
+        ret = setType (*elements) ? typeIsSet : typeSetFail;
+    }
+    return ret;
+}
+
 bool STObject::isValidForType ()
 {
     boost::ptr_vector<STBase>::iterator it = mData.begin ();
@@ -303,8 +319,16 @@ bool STObject::set (SerializerIterator& sit, int depth)
 
             // Unflatten the field
             //
-            giveObject (
-                makeDeserializedObject (fn.fieldType, fn, sit, depth + 1));
+            std::unique_ptr<STBase> typ =
+                makeDeserializedObject (fn.fieldType, fn, sit, depth + 1);
+
+            // If the object type has a known SOTemplate then set it.
+            STObject* const obj = dynamic_cast <STObject*> (typ.get ());
+            if (obj && (obj->setTypeFromSField (fn) == typeSetFail))
+            {
+                throw std::runtime_error ("field deserialization error");
+            }
+            giveObject (std::move (typ));
         }
     }
 
@@ -317,6 +341,9 @@ STObject::deserialize (SerializerIterator& sit, SField::ref name)
 {
     std::unique_ptr <STObject> object (std::make_unique <STObject> (name));
     object->set (sit, 1);
+    if (object->setTypeFromSField (name) == typeSetFail)
+        throw std::runtime_error ("Field deserialization error");
+
     return std::move (object);
 }
 
@@ -359,42 +386,6 @@ std::string STObject::getFullText () const
     return ret;
 }
 
-void STObject::add (Serializer& s, bool withSigningFields) const
-{
-    std::map<int, const STBase*> fields;
-
-    for (STBase const& elem : mData)
-    {
-        // pick out the fields and sort them
-        if ((elem.getSType () != STI_NOTPRESENT) &&
-            elem.getFName ().shouldInclude (withSigningFields))
-        {
-            fields.insert (std::make_pair (elem.getFName ().fieldCode, &elem));
-        }
-    }
-
-    typedef std::map<int, const STBase*>::value_type field_iterator;
-    for (auto const& mapEntry : fields)
-    {
-        // insert them in sorted order
-        const STBase* field = mapEntry.second;
-
-        // When we serialize an object inside another object,
-        // the type associated by rule with this field name
-        // must be OBJECT, or the object cannot be deserialized
-        assert ((field->getSType() != STI_OBJECT) ||
-            (field->getFName().fieldType == STI_OBJECT));
-
-        field->addFieldID (s);
-        field->add (s);
-
-        if (dynamic_cast<const STArray*> (field) != nullptr)
-            s.addFieldID (STI_ARRAY, 1);
-        else if (dynamic_cast<const STObject*> (field) != nullptr)
-            s.addFieldID (STI_OBJECT, 1);
-    }
-}
-
 std::string STObject::getText () const
 {
     std::string ret = "{";
@@ -424,39 +415,17 @@ bool STObject::isEquivalent (const STBase& t) const
         return false;
     }
 
-    typedef boost::ptr_vector<STBase>::const_iterator const_iter;
-    const_iter it1 = mData.begin (), end1 = mData.end ();
-    const_iter it2 = v->mData.begin (), end2 = v->mData.end ();
+    if (mType != nullptr && (v->mType == mType))
+        return equivalentSTObjectSameTemplate (*this, *v);
 
-    while ((it1 != end1) && (it2 != end2))
-    {
-        if ((it1->getSType () != it2->getSType ()) || !it1->isEquivalent (*it2))
-        {
-            if (it1->getSType () != it2->getSType ())
-            {
-                WriteLog (lsDEBUG, STObject) << "notEquiv type " <<
-                    it1->getFullText() << " != " <<  it2->getFullText();
-            }
-            else
-            {
-                WriteLog (lsDEBUG, STObject) << "notEquiv " <<
-                     it1->getFullText() << " != " <<  it2->getFullText();
-            }
-            return false;
-        }
-
-        ++it1;
-        ++it2;
-    }
-
-    return (it1 == end1) && (it2 == end2);
+    return equivalentSTObject (*this, *v);
 }
 
 uint256 STObject::getHash (std::uint32_t prefix) const
 {
     Serializer s;
     s.add32 (prefix);
-    add (s, true);
+    add (s, IncludeSigningFields::yes);
     return s.getSHA512Half ();
 }
 
@@ -464,7 +433,7 @@ uint256 STObject::getSigningHash (std::uint32_t prefix) const
 {
     Serializer s;
     s.add32 (prefix);
-    add (s, false);
+    add (s, IncludeSigningFields::no);
     return s.getSHA512Half ();
 }
 
@@ -745,12 +714,6 @@ STAmount const& STObject::getFieldAmount (SField::ref field) const
     return getFieldByConstRef <STAmount> (field, empty);
 }
 
-const STArray& STObject::getFieldArray (SField::ref field) const
-{
-    static STArray const empty;
-    return getFieldByConstRef <STArray> (field, empty);
-}
-
 STPathSet const& STObject::getFieldPathSet (SField::ref field) const
 {
     static STPathSet const empty{};
@@ -761,6 +724,18 @@ const STVector256& STObject::getFieldV256 (SField::ref field) const
 {
     static STVector256 const empty{};
     return getFieldByConstRef <STVector256> (field, empty);
+}
+
+const STArray& STObject::getFieldArray (SField::ref field) const
+{
+    static STArray const empty;
+    return getFieldByConstRef <STArray> (field, empty);
+}
+
+const STObject& STObject::getFieldObject (SField::ref field) const
+{
+    static STObject const empty;
+    return getFieldByConstRef <STObject> (field, empty);
 }
 
 void STObject::setFieldU8 (SField::ref field, unsigned char v)
@@ -836,6 +811,11 @@ void STObject::setFieldArray (SField::ref field, STArray const& v)
     setFieldUsingAssignment (field, v);
 }
 
+void STObject::setFieldObject (SField::ref field, STObject const& v)
+{
+    setFieldUsingAssignment (field, v);
+}
+
 Json::Value STObject::getJson (int options) const
 {
     Json::Value ret (Json::objectValue);
@@ -904,6 +884,89 @@ bool STObject::operator== (const STObject& obj) const
     }
 
     return true;
+}
+
+void STObject::add (
+    Serializer & s, IncludeSigningFields signingFieldsChoice) const
+{
+    auto const sortedFields =
+        getSortedFields (*this, signingFieldsChoice);
+
+    for (auto const field : sortedFields)
+    {
+        // When we serialize an object inside another object,
+        // the type associated by rule with this field name
+        // must be OBJECT, or the object cannot be de-serialized
+        assert ((field->getSType() != STI_OBJECT) ||
+            (field->getFName().fieldType == STI_OBJECT));
+
+        field->addFieldID (s);
+        field->add (s);
+
+        if (dynamic_cast<const STArray*> (field) != nullptr)
+            s.addFieldID (STI_ARRAY, 1);
+        else if (dynamic_cast<const STObject*> (field) != nullptr)
+            s.addFieldID (STI_OBJECT, 1);
+    }
+}
+
+std::vector<STBase const*> STObject::getSortedFields (
+    STObject const& objToSort, IncludeSigningFields signingFieldsChoice)
+{
+    std::vector<STBase const*> sf;
+    sf.reserve (objToSort.getCount ());
+
+    // Choose the fields that we need to sort.
+    for (STBase const& elem : objToSort.mData)
+    {
+        // Pick out the fields and sort them
+        if ((elem.getSType () != STI_NOTPRESENT) &&
+            elem.getFName ().shouldInclude (
+                signingFieldsChoice == IncludeSigningFields::yes))
+        {
+            sf.push_back (&elem);
+        }
+    }
+
+    // Sort the fields by fieldCode.
+    std::sort (sf.begin (), sf.end (),
+        [] (STBase const* a, STBase const* b) -> bool
+        {
+            return a->getFName ().fieldCode < b->getFName ().fieldCode;
+        });
+
+    // There should never be duplicate fields in an STObject. Verify that
+    // in debug mode.
+    assert (std::adjacent_find (sf.cbegin (), sf.cend ()) == sf.cend ());
+
+    return sf;
+}
+
+bool STObject::equivalentSTObjectSameTemplate (
+    STObject const& obj1, STObject const& obj2)
+{
+    assert (obj1.mType != nullptr);
+    assert (obj1.mType == obj2.mType);
+
+    return std::equal (obj1.begin (), obj1.end (), obj2.begin (), obj2.end (),
+        [] (STBase const& st1, STBase const& st2)
+        {
+            return (st1.getSType() == st2.getSType()) &&
+                st1.isEquivalent (st2);
+        });
+}
+
+bool STObject::equivalentSTObject (STObject const& obj1, STObject const& obj2)
+{
+    auto sf1 = getSortedFields (obj1, IncludeSigningFields::yes);
+    auto sf2 = getSortedFields (obj2, IncludeSigningFields::yes);
+
+    return std::equal (sf1.begin (), sf1.end (), sf2.begin (), sf2.end (),
+        [] (STBase const* st1, STBase const* st2)
+        {
+            return (st1->getSType() == st2->getSType()) &&
+                st1->isEquivalent (*st2);
+        });
 }
 
 } // ripple

@@ -23,6 +23,13 @@
 
 namespace ripple {
 
+static NetworkOPs::FailHard getFailHard (RPC::Context const& context)
+{
+    return NetworkOPs::doFailHard (
+        context.params.isMember ("fail_hard")
+        && context.params["fail_hard"].asBool ());
+}
+
 // {
 //   tx_json: <object>,
 //   secret: <secret>
@@ -33,10 +40,10 @@ Json::Value doSubmit (RPC::Context& context)
 
     if (!context.params.isMember ("tx_blob"))
     {
-        bool bFailHard = context.params.isMember ("fail_hard")
-                && context.params["fail_hard"].asBool ();
-        return RPC::transactionSign (
-            context.params, true, bFailHard, context.netOps, context.role);
+        auto const failType = getFailHard (context);
+
+        return RPC::transactionSubmit (
+            context.params, failType, context.netOps, context.role);
     }
 
     Json::Value                 jvResult;
@@ -57,7 +64,7 @@ Json::Value doSubmit (RPC::Context& context)
     }
     catch (std::exception& e)
     {
-        jvResult[jss::error]           = "invalidTransaction";
+        jvResult[jss::error]        = "invalidTransaction";
         jvResult["error_exception"] = e.what ();
 
         return jvResult;
@@ -71,7 +78,7 @@ Json::Value doSubmit (RPC::Context& context)
     }
     catch (std::exception& e)
     {
-        jvResult[jss::error]           = "internalTransaction";
+        jvResult[jss::error]        = "internalTransaction";
         jvResult["error_exception"] = e.what ();
 
         return jvResult;
@@ -79,7 +86,7 @@ Json::Value doSubmit (RPC::Context& context)
 
     if (tpTrans->getStatus() != NEW)
     {
-        jvResult[jss::error]            = "invalidTransactions";
+        jvResult[jss::error]        = "invalidTransactions";
         jvResult["error_exception"] = "fails local checks";
 
         return jvResult;
@@ -87,10 +94,10 @@ Json::Value doSubmit (RPC::Context& context)
 
     try
     {
-        (void) context.netOps.processTransaction (
-            tpTrans, context.role == Role::ADMIN, true,
-            context.params.isMember ("fail_hard")
-            && context.params["fail_hard"].asBool ());
+        auto const failType = getFailHard (context);
+
+        context.netOps.processTransaction (
+            tpTrans, context.role == Role::ADMIN, true, failType);
     }
     catch (std::exception& e)
     {

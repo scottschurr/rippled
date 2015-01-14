@@ -75,12 +75,7 @@ Transaction::pointer Transaction::sharedTransaction (
 
 bool Transaction::checkSign () const
 {
-    if (mFromPubKey.isValid ())
-        return mTransaction->checkSign();
-
-    WriteLog (lsWARNING, Ledger) << "Transaction has bad source public key";
-    return false;
-
+    return mTransaction->checkSign ();
 }
 
 void Transaction::setStatus (TransStatus ts, std::uint32_t lseq)

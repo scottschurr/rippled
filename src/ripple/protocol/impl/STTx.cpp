@@ -18,7 +18,6 @@
 //==============================================================================
 
 #include <BeastConfig.h>
-#include <ripple/basics/Log.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/Protocol.h>
 #include <ripple/protocol/STAccount.h>
@@ -26,9 +25,11 @@
 #include <ripple/protocol/STTx.h>
 #include <ripple/protocol/STParsedJSON.h>
 #include <ripple/protocol/TxFlags.h>
+#include <ripple/basics/Log.h>
 #include <ripple/basics/StringUtilities.h>
 #include <ripple/json/to_string.h>
 #include <beast/unit_test/suite.h>
+#include <beast/cxx14/memory.h> // <memory>
 #include <boost/format.hpp>
 
 namespace ripple {
@@ -187,15 +188,12 @@ bool STTx::checkSign () const
     {
         try
         {
-            ECDSA const fullyCanonical = (getFlags() & tfFullyCanonicalSig)
-                ? ECDSA::strict
-                : ECDSA::not_strict;
-
-            RippleAddress n;
-            n.setAccountPublic (getFieldVL (sfSigningPubKey));
-
-            sig_state_ = n.accountPublicVerify (getSigningHash (),
-                getFieldVL (sfTxnSignature), fullyCanonical);
+            // Determine whether we're single- or multi-signing by looking
+            // at the SigningPubKey.  It it's empty we must be multi-signing.
+            // Otherwise we're single-signing.
+            Blob const& signingPubKey = getFieldVL (sfSigningPubKey);
+            sig_state_ = signingPubKey.empty () ?
+                checkMultiSign () : checkSingleSign ();
         }
         catch (...)
         {
@@ -270,6 +268,107 @@ STTx::getMetaSQL (Serializer rawTxn,
                 % to_string (getTransactionID ()) % format->getName ()
                 % getSourceAccount ().humanAccountID ()
                 % getSequence () % inLedger % status % rTxn % escapedMetaData);
+}
+
+bool
+STTx::checkSingleSign () const
+{
+    // We don't allow both a non-empty sfSigningPubKey and an sfSigningAccounts.
+    // That would allow the transaction to be signed two ways.  So if both
+    // fields are present the signature is invalid.
+    if (isFieldPresent (sfSigningAccounts))
+        return false;
+
+    bool ret = false;
+    try
+    {
+        ECDSA const fullyCanonical = (getFlags() & tfFullyCanonicalSig)
+            ? ECDSA::strict
+            : ECDSA::not_strict;
+
+        RippleAddress n;
+        n.setAccountPublic (getFieldVL (sfSigningPubKey));
+
+        ret = n.accountPublicVerify (getSigningHash (),
+            getFieldVL (sfTxnSignature), fullyCanonical);
+    }
+    catch (...)
+    {
+        // Assume it was a signature failure.
+        ret = false;
+    }
+    return ret;
+}
+
+bool
+STTx::checkMultiSign () const
+{
+    // Make sure the SignerEntries are present.  Otherwise they are not
+    // attempting multi-signing and we just have a bad AccountID
+    if (!isFieldPresent (sfSigningAccounts))
+        return false;
+
+    STArray const& txnSigners (getFieldArray (sfSigningAccounts));
+
+    // There are well known bounds that the number of signers must be within.
+    {
+        std::size_t const arraySize = txnSigners.size ();
+        if ((arraySize < 1) || (arraySize > maxMultiSigners))
+            return false;
+    }
+
+    // The transaction hash is needed repeatedly inside the loop.  Compute
+    // it once outside the loop.
+    uint256 const trans_hash = getSigningHash ();
+
+    // We also use the sfAccount field inside the loop.  Get it once.
+    Account const txnAccountID = getFieldAccount (sfAccount).getAccountID ();
+
+    // txnSigners must be in sorted order by AccountID.
+    Account lastSignerID (0);
+
+    // Every signature must verify or we reject the transaction.
+    for (auto const& txnSigner : txnSigners)
+    {
+        {
+            Account const txnSignerID =
+                txnSigner.getFieldAccount (sfAccount).getAccountID ();
+
+            // None of the signers are allowed to be this account.
+            if (txnSignerID == txnAccountID)
+                return false;
+
+            // Accounts must be in order by account ID.  No duplicates allowed.
+            if (lastSignerID >= txnSignerID)
+                return false;
+
+            // The next signature must be greater than this one.
+            lastSignerID = txnSignerID;
+        }
+
+        // Verify the signature.
+        bool validSig = false;
+        try
+        {
+            RippleAddress const pubKey = RippleAddress::createAccountPublic (
+                txnSigner.getFieldVL (sfPublicKey));
+
+            Blob const signature = txnSigner.getFieldVL (sfMultiSignature);
+
+            validSig = pubKey.accountPublicVerify (
+                trans_hash, signature, ECDSA::not_strict);
+        }
+        catch (...)
+        {
+            // We assume any problem lies with the signature.
+            validSig = false;
+        }
+        if (!validSig)
+            return false;
+    }
+
+    // All signatures verified.
+    return (true);
 }
 
 //------------------------------------------------------------------------------

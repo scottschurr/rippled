@@ -18,9 +18,10 @@
 //==============================================================================
 
 #include <BeastConfig.h>
-#include <ripple/core/Config.h>
 #include <ripple/app/transactors/Transactor.h>
+#include <ripple/app/transactors/impl/SignerEntries.h>
 #include <ripple/protocol/Indexes.h>
+#include <ripple/core/Config.h>
 
 namespace ripple {
 
@@ -34,6 +35,7 @@ TER transact_AddWallet (STTx const& txn, TransactionEngineParams params, Transac
 TER transact_Change (STTx const& txn, TransactionEngineParams params, TransactionEngine* engine);
 TER transact_CreateTicket (STTx const& txn, TransactionEngineParams params, TransactionEngine* engine);
 TER transact_CancelTicket (STTx const& txn, TransactionEngineParams params, TransactionEngine* engine);
+TER transact_SetSignerList (STTx const& txn, TransactionEngineParams params, TransactionEngine* engine);
 
 TER
 Transactor::transact (
@@ -73,6 +75,13 @@ Transactor::transact (
 
     case ttTICKET_CANCEL:
         return transact_CancelTicket (txn, params, engine);
+
+#if RIPPLE_ENABLE_MULTI_SIGN
+
+    case ttSIGNER_LIST_SET:
+        return transact_SetSignerList (txn, params, engine);
+
+#endif // RIPPLE_ENABLE_MULTI_SIGN
 
     default:
         return temUNKNOWN;
@@ -153,36 +162,6 @@ TER Transactor::payFee ()
     return tesSUCCESS;
 }
 
-TER Transactor::checkSig ()
-{
-    // Consistency: Check signature
-    // Verify the transaction's signing public key is the key authorized for signing.
-    if (mSigningPubKey.getAccountID () == mTxnAccountID)
-    {
-        // Authorized to continue.
-        mSigMaster = true;
-        if (mTxnAccount->isFlag(lsfDisableMaster))
-        return tefMASTER_DISABLED;
-    }
-    else if (mHasAuthKey && mSigningPubKey.getAccountID () == mTxnAccount->getFieldAccount160 (sfRegularKey))
-    {
-        // Authorized to continue.
-    }
-    else if (mHasAuthKey)
-    {
-        m_journal.trace << "applyTransaction: Delay: Not authorized to use account.";
-        return tefBAD_AUTH;
-    }
-    else
-    {
-        m_journal.trace << "applyTransaction: Invalid: Not authorized to use account.";
-
-        return temBAD_AUTH_MASTER;
-    }
-
-    return tesSUCCESS;
-}
-
 TER Transactor::checkSeq ()
 {
     std::uint32_t t_seq = mTxn.getSequence ();
@@ -194,7 +173,7 @@ TER Transactor::checkSeq ()
     {
         if (a_seq < t_seq)
         {
-            m_journal.trace << "apply: transaction has future sequence number";
+            m_journal.trace << "applyTransaction: transaction has future sequence number";
 
             return terPRE_SEQ;
         }
@@ -204,7 +183,7 @@ TER Transactor::checkSeq ()
                 return tefALREADY;
         }
 
-        m_journal.warning << "apply: transaction has past sequence number";
+        m_journal.warning << "applyTransaction: transaction has past sequence number";
 
         return tefPAST_SEQ;
     }
@@ -237,7 +216,7 @@ TER Transactor::preCheck ()
 
     if (!mTxnAccountID)
     {
-        m_journal.warning << "apply: bad transaction source id";
+        m_journal.warning << "applyTransaction: bad transaction source id";
         return temBAD_SRC_ACCOUNT;
     }
 
@@ -253,10 +232,10 @@ TER Transactor::preCheck ()
     if (!mTxn.isKnownGood ())
     {
         if (mTxn.isKnownBad () ||
-            (!(mParams & tapNO_CHECK_SIGN) && !mTxn.checkSign()))
+            (!(mParams & tapNO_CHECK_SIGN) && !mTxn.checkSign ()))
         {
             mTxn.setBad ();
-            m_journal.warning << "apply: Invalid transaction (bad signature)";
+            m_journal.warning << "applyTransaction: Invalid transaction (bad signature)";
             return temINVALID;
         }
 
@@ -286,7 +265,7 @@ TER Transactor::apply ()
         if (mustHaveValidAccount ())
         {
             m_journal.trace <<
-                "apply: delay transaction: source account does not exist " <<
+                "applyTransaction: delay transaction: source account does not exist " <<
                 mTxn.getSourceAccount ().humanAccountID ();
             return terNO_ACCOUNT;
         }
@@ -306,7 +285,7 @@ TER Transactor::apply ()
 
     if (terResult != tesSUCCESS) return (terResult);
 
-    terResult = checkSig ();
+    terResult = checkSign ();
 
     if (terResult != tesSUCCESS) return (terResult);
 
@@ -314,6 +293,204 @@ TER Transactor::apply ()
         mEngine->entryModify (mTxnAccount);
 
     return doApply ();
+}
+
+TER Transactor::checkSign ()
+{
+    // If the mSigningPubKey is empty, then we must be multi-signing.
+    TER const signingTER = mSigningPubKey.getAccountPublic ().empty () ?
+        checkMultiSign () : checkSingleSign ();
+
+    return signingTER;
+}
+
+TER Transactor::checkSingleSign ()
+{
+    // Consistency: Check signature
+    // Verify the transaction's signing public key is authorized for signing.
+    if (mSigningPubKey.getAccountID () == mTxnAccountID)
+    {
+        // Authorized to continue.
+        mSigMaster = true;
+        if (mTxnAccount->isFlag(lsfDisableMaster))
+            return tefMASTER_DISABLED;
+    }
+    else if (mHasAuthKey &&
+        (mSigningPubKey.getAccountID () ==
+            mTxnAccount->getFieldAccount160 (sfRegularKey)))
+    {
+        // Authorized to continue.
+    }
+    else if (mHasAuthKey)
+    {
+        m_journal.trace <<
+            "applyTransaction: Delay: Not authorized to use account.";
+        return tefBAD_AUTH;
+    }
+    else
+    {
+        m_journal.trace <<
+            "applyTransaction: Invalid: Not authorized to use account.";
+        return temBAD_AUTH_MASTER;
+    }
+
+    return tesSUCCESS;
+}
+
+TER Transactor::checkMultiSign ()
+{
+    STArray const& txnSigners (mTxn.getFieldArray (sfSigningAccounts));
+
+    // The TxnAccount must be multi-signed for this to work.
+    // See if there's an ltSIGNER_LIST for this account.
+    uint256 const index = getSignerListIndex (mTxnAccountID);
+
+    // Get a vector of the account's signers.
+    std::uint32_t quorum = std::numeric_limits <std::uint32_t>::max ();
+    std::vector<SignerEntries::SignerEntry> accountSigners;
+    {
+        SLE::pointer accountSignersList =
+            mEngine->view ().entryCache (ltSIGNER_LIST, index);
+
+        // If the signer list doesn't exist the account is not multi-signing.
+        if (!accountSignersList)
+        {
+            m_journal.trace <<
+                "applyTransaction: Invalid: Not authorized to use account.";
+            return temBAD_AUTH_MASTER;
+        }
+        quorum = accountSignersList->getFieldU32 (sfSignerQuorum);
+
+        SignerEntries::Decoded signersOnAccountDecode =
+            SignerEntries::deserialize (
+                *accountSignersList, m_journal, "ledger");
+
+        if (signersOnAccountDecode.ter != tesSUCCESS)
+            return signersOnAccountDecode.ter;
+
+        accountSigners = std::move (signersOnAccountDecode.vec);
+    }
+
+    // Walk the SignerEntries performing a variety of checks and see if
+    // the quorum is met.
+
+    // Both the txnSigners and accountSigners are sorted by account.  So
+    // matching transaction signers to account signers should be a simple
+    // linear walk.  *All* signers must be valid or the transaction fails.
+    std::uint32_t weightSum = 0;
+    auto accountSignersItr = accountSigners.begin ();
+    for (auto const& txnSigner : txnSigners)
+    {
+        // See if this is a valid signer.
+        Account const txnSignerID =
+            txnSigner.getFieldAccount (sfAccount).getAccountID ();
+
+        // Attempt to match the txnSignerID with an AccountSigner
+        while (accountSignersItr->account < txnSignerID)
+        {
+            if (++accountSignersItr == accountSigners.end ())
+            {
+                m_journal.trace <<
+                    "applyTransaction: Invalid SignerEntry.Account.";
+                return tefBAD_SIGNATURE;
+            }
+        }
+        if (accountSignersItr->account != txnSignerID)
+        {
+            // The txnSignerID is not in the SignerEntries.
+            m_journal.trace <<
+                "applyTransaction: Invalid SignerEntry.Account.";
+            return tefBAD_SIGNATURE;
+        }
+
+        // We found the txnSignerID in the list of valid signers.  Now we need
+        // to compute the accountID that is associated with the signer's public
+        // key.
+        RippleAddress const txnSignerPubKey =
+            RippleAddress::createAccountPublic (
+                txnSigner.getFieldVL (sfPublicKey));
+
+        Account const txnSignerAcctFromPubKey = txnSignerPubKey.getAccountID ();
+
+        // Verify that the txnSignerID and the txnSignerAcctFromPubKey belong
+        // together.  Here is are the rules:
+        //
+        //   1. "Phantom account": an account that is not in the ledger
+        //      A. If txnSignerID == txnSignerAcctFromPubKey and the
+        //         txnSignerID is not in the ledger then we have a phantom
+        //         account.
+        //      B. Phantom accounts are always allowed as multi-signers.
+        //
+        //   2. "Master Key"
+        //      A. txnSignerID == txnSignerAcctFromPubKey, and txnSignerID is
+        //         in the ledger.
+        //      B. If the txnSignerID in the ledger does not have the
+        //         asfDisableMaster flag set, then the signature is allowed.
+        //
+        //   3. "Regular Key"
+        //      A. txnSignerID != txnSignerAcctFromPubKey, and txnSignerID is
+        //         in the ledger.
+        //      B. If txnSignerAcctFromPubKey == txnSignerID.RegularKey (from
+        //         ledger) then the signature is allowed.
+        //
+        // No other signatures are allowed.  (January 2015)
+
+        // In any of these cases we need to know whether the account is in
+        // the ledger.  Determine that now.
+        uint256 const signerAccountIndex = getAccountRootIndex (txnSignerID);
+        SLE::pointer signersAccountRoot =
+            mEngine->view ().entryCache (ltACCOUNT_ROOT, signerAccountIndex);
+
+        if (txnSignerAcctFromPubKey == txnSignerID)
+        {
+            // Either Phantom or Master.  Phantom's automatically get a pass.
+            if (signersAccountRoot)
+            {
+                // Master Key.  Account may not have asfDisableMaster set.
+                std::uint32_t const signerAccountFlags =
+                    signersAccountRoot->getFieldU32 (sfFlags);
+
+                if (signerAccountFlags & lsfDisableMaster)
+                {
+                    m_journal.trace <<
+                        "applyTransaction: MultiSignature lsfDisableMaster.";
+                    return tefMASTER_DISABLED;
+                }
+            }
+        }
+        else
+        {
+            // May be a Regular Key.  Let's find out.
+            // Public key must hash to the account's regular key.
+            if (!signersAccountRoot->isFieldPresent (sfRegularKey))
+            {
+                m_journal.trace <<
+                    "applyTransaction: Account lacks RegularKey.";
+                return tefBAD_SIGNATURE;
+            }
+            if (txnSignerAcctFromPubKey !=
+                signersAccountRoot->getFieldAccount160 (sfRegularKey))
+            {
+                m_journal.trace <<
+                    "applyTransaction: Account doesn't match RegularKey.";
+                return tefBAD_SIGNATURE;
+            }
+        }
+
+        // The signer is legitimate.  Add their weight toward the quorum.
+        weightSum += accountSignersItr->weight;
+    }
+
+    // Cannot perform transaction if quorum is not met.
+    if (weightSum < quorum)
+    {
+        m_journal.trace <<
+            "applyTransaction: MultiSignature failed to meet quorum.";
+        return tefBAD_QUORUM;
+    }
+
+    // Met the quorum.  Continue.
+    return tesSUCCESS;
 }
 
 }

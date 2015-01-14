@@ -137,6 +137,26 @@ static Json::Value singleton_expected (std::string const& object,
             "]' must be an object with a single key/object value.");
 }
 
+static Json::Value serialization_error (SField::ref sField)
+{
+    return RPC::make_error (rpcINVALID_PARAMS,
+        "Object '" + sField.getName () + "' failed to serialize.");
+}
+
+static Json::Value template_mismatch (SField::ref sField)
+{
+    return RPC::make_error (rpcINVALID_PARAMS,
+        "Object '" +  sField.getName () +
+            "' contents did not meet requirements for that type.");
+}
+
+static Json::Value
+non_object_in_array (std::string const& item, Json::UInt index)
+{
+    return RPC::make_error (rpcINVALID_PARAMS,
+        "Item '" + item + "' at index " + std::to_string (index) +
+            " is not an object.  Arrays may only contain objects.");
+}
 
 // This function is used by parseObject to parse any JSON type that doesn't
 // recurse.  Everything represented here is a leaf-type.
@@ -774,8 +794,22 @@ static bool parseObject (
             break;
         }
     }
+    auto obj = std::make_unique <STObject> (*name, data);
+    if (!obj)
+    {
+        error = serialization_error (*name);
+        return false;
+    }
 
-    sub_object = std::make_unique <STObject> (*name, data);
+    // Some inner object types have templates.  Attempt to apply that.
+    if (obj->setTypeFromSField (*name) == STObject::typeSetFail)
+    {
+        error = template_mismatch (*name);
+        return false;
+    }
+
+    // Success.  Return a well formatted object.
+    sub_object = std::move (obj);
     return true;
 }
 
@@ -833,12 +867,17 @@ static bool parseArray (
                 std::stringstream ss;
                 ss << json_name << "." <<
                     "[" << i << "]." << objectName;
-                bool const success (parseObject (ss.str (), objectFields,
-                    nameField, depth + 1, sub_object_, error));
-
-                if (! success ||
-                    (sub_object_->getFName().fieldType != STI_OBJECT))
+                if (!parseObject (ss.str (), objectFields,
+                    nameField, depth + 1, sub_object_, error))
                 {
+                    std::string errMsg = error["error_message"].asString ();
+                    error["error_message"] = "Error at '" + ss.str () +
+                        "'. " + errMsg;
+                    return false;
+                }
+                if (sub_object_->getFName().fieldType != STI_OBJECT)
+                {
+                    error = non_object_in_array (ss.str(), i);
                     return false;
                 }
             }

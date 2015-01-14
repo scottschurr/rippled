@@ -60,8 +60,22 @@ STArray::deserialize (SerializerIterator& sit, SField::ref field)
             throw std::runtime_error ("Non-object in array");
         }
 
-        value.push_back (new STObject (fn));
-        value.rbegin ()->set (sit, 1);
+        // The field looks legit.  Try to build it.
+        auto newObj = std::make_unique <STObject> (fn);
+        if (!newObj)
+        {
+            WriteLog (lsTRACE, STObject) << "STObject construction failed";
+            throw std::runtime_error ("STObject construction failed");
+        }
+
+        newObj->set (sit, 1);
+        if (newObj->setTypeFromSField (fn) == STObject::typeSetFail)
+        {
+            throw std::runtime_error ("Malformed object in array");
+        }
+
+        // It's a valid object.  Put it in the array.
+        value.push_back (newObj.release ());
     }
     return std::move (ret);
 }

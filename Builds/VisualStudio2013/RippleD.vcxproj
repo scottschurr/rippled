@@ -2048,6 +2048,11 @@
     <ClCompile Include="..\..\src\ripple\app\transactors\CreateTicket.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\app\transactors\impl\SignerEntries.cpp">
+      <ExcludedFromBuild>True</ExcludedFromBuild>
+    </ClCompile>
+    <ClInclude Include="..\..\src\ripple\app\transactors\impl\SignerEntries.h">
+    </ClInclude>
     <ClCompile Include="..\..\src\ripple\app\transactors\Payment.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
@@ -2055,6 +2060,9 @@
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\app\transactors\SetRegularKey.cpp">
+      <ExcludedFromBuild>True</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ripple\app\transactors\SetSignerList.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\app\transactors\SetTrust.cpp">
@@ -2647,6 +2655,9 @@
     <ClCompile Include="..\..\src\ripple\protocol\impl\Indexes.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\protocol\impl\InnerObjectFormats.cpp">
+      <ExcludedFromBuild>True</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\src\ripple\protocol\impl\LedgerFormats.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
@@ -2712,6 +2723,8 @@
     </ClCompile>
     <ClInclude Include="..\..\src\ripple\protocol\Indexes.h">
     </ClInclude>
+    <ClInclude Include="..\..\src\ripple\protocol\InnerObjectFormats.h">
+    </ClInclude>
     <ClInclude Include="..\..\src\ripple\protocol\Issue.h">
     </ClInclude>
     <ClInclude Include="..\..\src\ripple\protocol\JsonFields.h">
@@ -2769,6 +2782,9 @@
     <ClInclude Include="..\..\src\ripple\protocol\TER.h">
     </ClInclude>
     <ClCompile Include="..\..\src\ripple\protocol\tests\BuildInfo.test.cpp">
+      <ExcludedFromBuild>True</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ripple\protocol\tests\InnerObjectFormats.test.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\protocol\tests\Issue.test.cpp">
@@ -2897,6 +2913,9 @@
     <ClCompile Include="..\..\src\ripple\rpc\handlers\GetCounts.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\..\src\ripple\rpc\handlers\GetSigningAccount.cpp">
+      <ExcludedFromBuild>True</ExcludedFromBuild>
+    </ClCompile>
     <ClInclude Include="..\..\src\ripple\rpc\handlers\Handlers.h">
     </ClInclude>
     <ClCompile Include="..\..\src\ripple\rpc\handlers\Internal.cpp">
@@ -2974,6 +2993,9 @@
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\rpc\handlers\Submit.cpp">
+      <ExcludedFromBuild>True</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ripple\rpc\handlers\SubmitMultiSigned.cpp">
       <ExcludedFromBuild>True</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\src\ripple\rpc\handlers\Subscribe.cpp">

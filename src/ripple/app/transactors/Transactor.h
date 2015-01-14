@@ -62,7 +62,7 @@ protected:
     // Returns the fee, not scaled for load (Should be in fee units. FIXME)
     virtual std::uint64_t calculateBaseFee ();
 
-    virtual TER checkSig ();
+    virtual TER checkSign ();
     virtual TER doApply () = 0;
 
     Transactor (
@@ -75,6 +75,10 @@ protected:
     {
         return true;
     }
+
+private:
+    TER checkSingleSign ();
+    TER checkMultiSign ();
 };
 
 }

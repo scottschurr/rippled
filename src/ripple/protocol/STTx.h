@@ -44,6 +44,8 @@ public:
     typedef std::shared_ptr<STTx>        pointer;
     typedef const std::shared_ptr<STTx>& ref;
 
+    static std::size_t const maxMultiSigners = 32;
+
 public:
     STTx () = delete;
     STTx& operator= (STTx const& other) = delete;
@@ -52,7 +54,7 @@ public:
 
     explicit STTx (SerializerIterator& sit);
     explicit STTx (TxType type);
-    
+
     // Only called from ripple::RPC::transactionSign - can we eliminate this?
     explicit STTx (STObject const& object);
 
@@ -149,6 +151,10 @@ private:
         return new STTx (*this);
     }
 
+    bool checkSingleSign () const;
+    bool checkMultiSign () const;
+
+private:
     TxType tx_type_;
 
     mutable boost::tribool sig_state_;
