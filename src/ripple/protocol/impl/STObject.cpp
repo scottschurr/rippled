@@ -351,20 +351,17 @@ STObject::startMultiSigningData () const
 //        and the function shouldn't even exist
 void
 STObject::finishMultiSigningData (
-    AccountID const& signingForID,
     AccountID const& signingID,
     Serializer& s) const
 {
-    s.add160 (signingForID);
     s.add160 (signingID);
 }
 
 Serializer
-STObject::getMultiSigningData (
-    AccountID const& signingForID, AccountID const& signingID) const
+STObject::getMultiSigningData (AccountID const& signingID) const
 {
     Serializer s (startMultiSigningData ());
-    finishMultiSigningData (signingForID, signingID, s);
+    finishMultiSigningData (signingID, s);
     return s;
 }
 

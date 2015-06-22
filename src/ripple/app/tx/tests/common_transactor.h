@@ -15,6 +15,7 @@
 */
 //==============================================================================
 
+#if 0
 #ifndef RIPPLE_APP_TRANSACTORS_TESTS_COMMON_TRANSACTOR_H_INCLUDED
 #define RIPPLE_APP_TRANSACTORS_TESTS_COMMON_TRANSACTOR_H_INCLUDED
 
@@ -357,3 +358,4 @@ getTicketsOnAccount (TestLedger& ledger, UserAccount const& acct);
 } // ripple
 
 #endif // RIPPLE_APP_TRANSACTORS_TESTS_COMMON_TRANSACTOR_H_INCLUDED
+#endif // 0

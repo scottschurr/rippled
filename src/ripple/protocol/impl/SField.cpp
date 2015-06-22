@@ -121,6 +121,7 @@ SField const sfReserveIncrement    = make::one(&sfReserveIncrement,    STI_UINT3
 SField const sfSetFlag             = make::one(&sfSetFlag,             STI_UINT32, 33, "SetFlag");
 SField const sfClearFlag           = make::one(&sfClearFlag,           STI_UINT32, 34, "ClearFlag");
 SField const sfSignerQuorum        = make::one(&sfSignerQuorum,        STI_UINT32, 35, "SignerQuorum");
+SField const sfSignerListID        = make::one(&sfSignerListID,        STI_UINT32, 36, "SignerListID");
 
 // 64-bit integers
 SField const sfIndexNext     = make::one(&sfIndexNext,     STI_UINT64, 1, "IndexNext");
@@ -224,13 +225,12 @@ SField const sfMemo                = make::one(&sfMemo,                STI_OBJEC
 SField const sfSignerEntry         = make::one(&sfSignerEntry,         STI_OBJECT, 11, "SignerEntry");
 
 // inner object (uncommon)
-SField const sfSigningAccount      = make::one(&sfSigningAccount,      STI_OBJECT, 16, "SigningAccount");
-SField const sfSigningFor          = make::one(&sfSigningFor,          STI_OBJECT, 17, "SigningFor");
+SField const sfSigner              = make::one(&sfSigner,              STI_OBJECT, 16, "Signer");
 
 // array of objects
 // ARRAY/1 is reserved for end of array
-SField const sfSigningAccounts = make::one(&sfSigningAccounts, STI_ARRAY, 2, "SigningAccounts");
-SField const sfMultiSigners    = make::one(&sfMultiSigners,    STI_ARRAY, 3, "MultiSigners", SField::sMD_Default, SField::notSigning);
+// SField const sfSigningAccounts = make::one(&sfSigningAccounts, STI_ARRAY, 2, "SigningAccounts"); // Never been used.
+SField const sfSigners         = make::one(&sfSigners,         STI_ARRAY, 3, "Signers", SField::sMD_Default, SField::notSigning);
 SField const sfSignerEntries   = make::one(&sfSignerEntries,   STI_ARRAY, 4, "SignerEntries");
 SField const sfTemplate        = make::one(&sfTemplate,        STI_ARRAY, 5, "Template");
 SField const sfNecessary       = make::one(&sfNecessary,       STI_ARRAY, 6, "Necessary");

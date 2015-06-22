@@ -333,6 +333,7 @@ extern SField const sfReserveIncrement;
 extern SField const sfSetFlag;
 extern SField const sfClearFlag;
 extern SField const sfSignerQuorum;
+extern SField const sfSignerListID;
 
 // 64-bit integers
 extern SField const sfIndexNext;
@@ -434,13 +435,12 @@ extern SField const sfNewFields;
 extern SField const sfTemplateEntry;
 extern SField const sfMemo;
 extern SField const sfSignerEntry;
-extern SField const sfSigningAccount;
-extern SField const sfSigningFor;
+extern SField const sfSigner;
 
 // array of objects
 // ARRAY/1 is reserved for end of array
-extern SField const sfSigningAccounts;
-extern SField const sfMultiSigners;
+// extern SField const sfSigningAccounts;  // Never been used.
+extern SField const sfSigners;
 extern SField const sfSignerEntries;
 extern SField const sfTemplate;
 extern SField const sfNecessary;

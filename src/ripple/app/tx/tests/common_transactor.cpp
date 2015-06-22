@@ -15,6 +15,7 @@
 */
 //==============================================================================
 
+#if 0
 #include <ripple/app/tx/tests/common_transactor.h>
 #include <ripple/app/main/Application.h>
 #include <ripple/app/ledger/LedgerConsensus.h>
@@ -429,3 +430,5 @@ getTicketsOnAccount (TestLedger& ledger, UserAccount const& acct)
 
 } // test
 } // ripple
+
+#endif // 0

@@ -193,8 +193,8 @@ bool STTx::checkSign(bool allowMultiSign) const
             if (allowMultiSign)
             {
                 // Determine whether we're single- or multi-signing by looking
-                // at the SigningPubKey.  It it's empty we must be multi-signing.
-                // Otherwise we're single-signing.
+                // at the SigningPubKey.  It it's empty we must be
+                // multi-signing.  Otherwise we're single-signing.
                 Blob const& signingPubKey = getFieldVL (sfSigningPubKey);
                 sig_state_ = signingPubKey.empty () ?
                     checkMultiSign () : checkSingleSign ();
@@ -278,10 +278,10 @@ STTx::getMetaSQL (Serializer rawTxn,
 bool
 STTx::checkSingleSign () const
 {
-    // We don't allow both a non-empty sfSigningPubKey and an sfMultiSigners.
+    // We don't allow both a non-empty sfSigningPubKey and an sfSigners.
     // That would allow the transaction to be signed two ways.  So if both
     // fields are present the signature is invalid.
-    if (isFieldPresent (sfMultiSigners))
+    if (isFieldPresent (sfSigners))
         return false;
 
     bool ret = false;
@@ -310,15 +310,15 @@ STTx::checkMultiSign () const
 {
     // Make sure the MultiSigners are present.  Otherwise they are not
     // attempting multi-signing and we just have a bad SigningPubKey.
-    if (!isFieldPresent (sfMultiSigners))
+    if (!isFieldPresent (sfSigners))
         return false;
 
-    STArray const& multiSigners (getFieldArray (sfMultiSigners));
+    STArray const& signers (getFieldArray (sfSigners));
 
     // There are well known bounds that the number of signers must be within.
     {
-        std::size_t const multiSignerCount = multiSigners.size ();
-        if ((multiSignerCount < 1) || (multiSignerCount > maxMultiSigners))
+        std::size_t const signerCount = signers.size ();
+        if ((signerCount < minMultiSigners) || (signerCount > maxMultiSigners))
             return false;
     }
 
@@ -335,151 +335,48 @@ STTx::checkMultiSign () const
         ? ECDSA::strict
         : ECDSA::not_strict;
 
-    /*
-        We need to detect (and reject) if a multi-signer is both signing
-        directly and using a SigningFor.  Here's an example:
-        
-        {
-            ...
-            "MultiSigners": [
-                {
-                    "SigningFor": {
-                        "Account": "<alice>",
-                        "SigningAccounts": [
-                            {
-                                "SigningAccount": {
-                                    // * becky says that becky signs for alice. *
-                                    "Account": "<becky>",
-            ...
-                    "SigningFor": {
-                        "Account": "<becky>",
-                        "SigningAccounts": [
-                            {
-                                "SigningAccount": {
-                                    // * cheri says that becky signs for alice. *
-                                    "Account": "<cheri>",
-            ...
-            "tx_json": {
-                "Account": "<alice>",
-                ...
-            }
-        }
-        
-        Why is this way of signing a problem?  Alice has a signer list, and
-        Becky can show up in that list only once.  By design.  So if Becky
-        signs twice -- once directly and once indirectly -- we have three
-        options:
-        
-         1. We can add Becky's weight toward Alice's quorum twice, once for
-            each signature.  This seems both unexpected and counter to Alice's
-            intention.
-        
-         2. We could allow both signatures, but only add Becky's weight
-            toward Alice's quorum once.  This seems a bit better.  But it allows
-            our clients to ask rippled to do more work than necessary.  We
-            should also let the client know that only one of the signatures
-            was necessary.
-        
-         3. The only way to tell the client that they have done more work
-            than necessary (and that one of the signatures will be ignored) is
-            to declare the transaction malformed.  This behavior also aligns
-            well with rippled's behavior if Becky had signed directly twice:
-            the transaction would be marked as malformed.
-    */
+    // Signers must be in sorted order by AccountID.
+    AccountID lastSignerAcctID;
 
-    // We use this std::set to detect this form of double-signing.
-    std::set<AccountID> firstLevelSigners;
-
-    // SigningFors must be in sorted order by AccountID.
-    AccountID lastSigningForID = zero;
-
-    // Every signature must verify or we reject the transaction.
-    for (auto const& signingFor : multiSigners)
+    for (auto const& signer : signers)
     {
-        auto const signingForID =
-            signingFor.getAccountID (sfAccount);
+            auto const signerAcctID =
+                signer.getAccountID (sfAccount);
 
-        // SigningFors must be in order by account ID.  No duplicates allowed.
-        if (lastSigningForID >= signingForID)
+        // The account owner may not multisign for themself.
+        if (signerAcctID == txnAccountID)
             return false;
 
-        // The next SigningFor must be greater than this one.
-        lastSigningForID = signingForID;
+        // Accounts must be in order by account ID.  No duplicates allowed.
+        if (lastSignerAcctID >= signerAcctID)
+            return false;
 
-        // If signingForID is *not* txnAccountID, then look for duplicates.
-        bool const directSigning = (signingForID == txnAccountID);
-        if (! directSigning)
+        // The next signature must be greater than this one.
+        lastSignerAcctID = signerAcctID;
+
+        // Verify the signature.
+        bool validSig = false;
+        try
         {
-            if (! firstLevelSigners.insert (signingForID).second)
-                // This is a duplicate signer.  Fail.
-                return false;
+            Serializer s = dataStart;
+            finishMultiSigningData (signerAcctID, s);
+
+            RippleAddress const pubKey =
+                RippleAddress::createAccountPublic (
+                    signer.getFieldVL (sfSigningPubKey));
+
+            Blob const signature = signer.getFieldVL (sfMultiSignature);
+
+            validSig = pubKey.accountPublicVerify (
+                s.getData(), signature, fullyCanonical);
         }
-
-        STArray const& signingAccounts (
-            signingFor.getFieldArray (sfSigningAccounts));
-
-        // There are bounds that the number of signers must be within.
+        catch (...)
         {
-            std::size_t const signingAccountsCount = signingAccounts.size ();
-            if ((signingAccountsCount < 1) ||
-                (signingAccountsCount > maxMultiSigners))
-            {
-                return false;
-            }
+            // We assume any problem lies with the signature.
+            validSig = false;
         }
-
-        // SingingAccounts must be in sorted order by AccountID.
-        AccountID lastSigningAcctID = zero;
-
-        for (auto const& signingAcct : signingAccounts)
-        {
-            auto const signingAcctID =
-                signingAcct.getAccountID (sfAccount);
-
-            // None of the multi-signers may sign for themselves.
-            if (signingForID == signingAcctID)
-                return false;
-
-            // Accounts must be in order by account ID.  No duplicates allowed.
-            if (lastSigningAcctID >= signingAcctID)
-                return false;
-
-            // The next signature must be greater than this one.
-            lastSigningAcctID = signingAcctID;
-
-            // If signingForID *is* txnAccountID, then look for duplicates.
-            if (directSigning)
-            {
-                if (! firstLevelSigners.insert (signingAcctID).second)
-                    // This is a duplicate signer.  Fail.
-                    return false;
-            }
-
-            // Verify the signature.
-            bool validSig = false;
-            try
-            {
-                Serializer s = dataStart;
-                finishMultiSigningData (signingForID, signingAcctID, s);
-
-                RippleAddress const pubKey =
-                    RippleAddress::createAccountPublic (
-                        signingAcct.getFieldVL (sfSigningPubKey));
-
-                Blob const signature =
-                    signingAcct.getFieldVL (sfMultiSignature);
-
-                validSig = pubKey.accountPublicVerify (
-                    s.getData(), signature, fullyCanonical);
-            }
-            catch (...)
-            {
-                // We assume any problem lies with the signature.
-                validSig = false;
-            }
-            if (!validSig)
-                return false;
-        }
+        if (!validSig)
+            return false;
     }
 
     // All signatures verified.

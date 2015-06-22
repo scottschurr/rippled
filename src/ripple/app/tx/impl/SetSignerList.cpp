@@ -32,6 +32,11 @@
 
 namespace ripple {
 
+    // We're prepared for there to be multiple signer lists in the future,
+    // but we don't need them yet.  So for the time being we're manually
+    // setting the sfSignerListID to zero in all cases.
+    static std::uint32_t const defaultSignerListID_ = 0;
+
 TER
 SetSignerList::doApply ()
 {
@@ -98,7 +103,7 @@ SetSignerList::preCheck()
     else
     {
         // Neither a set nor a destroy.  Malformed.
-        if (j_.trace) j_.trace <<
+        JLOG(j_.trace) <<
             "Malformed transaction: Invalid signer set list format.";
         return temMALFORMED;
     }
@@ -117,8 +122,7 @@ SetSignerList::validateQuorumAndSignerEntries (
         if ((signerCount < SignerEntries::minEntries)
             || (signerCount > SignerEntries::maxEntries))
         {
-            if (j_.trace) j_.trace <<
-                "Too many or too few signers in signer list.";
+            JLOG(j_.trace) << "Too many or too few signers in signer list.";
             return temMALFORMED;
         }
     }
@@ -128,8 +132,7 @@ SetSignerList::validateQuorumAndSignerEntries (
     if (std::adjacent_find (
         signers.begin (), signers.end ()) != signers.end ())
     {
-        if (j_.trace) j_.trace <<
-            "Duplicate signers in signer list";
+        JLOG(j_.trace) << "Duplicate signers in signer list";
         return temBAD_SIGNER;
     }
 
@@ -138,12 +141,18 @@ SetSignerList::validateQuorumAndSignerEntries (
     std::uint64_t allSignersWeight (0);
     for (auto const& signer : signers)
     {
+        std::uint32_t const weight = signer.weight;
+        if (weight <= 0)
+        {
+            JLOG(j_.trace) << "Every signer must have a positive weight.";
+            return temBAD_WEIGHT;
+        }
+
         allSignersWeight += signer.weight;
 
         if (signer.account == account_)
         {
-            if (j_.trace) j_.trace <<
-                "A signer may not self reference account.";
+            JLOG(j_.trace) << "A signer may not self reference account.";
             return temBAD_SIGNER;
         }
 
@@ -152,8 +161,7 @@ SetSignerList::validateQuorumAndSignerEntries (
     }
     if ((quorum <= 0) || (allSignersWeight < quorum))
     {
-        if (j_.trace) j_.trace <<
-            "Quorum is unreachable";
+        JLOG(j_.trace) << "Quorum is unreachable";
         return temBAD_QUORUM;
     }
     return tesSUCCESS;
@@ -201,9 +209,8 @@ SetSignerList::replaceSignerList (uint256 const& index)
     TER result = dirAdd(ctx_.view (),
         hint, getOwnerDirIndex (account_), index, describer);
 
-    if (j_.trace) j_.trace <<
-        "Create signer list for account " <<
-        account_ << ": " << transHuman (result);
+    JLOG(j_.trace) << "Create signer list for account " <<
+        toBase58(account_) << ": " << transHuman (result);
 
     if (result != tesSUCCESS)
         return result;
@@ -230,7 +237,7 @@ SetSignerList::destroySignerList (uint256 const& index)
 
     // We have to examine the current SignerList so we know how much to
     // reduce the OwnerCount.
-    std::uint32_t removeFromOwnerCount = 0;
+    std::int32_t removeFromOwnerCount = 0;
     auto const k = keylet::signers(account_);
     SLE::pointer accountSignersList =
         view().peek (k);
@@ -238,7 +245,7 @@ SetSignerList::destroySignerList (uint256 const& index)
     {
         STArray const& actualList =
             accountSignersList->getFieldArray (sfSignerEntries);
-        removeFromOwnerCount = ownerCountDelta (actualList.size ());
+        removeFromOwnerCount = ownerCountDelta (actualList.size ()) * -1;
     }
 
     // Remove the node from the account directory.
@@ -266,6 +273,9 @@ SetSignerList::writeSignersToLedger (SLE::pointer ledgerEntry)
     // Assign the quorum.
     ledgerEntry->setFieldU32 (sfSignerQuorum, quorum_);
 
+    // For now, assign the default SignerListID.
+    ledgerEntry->setFieldU32 (sfSignerListID, defaultSignerListID_);
+
     // Create the SignerListArray one SignerEntry at a time.
     STArray toLedger (signers_.size ());
     for (auto const& entry : signers_)
@@ -289,24 +299,13 @@ SetSignerList::ownerCountDelta (std::size_t entryCount)
     //  o Accounting for the number of entries in the list.
     // We can get away with that because lists are not adjusted incrementally;
     // we add or remove an entire list.
-
-    // The wiki (https://wiki.ripple.com/Multisign#Fees_2) currently says
-    // (December 2014) the reserve should be
-    //   Reserve * (N + 1) / 2
-    // That's not making sense to me right now, since I'm working in
-    // integral OwnerCount units.  If, say, N is 4 I don't know how to return
-    // 4.5 units as an integer.
     //
-    // So, just to get started, I'm saying that:
+    // The rule is:
     //  o Simply having a SignerList costs 2 OwnerCount units.
     //  o And each signer in the list costs 1 more OwnerCount unit.
-    // So, at a minimum, adding a SignerList with 2 entries costs 4 OwnerCount
+    // So, at a minimum, adding a SignerList with 1 entry costs 3 OwnerCount
     // units.  A SignerList with 8 entries would cost 10 OwnerCount units.
-    //
-    // It's worth noting that once this reserve policy has gotten into the
-    // wild it will be very difficult to change.  So think hard about what
-    // we want for the long term.
-    return 2 + entryCount;
+   return 2 + entryCount;
 }
 
 } // namespace ripple

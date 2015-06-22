@@ -68,7 +68,7 @@ public:
         beast::Journal journal,
         std::string const& annotation);
 
-    static std::size_t const minEntries = 2;
+    static std::size_t const minEntries = STTx::minMultiSigners;
     static std::size_t const maxEntries = STTx::maxMultiSigners;
 };
 
