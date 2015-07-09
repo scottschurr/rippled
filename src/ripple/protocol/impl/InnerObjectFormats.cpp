@@ -32,7 +32,7 @@ InnerObjectFormats::InnerObjectFormats ()
     add (sfSigner.getJsonName ().c_str (), sfSigner.getCode ())
         << SOElement (sfAccount,              SOE_REQUIRED)
         << SOElement (sfSigningPubKey,        SOE_REQUIRED)
-        << SOElement (sfMultiSignature,       SOE_REQUIRED)
+        << SOElement (sfTxnSignature,         SOE_REQUIRED)
         ;
 }
 

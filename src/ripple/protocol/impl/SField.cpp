@@ -192,9 +192,6 @@ SField              const sfMemoType        = make::one(&sfMemoType,      STI_VL
 SField              const sfMemoData        = make::one(&sfMemoData,      STI_VL, 13, "MemoData");
 SField              const sfMemoFormat      = make::one(&sfMemoFormat,    STI_VL, 14, "MemoFormat");
 
-// variable length (uncommon)
-SField const sfMultiSignature = make::one(&sfMultiSignature, STI_VL, 16, "MultiSignature");
-
 // account
 SField const sfAccount     = make::one(&sfAccount,     STI_ACCOUNT, 1, "Account");
 SField const sfOwner       = make::one(&sfOwner,       STI_ACCOUNT, 2, "Owner");

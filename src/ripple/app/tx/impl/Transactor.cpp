@@ -414,7 +414,7 @@ TER Transactor::checkMultiSign ()
                 if (signerAccountFlags & lsfDisableMaster)
                 {
                     JLOG(j_.trace) <<
-                        "applyTransaction: MultiSignature lsfDisableMaster.";
+                        "applyTransaction: Signer:Account lsfDisableMaster.";
                     return tefMASTER_DISABLED;
                 }
             }
@@ -452,7 +452,7 @@ TER Transactor::checkMultiSign ()
     if (weightSum < sleAccountSigners->getFieldU32 (sfSignerQuorum))
     {
         JLOG(j_.trace) <<
-            "applyTransaction: MultiSignature failed to meet quorum.";
+            "applyTransaction: Signers failed to meet quorum.";
         return tefBAD_QUORUM;
     }
 

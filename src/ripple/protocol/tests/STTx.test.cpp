@@ -122,7 +122,7 @@ public:
         // like this:
         // Signer {
         //     Account: "...",
-        //     MultiSignature: "...",
+        //     TxnSignature: "...",
         //     PublicKey: "...""
         // }
         // Make one well formed Signer and several mal-formed ones.  See
@@ -166,14 +166,14 @@ public:
             soTest1.setAccountID (sfAccount, saID);
             soTest1.setFieldVL (sfSigningPubKey,
                 txnPublicAcct.getAccountPublic ());
-            soTest1.setFieldVL (sfMultiSignature, saMultiSignature);
+            soTest1.setFieldVL (sfTxnSignature, saMultiSignature);
             testMalformedSigningAccount (soTest1, true);
         }
         {
             // Test case 2.  Omit sfSigningPubKey from SigningAccount.
             STObject soTest2 (sfSigner);
             soTest2.setAccountID (sfAccount, saID);
-            soTest2.setFieldVL (sfMultiSignature, saMultiSignature);
+            soTest2.setFieldVL (sfTxnSignature, saMultiSignature);
             testMalformedSigningAccount (soTest2, false);
         }
         {
@@ -182,7 +182,7 @@ public:
             soTest3.setAccountID (sfAccount, saID);
             soTest3.setFieldVL (sfSigningPubKey,
                 txnPublicAcct.getAccountPublic ());
-            soTest3.setFieldVL (sfMultiSignature, saMultiSignature);
+            soTest3.setFieldVL (sfTxnSignature, saMultiSignature);
             soTest3.setFieldAmount (sfAmount, STAmount (10000));
             testMalformedSigningAccount (soTest3, false);
         }
@@ -191,7 +191,7 @@ public:
             STObject soTest4 (sfSigner);
             soTest4.setFieldVL (sfSigningPubKey,
                 txnPublicAcct.getAccountPublic ());
-            soTest4.setFieldVL (sfMultiSignature, saMultiSignature);
+            soTest4.setFieldVL (sfTxnSignature, saMultiSignature);
             soTest4.setFieldAmount (sfAmount, STAmount (10000));
             testMalformedSigningAccount (soTest4, false);
         }

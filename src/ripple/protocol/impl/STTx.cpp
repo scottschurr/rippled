@@ -365,7 +365,7 @@ STTx::checkMultiSign () const
                 RippleAddress::createAccountPublic (
                     signer.getFieldVL (sfSigningPubKey));
 
-            Blob const signature = signer.getFieldVL (sfMultiSignature);
+            Blob const signature = signer.getFieldVL (sfTxnSignature);
 
             validSig = pubKey.accountPublicVerify (
                 s.getData(), signature, fullyCanonical);

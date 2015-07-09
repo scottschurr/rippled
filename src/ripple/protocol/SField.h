@@ -404,9 +404,6 @@ extern SField const sfMemoType;
 extern SField const sfMemoData;
 extern SField const sfMemoFormat;
 
-// variable length (uncommon)
-extern SField const sfMultiSignature;
-
 // account
 extern SField const sfAccount;
 extern SField const sfOwner;

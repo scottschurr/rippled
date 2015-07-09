@@ -22,7 +22,6 @@
 #include <ripple/test/jtx/utility.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/JsonFields.h>
-// #include <ripple/protocol/types.h>
 
 namespace ripple {
 namespace test {
@@ -36,15 +35,15 @@ signers (Account const& account,
     Json::Value jv;
     jv[jss::Account] = account.human();
     jv[jss::TransactionType] = "SignerListSet";
-    jv["SignerQuorum"] = quorum;
-    auto& ja = jv["SignerEntries"];
+    jv[sfSignerQuorum.getJsonName()] = quorum;
+    auto& ja = jv[sfSignerEntries.getJsonName()];
     ja.resize(v.size());
     for(std::size_t i = 0; i < v.size(); ++i)
     {
         auto const& e = v[i];
-        auto& je = ja[i]["SignerEntry"];
+        auto& je = ja[i][sfSignerEntry.getJsonName()];
         je[jss::Account] = e.account.human();
-        je["SignerWeight"] = e.weight;
+        je[sfSignerWeight.getJsonName()] = e.weight;
     }
     return jv;
 }
@@ -55,7 +54,7 @@ signers (Account const& account, none_t)
     Json::Value jv;
     jv[jss::Account] = account.human();
     jv[jss::TransactionType] = "SignerListSet";
-    jv["SignerQuorum"] = 0;
+    jv[sfSignerQuorum.getJsonName()] = 0;
     return jv;
 }
 
@@ -78,7 +77,7 @@ msig::operator()(Env const& env, JTx& jt) const
     auto const mySigners = signers;
     jt.signer = [mySigners, &env](Env&, JTx& jt)
     {
-        jt["SigningPubKey"] = "";
+        jt[sfSigningPubKey.getJsonName()] = "";
         boost::optional<STObject> st;
         try
         {
@@ -89,12 +88,12 @@ msig::operator()(Env const& env, JTx& jt) const
             env.test.log << pretty(jt.jv);
             throw;
         }
-        auto& js = jt["Signers"];
+        auto& js = jt[sfSigners.getJsonName()];
         js.resize(mySigners.size());
         for(std::size_t i = 0; i < mySigners.size(); ++i)
         {
             auto const& e = mySigners[i];
-            auto& jo = js[i]["Signer"];
+            auto& jo = js[i][sfSigner.getJsonName()];
             jo[jss::Account] = e.acct.human();
             jo[jss::SigningPubKey] = strHex(make_Slice(
                 e.sig.pk().getAccountPublic()));
@@ -103,7 +102,7 @@ msig::operator()(Env const& env, JTx& jt) const
             ss.add32 (HashPrefix::txMultiSign);
             st->addWithoutSigningFields(ss);
             ss.add160(e.acct.id());
-            jo["MultiSignature"] = strHex(make_Slice(
+            jo[sfTxnSignature.getJsonName()] = strHex(make_Slice(
                 e.sig.sk().accountPrivateSign(ss.getData())));
         }
     };

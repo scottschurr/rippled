@@ -964,7 +964,7 @@ Json::Value transactionSignFor (
     signer[sfSigningPubKey.getJsonName ()] =
         strHex (multiSignPubKey.getAccountPublic ());
 
-    signer[sfMultiSignature.getJsonName ()] = strHex (multiSignature);
+    signer[sfTxnSignature.getJsonName ()] = strHex (multiSignature);
 
     // Give the Signer an object name and put it in the Signers array.
     Json::Value nameSigner (Json::objectValue);
