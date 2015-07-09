@@ -23,6 +23,7 @@
 #include <ripple/rpc/impl/KeypairForSignature.h>
 #include <ripple/app/paths/FindPaths.h>
 #include <ripple/json/json_reader.h>
+#include <ripple/protocol/Sign.h>
 #include <ripple/protocol/TxFlags.h>
 #include <ripple/protocol/UintTypes.h>
 #include <ripple/basics/StringUtilities.h>
@@ -685,7 +686,8 @@ transactionPreProcessImpl (
     // If multisign then return multiSignature, else set TxnSignature field.
     if (signingArgs.isMultiSigning ())
     {
-        Serializer s = stpTrans->getMultiSigningData (signingArgs.getSigner ());
+        Serializer s =
+            buildMultiSigningData (*stpTrans, signingArgs.getSigner ());
         Blob multiSignature = keypair.secretKey.accountPrivateSign(s.getData());
         signingArgs.moveMultiSignature (std::move (multiSignature));
     }

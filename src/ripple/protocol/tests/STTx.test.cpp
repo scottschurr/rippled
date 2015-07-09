@@ -18,6 +18,7 @@
 //==============================================================================
 
 #include <BeastConfig.h>
+#include <ripple/protocol/Sign.h>
 #include <ripple/protocol/STTx.h>
 #include <ripple/protocol/STParsedJSON.h>
 #include <ripple/protocol/types.h>
@@ -113,7 +114,7 @@ public:
             saSeed.createAccountPrivate(saGenerator, saSeed, 0);
 
         // Get the stream of the transaction for use in multi-signing.
-        Serializer s = txn.getMultiSigningData (saID);
+        Serializer s = buildMultiSigningData (txn, saID);
 
         Blob saMultiSignature =
             saPrivateAcct.accountPrivateSign (s.getData());

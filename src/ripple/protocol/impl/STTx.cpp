@@ -22,6 +22,7 @@
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/JsonFields.h>
 #include <ripple/protocol/Protocol.h>
+#include <ripple/protocol/Sign.h>
 #include <ripple/protocol/STAccount.h>
 #include <ripple/protocol/STArray.h>
 #include <ripple/protocol/TxFlags.h>
@@ -325,7 +326,7 @@ STTx::checkMultiSign () const
     // We can ease the computational load inside the loop a bit by
     // pre-constructing part of the data that we hash.  Fill a Serializer
     // with the stuff that stays constant from signature to signature.
-    Serializer const dataStart (startMultiSigningData ());
+    Serializer const dataStart {startMultiSigningData (*this)};
 
     // We also use the sfAccount field inside the loop.  Get it once.
     auto const txnAccountID = getAccountID (sfAccount);
@@ -343,7 +344,7 @@ STTx::checkMultiSign () const
             auto const signerAcctID =
                 signer.getAccountID (sfAccount);
 
-        // The account owner may not multisign for themself.
+        // The account owner may not multisign for themselves.
         if (signerAcctID == txnAccountID)
             return false;
 

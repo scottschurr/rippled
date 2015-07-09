@@ -22,6 +22,7 @@
 #include <ripple/test/jtx/utility.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/JsonFields.h>
+#include <ripple/protocol/Sign.h>
 
 namespace ripple {
 namespace test {
@@ -98,10 +99,7 @@ msig::operator()(Env const& env, JTx& jt) const
             jo[jss::SigningPubKey] = strHex(make_Slice(
                 e.sig.pk().getAccountPublic()));
 
-            Serializer ss;
-            ss.add32 (HashPrefix::txMultiSign);
-            st->addWithoutSigningFields(ss);
-            ss.add160(e.acct.id());
+            Serializer ss {buildMultiSigningData (*st, e.acct.id())};
             jo[sfTxnSignature.getJsonName()] = strHex(make_Slice(
                 e.sig.sk().accountPrivateSign(ss.getData())));
         }
