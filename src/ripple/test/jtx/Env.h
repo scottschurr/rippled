@@ -130,7 +130,6 @@ public:
 
 public:
     Env (beast::unit_test::suite& test_);
-    virtual ~Env() = default;
 
     /** Turn on JSON tracing.
         With no arguments, trace all

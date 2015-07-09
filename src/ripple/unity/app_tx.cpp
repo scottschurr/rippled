@@ -42,7 +42,6 @@
 #include <ripple/app/tx/impl/TransactionAcquire.cpp>
 #include <ripple/app/tx/impl/Transactor.cpp>
 
-#include <ripple/app/tx/tests/common_transactor.cpp>
 #include <ripple/app/tx/tests/DeliverMin.test.cpp>
 #include <ripple/app/tx/tests/MultiSign.test.cpp>
 #include <ripple/app/tx/tests/OfferStream.test.cpp>
