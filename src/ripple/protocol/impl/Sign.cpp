@@ -48,4 +48,21 @@ verify (STObject const& st,
             sig->data(), sig->size());
 }
 
+Serializer
+buildMultiSigningData (STObject const& obj, AccountID const& signingID)
+{
+    Serializer s {startMultiSigningData (obj)};
+    finishMultiSigningData (signingID, s);
+    return s;
+}
+
+Serializer
+startMultiSigningData (STObject const& obj)
+{
+    Serializer s;
+    s.add32 (HashPrefix::txMultiSign);
+    obj.addWithoutSigningFields (s);
+    return s;
+}
+
 } // ripple

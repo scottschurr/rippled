@@ -130,7 +130,7 @@ public:
 
 public:
     Env (beast::unit_test::suite& test_);
-   
+
     /** Turn on JSON tracing.
         With no arguments, trace all
     */
@@ -220,7 +220,7 @@ public:
     }
 
     /** Check a set of requirements.
-        
+
         The requirements are formed
         from condition functors.
     */
