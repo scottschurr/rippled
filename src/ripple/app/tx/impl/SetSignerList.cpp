@@ -68,8 +68,7 @@ SetSignerList::determineOperation(STTx const& tx,
         op = destroy;
     }
 
-    return std::make_tuple(tesSUCCESS,
-        quorum, sign, op);
+    return std::make_tuple(tesSUCCESS, quorum, sign, op);
 }
 
 TER
@@ -125,7 +124,6 @@ SetSignerList::doApply ()
         return destroySignerList (index);
 
     default:
-        // Fall through intentionally
         break;
     }
     assert (false); // Should not be possible to get here.
@@ -208,14 +206,13 @@ SetSignerList::validateQuorumAndSignerEntries (
 TER
 SetSignerList::replaceSignerList (uint256 const& index)
 {
-    // This may be either a create or a replace.  Preemptively destroy any
+    // This may be either a create or a replace.  Preemptively remove any
     // old signer list.  May reduce the reserve, so this is done before
     // checking the reserve.
-    if (TER const ter = destroySignerList (index))
+    if (TER const ter = removeSignersFromLedger (index))
         return ter;
 
-    auto const sle = view().peek(
-        keylet::account(account_));
+    auto const sle = view().peek(keylet::account(account_));
 
     // Compute new reserve.  Verify the account has funds to meet the reserve.
     std::uint32_t const oldOwnerCount = sle->getFieldU32 (sfOwnerCount);
@@ -234,21 +231,19 @@ SetSignerList::replaceSignerList (uint256 const& index)
     // Everything's ducky.  Add the ltSIGNER_LIST to the ledger.
     auto signerList = std::make_shared<SLE>(ltSIGNER_LIST, index);
     view().insert (signerList);
-    writeSignersToLedger (signerList);
-
-    // Lambda for call to dirAdd.
-    auto describer = [&] (SLE::ref sle, bool dummy)
-        {
-            ownerDirDescriber (sle, dummy, account_);
-        };
+    writeSignersToSLE (signerList);
 
     // Add the signer list to the account's directory.
     std::uint64_t hint;
-    TER result = dirAdd(ctx_.view (),
-        hint, getOwnerDirIndex (account_), index, describer);
+    auto const& account = account_;
+    TER result = dirAdd(ctx_.view (), hint, getOwnerDirIndex (account), index,
+        [&account] (SLE::ref sle, bool dummy)
+        {
+            ownerDirDescriber (sle, dummy, account);
+        });
 
     JLOG(j_.trace) << "Create signer list for account " <<
-        toBase58(account_) << ": " << transHuman (result);
+        toBase58(account) << ": " << transHuman (result);
 
     if (result != tesSUCCESS)
         return result;
@@ -256,8 +251,7 @@ SetSignerList::replaceSignerList (uint256 const& index)
     signerList->setFieldU64 (sfOwnerNode, hint);
 
     // If we succeeded, the new entry counts against the creator's reserve.
-    adjustOwnerCount(view(),
-        sle, addedOwnerCount);
+    adjustOwnerCount(view(), sle, addedOwnerCount);
 
     return result;
 }
@@ -265,48 +259,47 @@ SetSignerList::replaceSignerList (uint256 const& index)
 TER
 SetSignerList::destroySignerList (uint256 const& index)
 {
-    // See if there's an ltSIGNER_LIST for this account.
-    SLE::pointer signerList =
-        view().peek (keylet::signers(index));
+    // Destroying the signer list is only allowed if either the master key
+    // is enabled or there is a regular key.
+    SLE::pointer ledgerEntry = view().peek (keylet::account(account_));
+    if ((ledgerEntry->isFlag (lsfDisableMaster)) &&
+        (!ledgerEntry->isFieldPresent (sfRegularKey)))
+            return tecNO_ALTERNATIVE_KEY;
 
-    // If the signer list doesn't exist we've already succeeded in deleting it.
-    if (!signerList)
-        return tesSUCCESS;
+    return removeSignersFromLedger(index);
+}
 
+TER
+SetSignerList::removeSignersFromLedger (uint256 const& index)
+{
     // We have to examine the current SignerList so we know how much to
     // reduce the OwnerCount.
-    std::int32_t removeFromOwnerCount = 0;
-    auto const k = keylet::signers(account_);
-    SLE::pointer accountSignersList =
-        view().peek (k);
-    if (accountSignersList)
-    {
-        STArray const& actualList =
-            accountSignersList->getFieldArray (sfSignerEntries);
-        removeFromOwnerCount = ownerCountDelta (actualList.size ()) * -1;
-    }
+    SLE::pointer signers = view().peek (keylet::signers(index));
+
+    // If the signer list doesn't exist we've already succeeded in deleting it.
+    if (!signers)
+        return tesSUCCESS;
+
+    STArray const& actualList = signers->getFieldArray (sfSignerEntries);
+    auto const removeFromOwnerCount = ownerCountDelta (actualList.size()) * -1;
 
     // Remove the node from the account directory.
-    std::uint64_t const hint (signerList->getFieldU64 (sfOwnerNode));
+    std::uint64_t const hint (signers->getFieldU64 (sfOwnerNode));
 
-    TER const result  = dirDelete(ctx_.view (), false, hint,
+    TER const result  = dirDelete(ctx_.view(), false, hint,
         getOwnerDirIndex (account_), index, false, (hint == 0));
 
     if (result == tesSUCCESS)
         adjustOwnerCount(view(),
-            view().peek(keylet::account(account_)),
-                removeFromOwnerCount);
+            view().peek(keylet::account(account_)), removeFromOwnerCount);
 
-    ctx_.view ().erase (signerList);
+    ctx_.view().erase (signers);
 
     return result;
 }
 
-// VFALCO NOTE This name is misleading, the signers
-//             are not written to the ledger they are
-//             added to the SLE.
 void
-SetSignerList::writeSignersToLedger (SLE::pointer ledgerEntry)
+SetSignerList::writeSignersToSLE (SLE::pointer ledgerEntry)
 {
     // Assign the quorum.
     ledgerEntry->setFieldU32 (sfSignerQuorum, quorum_);

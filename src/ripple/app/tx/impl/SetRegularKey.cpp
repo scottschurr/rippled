@@ -73,8 +73,18 @@ SetRegularKey::doApply ()
     }
     else
     {
-        if (sle->isFlag (lsfDisableMaster))
+        if ((sle->isFlag (lsfDisableMaster)) &&
+            (!view().peek (keylet::signers (getSignerListIndex (account_)))))
+        {
+            // Account has disabled master key and no multi-signer signer list.
+
+            // Prevent transaction changes until we're ready.
+            if ((RIPPLE_ENABLE_MULTI_SIGN) ||
+                (view().flags() & tapENABLE_TESTING))
+                    return tecNO_ALTERNATIVE_KEY;
+
             return tecMASTER_DISABLED;
+        }
         sle->makeFieldAbsent (sfRegularKey);
     }
 
