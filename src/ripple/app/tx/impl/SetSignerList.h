@@ -79,7 +79,8 @@ private:
     TER replaceSignerList (uint256 const& index);
     TER destroySignerList (uint256 const& index);
 
-    void writeSignersToLedger (SLE::pointer ledgerEntry);
+    TER removeSignersFromLedger (uint256 const& index);
+    void writeSignersToSLE (SLE::pointer ledgerEntry);
 
     static std::size_t ownerCountDelta (std::size_t entryCount);
 };
