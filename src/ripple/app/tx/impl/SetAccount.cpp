@@ -21,6 +21,7 @@
 #include <ripple/app/tx/impl/SetAccount.h>
 #include <ripple/basics/Log.h>
 #include <ripple/core/Config.h>
+#include <ripple/protocol/Feature.h>
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/Quality.h>
 #include <ripple/protocol/TxFlags.h>
@@ -191,8 +192,18 @@ SetAccount::doApply ()
             return tecNEED_MASTER_KEY;
         }
 
-        if (!sle->isFieldPresent (sfRegularKey))
+        if ((!sle->isFieldPresent (sfRegularKey)) &&
+            (!view().peek (keylet::signers (account_))))
+        {
+            // Account has no regular key or multi-signer signer list.
+
+            // Prevent transaction changes until we're ready.
+            if (view().flags() & tapENABLE_TESTING ||
+                view().rules().enabled(featureMultiSign, ctx_.config.features))
+                    return tecNO_ALTERNATIVE_KEY;
+
             return tecNO_REGULAR_KEY;
+        }
 
         j_.trace << "Set lsfDisableMaster.";
         uFlagsOut |= lsfDisableMaster;
