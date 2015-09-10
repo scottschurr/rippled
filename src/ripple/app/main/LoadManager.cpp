@@ -21,6 +21,7 @@
 #include <ripple/app/main/LoadManager.h>
 #include <ripple/app/main/Application.h>
 #include <ripple/app/misc/NetworkOPs.h>
+#include <ripple/basics/Log.h>
 #include <ripple/basics/UptimeTimer.h>
 #include <ripple/core/JobQueue.h>
 #include <ripple/core/LoadFeeTrack.h>
@@ -32,38 +33,50 @@
 
 namespace ripple {
 
-class LoadManagerImp
-    : public LoadManager
-    , public beast::Thread
+class LoadManagerImp : public LoadManager
 {
 public:
     //--------------------------------------------------------------------------
 
-    beast::Journal m_journal;
-    using LockType = std::mutex;
-    using ScopedLockType = std::lock_guard <LockType>;
-    LockType mLock;
+    beast::Journal mJournal;
+    std::thread mThread;
 
-    bool mArmed;
+    std::mutex mMutex;          // Guards mDeadLock and mArmed
 
     int mDeadLock;              // Detect server deadlocks
+    bool mArmed;
+
     //--------------------------------------------------------------------------
 
     LoadManagerImp (Stoppable& parent, beast::Journal journal)
         : LoadManager (parent)
-        , Thread ("loadmgr")
-        , m_journal (journal)
-        , mArmed (false)
+        , mJournal (journal)
+        , mThread ()
+        , mMutex ()
         , mDeadLock (0)
+        , mArmed (false)
     {
         UptimeTimer::getInstance ().beginManualUpdates ();
     }
 
-    ~LoadManagerImp ()
-    {
-        UptimeTimer::getInstance ().endManualUpdates ();
+    LoadManagerImp () = delete;
+    LoadManagerImp (LoadManagerImp const&) = delete;
+    LoadManagerImp& operator=(LoadManager const&) = delete;
 
-        stopThread ();
+    ~LoadManagerImp () override
+    {
+        try
+        {
+            UptimeTimer::getInstance ().endManualUpdates ();
+
+            if (mThread.joinable())
+                onStop ();
+        }
+        catch (...)
+        {
+            // Swallow the exception in a destructor.
+            JLOG(mJournal.warning) << "Exception thrown in ~LoadManagerImp.";
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -72,22 +85,24 @@ public:
     //
     //--------------------------------------------------------------------------
 
-    void onPrepare ()
+    void onPrepare () override
     {
     }
 
-    void onStart ()
+    void onStart () override
     {
-        m_journal.debug << "Starting";
-        startThread ();
+        JLOG(mJournal.debug) << "Starting";
+        assert (! mThread.joinable());
+
+        mThread = std::thread {&LoadManagerImp::run, this};
     }
 
-    void onStop ()
+    void onStop () override
     {
-        if (isThreadRunning ())
+        if (mThread.joinable())
         {
-            m_journal.debug << "Stopping";
-            stopThreadAsync ();
+            JLOG(mJournal.debug) << "Stopping";
+            mThread.join();
         }
         else
         {
@@ -97,37 +112,40 @@ public:
 
     //--------------------------------------------------------------------------
 
-    void resetDeadlockDetector ()
+    void resetDeadlockDetector () override
     {
-        ScopedLockType sl (mLock);
-        mDeadLock = UptimeTimer::getInstance ().getElapsedSeconds ();
+        auto const elapsedSeconds =
+            UptimeTimer::getInstance ().getElapsedSeconds ();
+
+        std::lock_guard<std::mutex> sl (mMutex);
+        mDeadLock = elapsedSeconds;
     }
 
-    void activateDeadlockDetector ()
+    void activateDeadlockDetector () override
     {
+        std::lock_guard<std::mutex> sl (mMutex);
         mArmed = true;
     }
 
+private:
     void logDeadlock (int dlTime)
     {
-        m_journal.warning << "Server stalled for " << dlTime << " seconds.";
+        JLOG(mJournal.warning)
+            << "Server stalled for " << dlTime << " seconds.";
     }
 
-    // VFALCO NOTE Where's the thread object? It's not a data member...
-    //
     void run ()
     {
+        beast::Thread::setCurrentThreadName ("LoadManager");
+
         using clock_type = std::chrono::steady_clock;
 
         // Initialize the clock to the current time.
         auto t = clock_type::now();
 
-        while (! threadShouldExit ())
+        while (! isStopping ())
         {
             {
-                // VFALCO NOTE What is this lock protecting?
-                ScopedLockType sl (mLock);
-
                 // VFALCO NOTE I think this is to reduce calls to the operating system
                 //             for retrieving the current time.
                 //
@@ -137,15 +155,22 @@ public:
                 // Manually update the timer.
                 UptimeTimer::getInstance ().incrementElapsedTime ();
 
+                // Copy mDeadLock and mArmed under a lock since they are shared.
+                std::unique_lock<std::mutex> sl (mMutex);
+                auto const deadLock = mDeadLock;
+                auto const armed = mArmed;
+                sl.unlock();
+
                 // Measure the amount of time we have been deadlocked, in seconds.
                 //
                 // VFALCO NOTE mDeadLock is a canary for detecting the condition.
-                int const timeSpentDeadlocked = UptimeTimer::getInstance ().getElapsedSeconds () - mDeadLock;
+                int const timeSpentDeadlocked =
+                    UptimeTimer::getInstance ().getElapsedSeconds () - deadLock;
 
                 // VFALCO NOTE I think that "armed" refers to the deadlock detector
                 //
                 int const reportingIntervalSeconds = 10;
-                if (mArmed && (timeSpentDeadlocked >= reportingIntervalSeconds))
+                if (armed && (timeSpentDeadlocked >= reportingIntervalSeconds))
                 {
                     // Report the deadlocked condition every 10 seconds
                     if ((timeSpentDeadlocked % reportingIntervalSeconds) == 0)
@@ -168,8 +193,7 @@ public:
             //             Another option is using an observer pattern to invert the dependency.
             if (getApp().getJobQueue ().isOverloaded ())
             {
-                if (m_journal.info)
-                    m_journal.info << getApp().getJobQueue ().getJson (0);
+                JLOG(mJournal.info) << getApp().getJobQueue ().getJson (0);
                 change = getApp().getFeeTrack ().raiseLocalFee ();
             }
             else
@@ -188,7 +212,7 @@ public:
 
             if ((duration < std::chrono::seconds (0)) || (duration > std::chrono::seconds (1)))
             {
-                m_journal.warning << "time jump";
+                JLOG(mJournal.warning) << "time jump";
                 t = clock_type::now();
             }
             else
