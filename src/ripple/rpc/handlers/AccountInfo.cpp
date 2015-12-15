@@ -72,6 +72,11 @@ Json::Value doAccountInfo (RPC::Context& context)
     {
         RPC::injectSLE(jvAccepted, *sleAccepted);
         result[jss::account_data] = jvAccepted;
+
+        // Flag whether account is multisigning.
+        auto const sleSignerList = ledger->read (keylet::signers (accountID));
+        int const listCount = sleSignerList ? 1 : 0;
+        result[jss::account_data][jss::signer_list_count] = listCount;
     }
     else
     {

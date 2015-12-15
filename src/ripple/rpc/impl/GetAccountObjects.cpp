@@ -25,11 +25,33 @@
 namespace ripple {
 namespace RPC {
 
+// We can special case SignerLists, since we don't need to hunt for them
+// in the directory; we know exactly what their ledger index is.  So this
+// is simply an optimization.
+//
+// This will need to be revisited if we have multiple signer lists.
+static bool
+getSignerList (ReadView const& ledger,
+    AccountID const& account, Json::Value& jvResult)
+{
+    auto const sleSignerList = ledger.read (keylet::signers (account));
+    if (! sleSignerList)
+        return false;
+
+    auto& jvObjects = jvResult[jss::account_objects];
+    jvObjects.append (sleSignerList->getJson (0));
+    return true;
+}
+
 bool
 getAccountObjects (ReadView const& ledger, AccountID const& account,
     LedgerEntryType const type, uint256 dirIndex, uint256 const& entryIndex,
     std::uint32_t const limit, Json::Value& jvResult)
 {
+    // Special handling for SignerLists, simply for efficiency.
+    if (type == ltSIGNER_LIST)
+        return getSignerList (ledger, account, jvResult);
+
     auto const rootDirIndex = getOwnerDirIndex (account);
     auto found = false;
 
