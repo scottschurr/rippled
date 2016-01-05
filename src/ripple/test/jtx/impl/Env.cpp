@@ -274,7 +274,8 @@ Env::submit (JTx const& jt)
         Serializer s;
         jt.stx->add(s);
         auto const result = rpc("submit", strHex(s.slice()));
-        if (result.second["result"].isMember("engine_result_code"))
+        if (result.first == rpcSUCCESS &&
+            result.second["result"].isMember("engine_result_code"))
             ter_ = static_cast<TER>(
                 result.second["result"]["engine_result_code"].asInt());
         else
