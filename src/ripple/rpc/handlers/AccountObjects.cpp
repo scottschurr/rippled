@@ -89,6 +89,7 @@ Json::Value doAccountObjects (RPC::Context& context)
             { "fee", ltFEE_SETTINGS },
             { "hashes", ltLEDGER_HASHES },
             { "offer", ltOFFER },
+            { "signerlist", ltSIGNER_LIST, },
             { "state", ltRIPPLE_STATE },
             { "ticket", ltTICKET }
         };
