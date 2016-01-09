@@ -71,7 +71,12 @@ Json::Value doAccountInfo (RPC::Context& context)
     if (sleAccepted)
     {
         RPC::injectSLE(jvAccepted, *sleAccepted);
-        result[jss::account_data] = jvAccepted;
+        auto& accountData = result[jss::account_data] = jvAccepted;
+
+        // If the account has a signer list, flag that.
+        auto const sleSignerList = ledger->read (keylet::signers (accountID));
+        if (sleSignerList)
+            accountData[jss::signer_list] = true;
     }
     else
     {
