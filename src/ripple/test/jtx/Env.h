@@ -424,9 +424,9 @@ public:
     meta();
 
     /** Execute a client command */
-    template <class T, class... Args>
+    template <class Arg, class... Args>
     std::pair<int, Json::Value>
-    rpc (T const& t, Args const&... args);
+    rpc (Arg&& arg0, Args&&... args);
 
 private:
     void
@@ -630,31 +630,12 @@ protected:
 
 //------------------------------------------------------------------------------
 
-namespace detail {
-
-inline
-void
-collect_args (std::vector<std::string>& v)
-{
-}
-
-template <class T, class... Args>
-void
-collect_args (std::vector<std::string>& v,
-    T const& t, Args const&... args)
-{
-    v.emplace_back(t);
-    collect_args(v, args...);
-}
-
-} // detail
-
-template <class T, class... Args>
+template <class Arg, class... Args>
 std::pair<int, Json::Value>
-Env::rpc (T const& t, Args const&... args)
+Env::rpc (Arg&& arg0, Args&&... args)
 {
-    std::vector<std::string> v;
-    detail::collect_args(v, t, args...);
+    std::vector<std::string> v({ std::forward<Arg>(arg0),
+        std::forward<Args>(args)... });
     return rpcClient(v,
         app().config(), app().logs());
 }
