@@ -1094,10 +1094,12 @@ std::pair<int, Json::Value>
 rpcClient(std::vector<std::string> const& args,
     Config const& config, Logs& logs)
 {
+    static_assert(rpcBAD_SYNTAX == 1 && rpcSUCCESS == 0,
+        "Expect specific rpc enum values.");
     if (args.empty ())
-        return { 1, {} }; // 1 = print usage
+        return { rpcBAD_SYNTAX, {} }; // rpcBAD_SYNTAX = print usage
 
-    int         nRet = 0;
+    int         nRet = rpcSUCCESS;
     Json::Value jvOutput;
     Json::Value jvRequest (Json::objectValue);
 
@@ -1204,7 +1206,7 @@ rpcClient(std::vector<std::string> const& args,
 
             nRet    = jvOutput.isMember (jss::error_code)
                       ? beast::lexicalCast <int> (jvOutput[jss::error_code].asString ())
-                      : 1;
+                      : rpcBAD_SYNTAX;
         }
 
         // YYY We could have a command line flag for single line output for scripts.
@@ -1231,7 +1233,7 @@ int fromCommandLine (
 {
     auto const result = rpcClient(vCmd, config, logs);
 
-    if (result.first != 1)
+    if (result.first != rpcBAD_SYNTAX)
         std::cout << result.second.toStyledString ();
 
     return result.first;
