@@ -32,7 +32,7 @@
 namespace ripple {
 namespace test {
 
-class TxQ_test : public TestSuite
+class TxQ_test : public beast::unit_test::suite
 {
     void
     checkMetrics(
