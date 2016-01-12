@@ -36,6 +36,7 @@
 #include <ripple/basics/Slice.h>
 #include <ripple/core/ConfigSections.h>
 #include <ripple/json/to_string.h>
+#include <ripple/net/HTTPClient.h>
 #include <ripple/protocol/ErrorCodes.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/Indexes.h>
@@ -62,6 +63,8 @@ setupConfigForUnitTests (Config& config)
     config.legacy("database_path", "");
 
     config.RUN_STANDALONE = true;
+    config.QUIET = true;
+    config.SILENT = true;
     config["server"].append("port_peer");
     config["port_peer"].set("ip", "127.0.0.1");
     config["port_peer"].set("port", "8080");
@@ -88,6 +91,8 @@ Env::AppBundle::AppBundle(std::unique_ptr<Config> config)
     auto timeKeeper_ =
         std::make_unique<ManualTimeKeeper>();
     timeKeeper = timeKeeper_.get();
+    // Hack so we dont have to call Config::setup
+    HTTPClient::initializeSSLContext(*config);
     owned = make_Application(std::move(config),
         std::move(logs), std::move(timeKeeper_));
     app = owned.get();
@@ -119,7 +124,15 @@ Env::close(NetClock::time_point closeTime,
     // Round up to next distinguishable value
     closeTime += closed()->info().closeTimeResolution - 1s;
     bundle_.timeKeeper->set(closeTime);
-    app().getOPs().acceptLedger(consensusDelay);
+    // Go through the rpc interface unless we need to simulate
+    // a specific consensus delay.
+    if (consensusDelay)
+        app().getOPs().acceptLedger(consensusDelay);
+    else
+    {
+        auto const result = rpc("ledger_accept");
+        test.expect(result.first == rpcSUCCESS);
+    }
     bundle_.timeKeeper->set(
         closed()->info().closeTime);
 }
@@ -258,6 +271,7 @@ Env::submit (JTx const& jt)
     if (jt.stx)
     {
         txid_ = jt.stx->getTransactionID();
+#if 0
         app().openLedger().modify(
             [&](OpenView& view, beast::Journal j)
             {
@@ -266,6 +280,19 @@ Env::submit (JTx const& jt)
                         beast::Journal{});
                 return didApply;
             });
+#else
+        Serializer s;
+        jt.stx->add(s);
+        auto const result = rpc("submit", strHex(s.slice()));
+        if (result.first == rpcSUCCESS &&
+            result.second["result"].isMember("engine_result_code"))
+            ter_ = static_cast<TER>(
+                result.second["result"]["engine_result_code"].asInt());
+        else
+            ter_ = temINVALID;
+        //test.log << pretty(result.second);
+        didApply = isTesSuccess(ter_) || isTecClaim(ter_);
+#endif
     }
     else
     {
