@@ -96,7 +96,7 @@ public:
 
         auto queued = ter(terQUEUED);
 
-        expectEquals(env.current()->fees().base, 10);
+        expect(env.current()->fees().base == 10);
 
         checkMetrics(env, 0, boost::none, 0, 3, 256, 500);
 
@@ -293,7 +293,7 @@ public:
 
         auto queued = ter(terQUEUED);
 
-        expectEquals(env.current()->fees().base, 10);
+        expect(env.current()->fees().base == 10);
 
         checkMetrics(env, 0, boost::none, 0, 2, 256, 500);
 
