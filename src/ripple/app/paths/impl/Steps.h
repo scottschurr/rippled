@@ -239,6 +239,7 @@ toStrand (
     boost::optional<Issue> const& sendMaxIssue,
     STPath const& path,
     bool ownerPaysTransferFee,
+    bool offerCrossing,
     beast::Journal j);
 
 /**
@@ -267,6 +268,7 @@ toStrands (ReadView const& sb,
     STPathSet const& paths,
     bool addDefaultPath,
     bool ownerPaysTransferFee,
+    bool offerCrossing,
     beast::Journal j);
 
 template <class TIn, class TOut, class TDerived>
@@ -350,9 +352,11 @@ struct StrandContext
     ReadView const& view;
     AccountID const strandSrc;
     AccountID const strandDst;
+    Issue const strandDeliver;
     bool const isFirst;
     bool const isLast = false;
     bool ownerPaysTransferFee;
+    bool const offerCrossing;
     size_t const strandSize;
     // The previous step in the strand. Needed to check the no ripple constraint
     Step const* const prevStep = nullptr;
@@ -369,10 +373,12 @@ struct StrandContext
         std::vector<std::unique_ptr<Step>> const& strand_,
         // A strand may not include an inner node that
         // replicates the source or destination.
-        AccountID strandSrc_,
-        AccountID strandDst_,
+        AccountID const& strandSrc_,
+        AccountID const& strandDst_,
+        Issue const& strandDeliver_,
         bool isLast_,
         bool ownerPaysTransferFee_,
+        bool offerCrossing_,
         std::array<boost::container::flat_set<Issue>, 2>& seenDirectIssues_,
         boost::container::flat_set<Issue>& seenBookOuts_,
         beast::Journal j);

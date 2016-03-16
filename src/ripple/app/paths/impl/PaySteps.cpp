@@ -140,6 +140,7 @@ toStrand (
     boost::optional<Issue> const& sendMaxIssue,
     STPath const& path,
     bool ownerPaysTransferFee,
+    bool offerCrossing,
     beast::Journal j)
 {
     if (isXRP (src))
@@ -233,8 +234,8 @@ toStrand (
     seenBookOuts.reserve (pes.size());
     auto ctx = [&](bool isLast = false)
     {
-        return StrandContext{view, result, strandSrc, strandDst, isLast,
-            ownerPaysTransferFee, seenDirectIssues, seenBookOuts, j};
+        return StrandContext{view, result, strandSrc, strandDst, deliver, isLast,
+            ownerPaysTransferFee, offerCrossing, seenDirectIssues, seenBookOuts, j};
     };
 
     for (int i = 0; i < pes.size () - 1; ++i)
@@ -378,6 +379,7 @@ toStrands (
     STPathSet const& paths,
     bool addDefaultPath,
     bool ownerPaysTransferFee,
+    bool offerCrossing,
     beast::Journal j)
 {
     std::vector<Strand> result;
@@ -394,7 +396,7 @@ toStrands (
     if (addDefaultPath)
     {
         auto sp = toStrand (
-            view, src, dst, deliver, sendMax, STPath (), ownerPaysTransferFee, j);
+            view, src, dst, deliver, sendMax, STPath(), ownerPaysTransferFee, offerCrossing, j);
         auto const ter = sp.first;
         auto& strand = sp.second;
 
@@ -426,7 +428,7 @@ toStrands (
     for (auto const& p : paths)
     {
         auto sp = toStrand (
-            view, src, dst, deliver, sendMax, p, ownerPaysTransferFee, j);
+            view, src, dst, deliver, sendMax, p, ownerPaysTransferFee, offerCrossing, j);
         auto ter = sp.first;
         auto& strand = sp.second;
 
@@ -460,19 +462,23 @@ StrandContext::StrandContext (
     std::vector<std::unique_ptr<Step>> const& strand_,
     // A strand may not include an inner node that
     // replicates the source or destination.
-    AccountID strandSrc_,
-    AccountID strandDst_,
+    AccountID const& strandSrc_,
+    AccountID const& strandDst_,
+    Issue const& strandDeliver_,
     bool isLast_,
     bool ownerPaysTransferFee_,
+    bool offerCrossing_,
     std::array<boost::container::flat_set<Issue>, 2>& seenDirectIssues_,
     boost::container::flat_set<Issue>& seenBookOuts_,
     beast::Journal j_)
         : view (view_)
         , strandSrc (strandSrc_)
         , strandDst (strandDst_)
+        , strandDeliver (strandDeliver_)
         , isFirst (strand_.empty ())
         , isLast (isLast_)
         , ownerPaysTransferFee (ownerPaysTransferFee_)
+        , offerCrossing (offerCrossing_)
         , strandSize (strand_.size ())
         , prevStep (!strand_.empty () ? strand_.back ().get ()
                      : nullptr)

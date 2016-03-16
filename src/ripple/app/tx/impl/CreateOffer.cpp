@@ -21,11 +21,13 @@
 #include <ripple/app/tx/impl/CreateOffer.h>
 #include <ripple/app/ledger/Ledger.h>
 #include <ripple/app/ledger/OrderBookDB.h>
+#include <ripple/app/paths/Flow.h>
 #include <ripple/basics/contract.h>
-#include <ripple/protocol/st.h>
 #include <ripple/basics/Log.h>
 #include <ripple/json/to_string.h>
+#include <ripple/ledger/PaymentSandbox.h>
 #include <ripple/ledger/Sandbox.h>
+#include <ripple/protocol/st.h>
 #include <ripple/beast/utility/Journal.h>
 #include <ripple/beast/utility/WrappedSink.h>
 #include <memory>
@@ -590,7 +592,7 @@ CreateOffer::step_account (OfferStream& stream, Taker const& taker)
 std::pair<TER, Amounts>
 CreateOffer::cross (
     ApplyView& view,
-    ApplyView& cancel_view,
+    ApplyView& view_cancel,
     Amounts const& taker_amount)
 {
     NetClock::time_point const when{ctx_.view().parentCloseTime()};
@@ -617,9 +619,9 @@ CreateOffer::cross (
     try
     {
         if (cross_type_ == CrossType::IouToIou)
-            return bridged_cross (taker, view, cancel_view, when);
+            return bridged_cross (taker, view, view_cancel, when);
 
-        return direct_cross (taker, view, cancel_view, when);
+        return direct_cross (taker, view, view_cancel, when);
     }
     catch (std::exception const& e)
     {
@@ -628,6 +630,169 @@ CreateOffer::cross (
         return { tecINTERNAL, taker.remaining_offer () };
     }
 }
+
+#if 1 // !!!! DEBUG !!!! EXPERIMENTAL
+std::pair<TER, Amounts>
+CreateOffer::flow_cross (
+    ApplyView& view,
+    ApplyView& view_cancel,
+    Amounts const& taker_amount)
+{
+    try
+    {
+        // If the taker is unfunded before we begin crossing there's nothing
+        // to do - just return an error.
+        //
+        // We check this in preclaim, but when selling XRP charged fees can
+        // cause a user's available balance to go to 0 (by causing it to dip
+        // below the reserve) so we check this case again.
+        STAmount const inStartBalance = accountFunds (
+            view, account_, taker_amount.in, fhZERO_IF_FROZEN, j_);
+        if (inStartBalance.signum() <= 0)
+        {
+            // The account balance can't cover even part of the offer.
+            JLOG (j_.debug()) <<
+                "Not crossing: taker is unfunded.";
+            return { tecUNFUNDED_OFFER, taker_amount };
+        }
+
+        // If the offer is passive don't even attempt to cross.
+        std::uint32_t const txFlags =ctx_.tx.getFlags();
+        if (txFlags & tfPassive)
+        {
+            return { tesSUCCESS, taker_amount };
+        }
+
+        // If the gateway has a transfer rate, accommodate that.  The
+        // gateway takes its cut without any special consent from the
+        // offer taker.  Set sendMax to allow for the gateway's cut.
+        std::uint32_t gatewayXferRate = QUALITY_ONE;
+        STAmount sendMax = taker_amount.in;
+        if (! sendMax.native() && (account_ != sendMax.getIssuer()))
+        {
+            gatewayXferRate =
+                rippleTransferRate (view, sendMax.getIssuer());
+            if (gatewayXferRate != QUALITY_ONE)
+            {
+                sendMax = mulRound (taker_amount.in,
+                    amountFromRate(gatewayXferRate),
+                    taker_amount.in.issue(), true);
+
+                if (sendMax > inStartBalance)
+                    sendMax = inStartBalance;
+            }
+        }
+
+        // Always invoke flow() with the default path.  However if neither
+        // of the taker_amount currencies are XRP then we cross through an
+        // additional path with XRP as the intermediate between two books.
+        // This second path we have to build ourselves.
+        STPathSet paths;
+        if (!taker_amount.in.native() & !taker_amount.out.native())
+        {
+            STPath path;
+            path.emplace_back (boost::none, xrpCurrency(), boost::none);
+            paths.emplace_back (std::move(path));
+        }
+
+        // Special handling for the tfSell flag.
+        STAmount deliver = taker_amount.out;
+        if (txFlags & tfSell)
+        {
+            // We are selling, so we will accept *more* than the offer
+            // specified.  Since we don't know how much they might offer,
+            // we allow delivery of the largest possible amount.
+            if (deliver.native())
+                deliver = STAmount { STAmount::cMaxNative };
+            else
+                // We can't use the maximum possible currency here because
+                // there might be a gateway transfer rate to account for.
+                // Since the transfer rate cannot exceed 200%, we use 1/2
+                // maxValue for our limit.
+                deliver = STAmount { taker_amount.out.issue(),
+                    STAmount::cMaxValue / 2, STAmount::cMaxOffset };
+        }
+
+        // Call the payment engine's flow() to do the actual work.
+        Quality const q { taker_amount.out, sendMax };
+        PaymentSandbox sb (&view);
+        auto const result = flow (sb, deliver, account_, account_,
+            paths,
+            true,                       // default path
+            ! (txFlags & tfFillOrKill), // partial payment
+            true,                       // owner pays transfer fee
+            true,                       // offer crossing
+            q,
+            sendMax, j_);
+
+        // If stale offers were found remove them.
+        for (auto const& toRemove : result.removableOffers)
+        {
+            if (auto otr = sb.peek (keylet::offer (toRemove)))
+                offerDelete (sb, otr, j_);
+            if (auto otr = view_cancel.peek (keylet::offer (toRemove)))
+                offerDelete (view_cancel, otr, j_);
+        }
+        sb.apply(ctx_.rawView());
+
+        // Determine the size of the final offer after crossing.
+        auto afterCross = taker_amount; // If !tesSUCCESS offer unchanged
+        if (isTesSuccess (result.result()))
+        {
+            STAmount const takerInBalance = accountHolds (sb, account_,
+                taker_amount.in.getCurrency(),
+                taker_amount.in.getIssuer(), fhZERO_IF_FROZEN, j_);
+
+            if (takerInBalance.signum() <= 0)
+            {
+                // If offer crossing exhausted the account's funds don't
+                // create the offer.
+                afterCross.in.clear();
+                afterCross.out.clear();
+            }
+            else
+            {
+                // Reduce the offer that is placed by the crossed amount.
+                // Note that we must ignore the portion of the
+                // actualAmountIn that may have been consumed by a
+                // gateway's transfer rate.
+                STAmount nonGatewayAmountIn = result.actualAmountIn;
+                if (gatewayXferRate != QUALITY_ONE)
+                    nonGatewayAmountIn = divRound (result.actualAmountIn,
+                        amountFromRate(gatewayXferRate),
+                        taker_amount.in.issue(), true); // Rounding direction?
+
+                afterCross.in -= nonGatewayAmountIn;
+
+                // It's possible that the divRound will cause our subtract to
+                // go slightly negative.  So limit afterCross.in to zero.
+                if (afterCross.in.signum() < 0)
+                    // We should verify that the difference *is* small, but
+                    // what is a good threshold to check?
+                    afterCross.in.clear();
+
+                if (txFlags & tfSell)
+                    // If selling then scale the new out amount based on how
+                    // much we sold during crossing.  This preserves the offer
+                    // Quality,
+                    afterCross.out = divRound (afterCross.in,
+                        q.rate(), taker_amount.out.issue(), true);
+                else
+                    afterCross.out -= result.actualAmountOut;
+            }
+        }
+
+        // Return how much of the offer is left.
+        return { tesSUCCESS, afterCross };
+    }
+    catch (std::exception const& e)
+    {
+        JLOG (j_.error()) <<
+            "Exception during offer crossing: " << e.what ();
+    }
+    return { tecINTERNAL, taker_amount };
+}
+#endif // 1
 
 std::string
 CreateOffer::format_amount (STAmount const& amount)
@@ -672,9 +837,6 @@ CreateOffer::applyGuts (ApplyView& view, ApplyView& view_cancel)
     // FIXME understand why we use SequenceNext instead of current transaction
     //       sequence to determine the transaction. Why is the offer sequence
     //       number insufficient?
-
-    auto const sleCreator = view.peek (keylet::account(account_));
-
     auto const uSequence = ctx_.tx.getSequence ();
 
     // This is the original rate of the offer, and is the rate at which
@@ -743,7 +905,7 @@ CreateOffer::applyGuts (ApplyView& view, ApplyView& view_cancel)
             stream << "    out: " << format_amount (taker_amount.out);
         }
 
-        std::tie(result, place_offer) = cross (view, view_cancel, taker_amount);
+        std::tie(result, place_offer) = cross (view, view_cancel, taker_amount); // !!!! DEBUG !!!!
         // We expect the implementation of cross to succeed
         // or give a tec.
         assert(result == tesSUCCESS || isTecClaim(result));
@@ -824,6 +986,7 @@ CreateOffer::applyGuts (ApplyView& view, ApplyView& view_cancel)
         return { tesSUCCESS, true };
     }
 
+    auto const sleCreator = view.peek (keylet::account(account_));
     {
         XRPAmount reserve = ctx_.view().fees().accountReserve(
             sleCreator->getFieldU32 (sfOwnerCount) + 1);

@@ -35,7 +35,7 @@ namespace ripple {
 
 class DirectStepI : public StepImp<IOUAmount, IOUAmount, DirectStepI>
 {
-  private:
+private:
     AccountID src_;
     AccountID dst_;
     Currency currency_;
@@ -43,6 +43,8 @@ class DirectStepI : public StepImp<IOUAmount, IOUAmount, DirectStepI>
     // Charge transfer fees when the prev step redeems
     Step const* const prevStep_ = nullptr;
 
+    // When offer crossing then ignore trustline limits.
+    bool const offerCrossing_;
     beast::Journal j_;
 
     struct Cache
@@ -66,23 +68,41 @@ class DirectStepI : public StepImp<IOUAmount, IOUAmount, DirectStepI>
 
     boost::optional<Cache> cache_;
 
+    // Compute the maximum value that can flow from src->dst at
+    // the best available quality.
+    // return: first element is max amount that can flow,
+    //         second is true if dst holds an iou from src.
+    std::pair<IOUAmount, bool>
+    maxFlow (
+        PaymentSandbox const& sb,
+        IOUAmount const& desired) const;
+
+    // Return the quality for a given offer.
+    std::uint32_t
+    quality (
+        PaymentSandbox const& sb,
+        // set true for quality in, false for quality out
+        bool qin) const;
+
     // Returns srcQOut, dstQIn
     std::pair <std::uint32_t, std::uint32_t>
     qualities (
         PaymentSandbox& sb,
         bool srcRedeems,
         bool fwd) const;
-  public:
+public:
     DirectStepI (
         AccountID const& src,
         AccountID const& dst,
         Currency const& c,
         Step const* prevStep,
+        bool offerCrossing,
         beast::Journal j)
-            :src_(src)
+            : src_(src)
             , dst_(dst)
             , currency_ (c)
             , prevStep_ (prevStep)
+            , offerCrossing_ (offerCrossing)
             , j_ (j) {}
 
     AccountID const& src () const
@@ -185,26 +205,23 @@ class DirectStepI : public StepImp<IOUAmount, IOUAmount, DirectStepI>
     }
 };
 
-// Compute the maximum value that can flow from src->dst at
-// the best available quality.
-// return: first element is max amount that can flow,
-//         second is if src redeems to dst
-static
 std::pair<IOUAmount, bool>
-maxFlow (
+DirectStepI::maxFlow (
     PaymentSandbox const& sb,
-    AccountID const& src,
-    AccountID const& dst,
-    Currency const& cur)
+    IOUAmount const& desired) const
 {
+    // If offer crossing ignore trustline limits.
+    if (offerCrossing_)
+        return {desired, false};  // Should this truly always be false?
+
     auto const srcOwed = toAmount<IOUAmount> (
-        accountHolds (sb, src, cur, dst, fhIGNORE_FREEZE, beast::Journal{}));
+        accountHolds (sb, src_, currency_, dst_, fhIGNORE_FREEZE, j_));
 
     if (srcOwed.signum () > 0)
         return {srcOwed, true};
 
     // srcOwed is negative or zero
-    return {creditLimit2 (sb, dst, src, cur) + srcOwed, false};
+    return {creditLimit2 (sb, dst_, src_, currency_) + srcOwed, false};
 }
 
 bool
@@ -213,7 +230,7 @@ DirectStepI::redeems (ReadView const& sb, bool fwd) const
     if (!fwd)
     {
         auto const srcOwed = accountHolds (
-            sb, src_, currency_, dst_, fhIGNORE_FREEZE, beast::Journal{});
+            sb, src_, currency_, dst_, fhIGNORE_FREEZE, j_);
         return srcOwed.signum () > 0;
     }
     else
@@ -238,8 +255,7 @@ DirectStepI::revImp (
 
     bool srcRedeems;
     IOUAmount maxSrcToDst;
-    std::tie (maxSrcToDst, srcRedeems) =
-        maxFlow (sb, src_, dst_, currency_);
+    std::tie (maxSrcToDst, srcRedeems) = maxFlow (sb, out);
 
     std::uint32_t srcQOut, dstQIn;
     std::tie (srcQOut, dstQIn) = qualities (sb, srcRedeems, false);
@@ -359,8 +375,7 @@ DirectStepI::fwdImp (
 
     bool srcRedeems;
     IOUAmount maxSrcToDst;
-    std::tie (maxSrcToDst, srcRedeems) =
-        maxFlow (sb, src_, dst_, currency_);
+    std::tie (maxSrcToDst, srcRedeems) = maxFlow (sb, in);
 
     std::uint32_t srcQOut, dstQIn;
     std::tie (srcQOut, dstQIn) = qualities (sb, srcRedeems, true);
@@ -444,8 +459,7 @@ DirectStepI::validFwd (
 
     bool srcRedeems;
     IOUAmount maxSrcToDst;
-    std::tie (maxSrcToDst, srcRedeems) =
-            maxFlow (sb, src_, dst_, currency_);
+    std::tie (maxSrcToDst, srcRedeems) = maxFlow (sb, in.iou);
 
     try
     {
@@ -481,28 +495,23 @@ DirectStepI::validFwd (
     return {true, EitherAmount (cache_->out)};
 }
 
-static
 std::uint32_t
-quality (
+DirectStepI::quality (
     PaymentSandbox const& sb,
-    AccountID const& src,
-    AccountID const& dst,
-    Currency const& currency,
-    // set true for quality in, false for quality out
-    bool qin)
+    bool qin) const
 {
-    if (src == dst)
+    if (src_ == dst_)
         return QUALITY_ONE;
 
     auto const sle = sb.read (
-        keylet::line (dst, src, currency));
+        keylet::line (dst_, src_, currency_));
 
     if (!sle)
         return QUALITY_ONE;
 
-    auto const& field = [&]() -> SF_U32 const&
+    auto const& field = [this, qin]() -> SF_U32 const&
     {
-        if (dst < src)
+        if (dst_ < src_)
         {
             if (qin)
                 return sfLowQualityIn;
@@ -536,11 +545,7 @@ DirectStepI::qualities (
 {
     if (srcRedeems)
     {
-        return std::make_pair(
-            quality (
-                sb, src_, dst_, currency_,
-                false),
-            QUALITY_ONE);
+        return std::make_pair (quality (sb, false), QUALITY_ONE);
     }
     else
     {
@@ -548,11 +553,8 @@ DirectStepI::qualities (
         auto const prevStepRedeems = prevStep_ && prevStep_->redeems (sb, fwd);
         std::uint32_t const srcQOut =
             prevStepRedeems ? rippleTransferRate (sb, src_) : QUALITY_ONE;
-        return std::make_pair(
-            srcQOut,
-            quality ( // dst quality in
-                sb, src_, dst_, currency_,
-                true));
+
+        return std::make_pair (srcQOut, quality (sb, true));
     }
 }
 
@@ -564,35 +566,13 @@ TER DirectStepI::check (StrandContext const& ctx) const
         return temBAD_PATH;
     }
 
+    auto const sleSrc = ctx.view.read (keylet::account (src_));
+    if (!sleSrc)
     {
-        auto sleSrc = ctx.view.read (keylet::account (src_));
-        if (!sleSrc)
-        {
-            JLOG (j_.warn())
-                    << "DirectStepI: can't receive IOUs from non-existent issuer: "
-                    << src_;
-            return terNO_ACCOUNT;
-        }
-
-        auto sleLine = ctx.view.read (keylet::line (src_, dst_, currency_));
-
-        if (!sleLine)
-        {
-            JLOG (j_.trace()) << "DirectStepI: No credit line. " << *this;
-            return terNO_LINE;
-        }
-
-        auto const authField = (src_ > dst_) ? lsfHighAuth : lsfLowAuth;
-
-        if (((*sleSrc)[sfFlags] & lsfRequireAuth) &&
-            !((*sleLine)[sfFlags] & authField) &&
-            (*sleLine)[sfBalance] == zero)
-        {
-            JLOG (j_.warn())
-                << "DirectStepI: can't receive IOUs from issuer without auth."
-                << " src: " << src_;
-            return terNO_AUTH;
-        }
+        JLOG (j_.warn())
+            << "DirectStepI: can't receive IOUs from non-existent issuer: "
+            << src_;
+        return terNO_ACCOUNT;
     }
 
     // pure issue/redeem can't be frozen
@@ -603,6 +583,8 @@ TER DirectStepI::check (StrandContext const& ctx) const
             return ter;
     }
 
+    // Why do we only need to check this constraint if ctx.prevStep is a
+    // direct step?
     if (ctx.prevStep)
     {
         if (auto prevSrc = ctx.prevStep->directStepSrcAcct ())
@@ -644,6 +626,33 @@ TER DirectStepI::check (StrandContext const& ctx) const
         }
     }
 
+    // The previous checks apply in all cases.  The following checks apply
+    // only if we're not offer crossing because they require a preexisting
+    // trustline.
+    if (offerCrossing_)
+        return tesSUCCESS;
+
+    {
+        auto sleLine = ctx.view.read (keylet::line (src_, dst_, currency_));
+        if (!sleLine)
+        {
+            JLOG (j_.trace()) << "DirectStepI: No credit line. " << *this;
+            return terNO_LINE;
+        }
+
+        auto const authField = (src_ > dst_) ? lsfHighAuth : lsfLowAuth;
+
+        if (((*sleSrc)[sfFlags] & lsfRequireAuth) &&
+            !((*sleLine)[sfFlags] & authField) &&
+            (*sleLine)[sfBalance] == zero)
+        {
+            JLOG (j_.warn())
+                << "DirectStepI: can't receive IOUs from issuer without auth."
+                << " src: " << src_;
+            return terNO_AUTH;
+        }
+    }
+
     {
         auto const owed = creditBalance (ctx.view, dst_, src_, currency_);
         if (owed <= zero)
@@ -652,7 +661,7 @@ TER DirectStepI::check (StrandContext const& ctx) const
             if (-owed >= limit)
             {
                 JLOG (j_.debug())
-                        << "DirectStepI: dry: owed: " << owed << " limit: " << limit;
+                    << "DirectStepI: dry: owed: " << owed << " limit: " << limit;
                 return tecPATH_DRY;
             }
         }
@@ -689,9 +698,14 @@ make_DirectStepI (
     AccountID const& dst,
     Currency const& c)
 {
+    // Offer crossing requires special handing because
+    //  a) It can create a trust line on the fly.
+    //  b) It ignores limits on trustlines.
+    // Only the last step in the strand supports offer crossing handling.
+    bool const offerCrossing = ctx.offerCrossing && ctx.isLast;
     // Only charge a transfer fee if the previous step redeems
     auto r = std::make_unique<DirectStepI> (
-        src, dst, c, ctx.prevStep, ctx.j);
+        src, dst, c, ctx.prevStep, offerCrossing, ctx.j);
     auto ter = r->check (ctx);
     if (ter != tesSUCCESS)
         return {ter, nullptr};

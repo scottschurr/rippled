@@ -63,6 +63,7 @@ flow (
     bool defaultPaths,
     bool partialPayment,
     bool ownerPaysTransferFee,
+    bool offerCrossing,
     boost::optional<Quality> const& limitQuality,
     boost::optional<STAmount> const& sendMax,
     beast::Journal j)
@@ -84,7 +85,7 @@ flow (
     // convert the paths to a collection of strands. Each strand is the collection
     // of account->account steps and book steps that may be used in this payment.
     auto sr = toStrands (sb, src, dst, dstIssue, sendMaxIssue, paths,
-        defaultPaths, ownerPaysTransferFee, j);
+        defaultPaths, ownerPaysTransferFee, offerCrossing, j);
 
     if (sr.first != tesSUCCESS)
     {

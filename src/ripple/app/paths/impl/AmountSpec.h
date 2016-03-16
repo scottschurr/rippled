@@ -103,6 +103,18 @@ struct EitherAmount
         else
             iou = a.iou;
     }
+
+    explicit
+    EitherAmount (STAmount const& a)
+    {
+#ifndef NDEBUG
+        native = a.native();
+#endif
+        if (a.native())
+            xrp = a.xrp();
+        else
+            iou = a.iou();
+    }
 };
 
 template <class T>

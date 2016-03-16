@@ -55,6 +55,7 @@ private:
     // Charge transfer fees whan the prev step redeems
     Step const* const prevStep_ = nullptr;
     bool const ownerPaysTransferFee_;
+    bool const offerCrossing_;
     beast::Journal j_;
 
     struct Cache
@@ -77,12 +78,14 @@ public:
         AccountID const& strandDst,
         Step const* prevStep,
         bool ownerPaysTransferFee,
+        bool offerCrossing,
         beast::Journal j)
         : book_ (in, out)
         , strandSrc_ (strandSrc)
         , strandDst_ (strandDst)
         , prevStep_ (prevStep)
         , ownerPaysTransferFee_ (ownerPaysTransferFee)
+        , offerCrossing_ (offerCrossing)
         , j_ (j)
     {
     }
@@ -248,6 +251,7 @@ forEachOffer (
     AccountID const& dst,
     bool prevStepRedeems,
     bool ownerPaysTransferFee,
+    bool offerCrossing,
     Callback& callback,
     std::uint32_t limit,
     beast::Journal j)
@@ -256,7 +260,7 @@ forEachOffer (
     // Charge a fee even if the owner is the same as the issuer
     // (the old code does not charge a fee)
     // Calculate amount that goes to the taker and the amount charged the offer owner
-    auto transferRate = [&](AccountID const& id)->std::uint32_t
+    auto transferRate = [&dst, &sb](AccountID const& id)->std::uint32_t
     {
         if (isXRP (id) || id == dst)
             return QUALITY_ONE;
@@ -376,7 +380,8 @@ BookStep<TIn, TOut>::revImp (
       Return true to continue to receive offers, false to stop receiving offers.
     */
     auto eachOffer =
-        [&](TOffer<TIn, TOut>& offer,
+        [this, &sb, &out, &result, &remainingOut, &savedIns, &savedOuts]
+        (TOffer<TIn, TOut>& offer,
             TAmounts<TIn, TOut> const& ofrAmt,
             TAmounts<TIn, TOut> const& stpAmt,
             TOut const& ownerGives,
@@ -417,8 +422,8 @@ BookStep<TIn, TOut>::revImp (
     {
         auto const prevStepRedeems = prevStep_ && prevStep_->redeems (sb, false);
         auto const r = forEachOffer<TIn, TOut> (sb, afView, book_, strandSrc_,
-            strandDst_, prevStepRedeems, ownerPaysTransferFee_, eachOffer,
-            maxOffersToConsume_, j_);
+            strandDst_, prevStepRedeems, ownerPaysTransferFee_, offerCrossing_,
+            eachOffer, maxOffersToConsume_, j_);
         boost::container::flat_set<uint256> toRm = std::move(std::get<0>(r));
         std::uint32_t const offersConsumed = std::get<1>(r);
         ofrsToRm.insert (boost::container::ordered_unique_range_t{},
@@ -565,8 +570,8 @@ BookStep<TIn, TOut>::fwdImp (
     {
         auto const prevStepRedeems = prevStep_ && prevStep_->redeems (sb, true);
         auto const r = forEachOffer<TIn, TOut> (sb, afView, book_, strandSrc_,
-            strandDst_, prevStepRedeems, ownerPaysTransferFee_, eachOffer,
-            maxOffersToConsume_, j_);
+            strandDst_, prevStepRedeems, ownerPaysTransferFee_, offerCrossing_,
+            eachOffer, maxOffersToConsume_, j_);
         boost::container::flat_set<uint256> toRm = std::move(std::get<0>(r));
         std::uint32_t const offersConsumed = std::get<1>(r);
         ofrsToRm.insert (boost::container::ordered_unique_range_t{},
@@ -712,7 +717,7 @@ make_BookStepHelper (
 {
     auto r = std::make_unique<BookStep<TIn, TOut>> (
         in, out, ctx.strandSrc, ctx.strandDst, ctx.prevStep,
-        ctx.ownerPaysTransferFee, ctx.j);
+        ctx.ownerPaysTransferFee, ctx.offerCrossing, ctx.j);
     auto ter = r->check (ctx);
     if (ter != tesSUCCESS)
         return {ter, nullptr};
@@ -734,8 +739,7 @@ make_BookStepIX (
     StrandContext const& ctx,
     Issue const& in)
 {
-    Issue out;
-    return make_BookStepHelper<IOUAmount, XRPAmount> (ctx, in, out);
+    return make_BookStepHelper<IOUAmount, XRPAmount> (ctx, in, xrpIssue());
 }
 
 std::pair<TER, std::unique_ptr<Step>>
@@ -743,8 +747,7 @@ make_BookStepXI (
     StrandContext const& ctx,
     Issue const& out)
 {
-    Issue in;
-    return make_BookStepHelper<XRPAmount, IOUAmount> (ctx, in, out);
+    return make_BookStepHelper<XRPAmount, IOUAmount> (ctx, xrpIssue(), out);
 }
 
 } // ripple

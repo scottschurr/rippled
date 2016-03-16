@@ -40,6 +40,7 @@ class XRPEndpointStep : public StepImp<XRPAmount, XRPAmount, XRPEndpointStep>
   private:
     AccountID acc_;
     bool isLast_;
+    bool reduceReserve_;
     beast::Journal j_;
 
     // Since this step will always be an endpoint in a strand
@@ -54,13 +55,20 @@ class XRPEndpointStep : public StepImp<XRPAmount, XRPAmount, XRPEndpointStep>
             return boost::none;
         return EitherAmount (*cache_);
     }
+
+    // Return the account's liquid (not reserved) XRP.
+    XRPAmount
+    xrpLiquid (ReadView& sb);
+
   public:
     XRPEndpointStep (
         AccountID const& acc,
         bool isLast,
+        bool reduceReserve,
         beast::Journal j)
             :acc_(acc)
             , isLast_(isLast)
+            , reduceReserve_(reduceReserve)
             , j_ (j) {}
 
     AccountID const& acc () const
@@ -101,7 +109,7 @@ class XRPEndpointStep : public StepImp<XRPAmount, XRPAmount, XRPEndpointStep>
         EitherAmount const& in) override;
 
     // Check for errors and violations of frozen constraints.
-    TER check (StrandContext const& ctx) const;
+    TER checkAndAdjust (StrandContext const& ctx);
 
 private:
     friend bool operator==(XRPEndpointStep const& lhs, XRPEndpointStep const& rhs);
@@ -135,13 +143,20 @@ inline bool operator==(XRPEndpointStep const& lhs, XRPEndpointStep const& rhs)
     return lhs.acc_ == rhs.acc_ && lhs.isLast_ == rhs.isLast_;
 }
 
-static
 XRPAmount
-xrpLiquid (ReadView& sb, AccountID const& src)
+XRPEndpointStep::xrpLiquid (ReadView& sb)
 {
-    if (auto sle = sb.read (keylet::account (src)))
+    if (auto sle = sb.read (keylet::account (acc_)))
     {
-        auto const reserve = sb.fees ().accountReserve ((*sle)[sfOwnerCount]);
+        // For historical reasons, offer crossing is allowed to dig further
+        // into the XRP reserve than an ordinary payment.  (I believe it's
+        // because, historically, the trustline was created after the XRP
+        // was removed.)
+        auto ownerCount = (*sle)[sfOwnerCount];
+        if (ownerCount && reduceReserve_)
+            --ownerCount;
+
+        auto const reserve = sb.fees ().accountReserve (ownerCount);
         auto const balance = (*sle)[sfBalance].xrp ();
         if (balance < reserve)
             return XRPAmount (beast::zero);
@@ -150,7 +165,6 @@ xrpLiquid (ReadView& sb, AccountID const& src)
     return XRPAmount (beast::zero);
 }
 
-
 std::pair<XRPAmount, XRPAmount>
 XRPEndpointStep::revImp (
     PaymentSandbox& sb,
@@ -158,7 +172,7 @@ XRPEndpointStep::revImp (
     boost::container::flat_set<uint256>& ofrsToRm,
     XRPAmount const& out)
 {
-    auto const balance = xrpLiquid (sb, acc_);
+    auto const balance = xrpLiquid (sb);
     auto const result = isLast_ ? out : std::min (balance, out);
 
     auto& sender = isLast_ ? xrpAccount() : acc_;
@@ -179,7 +193,7 @@ XRPEndpointStep::fwdImp (
     XRPAmount const& in)
 {
     assert (cache_);
-    auto const balance = xrpLiquid (sb, acc_);
+    auto const balance = xrpLiquid (sb);
     auto const result = isLast_ ? in : std::min (balance, in);
 
     auto& sender = isLast_ ? xrpAccount() : acc_;
@@ -207,7 +221,7 @@ XRPEndpointStep::validFwd (
     assert (in.native);
 
     auto const& xrpIn = in.xrp;
-    auto const balance = xrpLiquid (sb, acc_);
+    auto const balance = xrpLiquid (sb);
 
     if (!isLast_ && balance < xrpIn)
     {
@@ -227,7 +241,7 @@ XRPEndpointStep::validFwd (
 }
 
 TER
-XRPEndpointStep::check (StrandContext const& ctx) const
+XRPEndpointStep::checkAndAdjust (StrandContext const& ctx)
 {
     if (!acc_)
     {
@@ -238,7 +252,7 @@ XRPEndpointStep::check (StrandContext const& ctx) const
     auto sleAcc = ctx.view.read (keylet::account (acc_));
     if (!sleAcc)
     {
-        JLOG (j_.warn()) << "XRPEndpointStep: can't send or receive XRPs from "
+        JLOG (j_.warn()) << "XRPEndpointStep: can't send or receive XRP from "
                              "non-existent account: "
                           << acc_;
         return terNO_ACCOUNT;
@@ -248,6 +262,13 @@ XRPEndpointStep::check (StrandContext const& ctx) const
     {
         return temBAD_PATH;
     }
+
+    // If we're offer crossing, only fiddle with the reserve if a trust line
+    // from acc_ to the strand's delivered currency does not yet exist.
+    if (reduceReserve_)
+        if (ctx.view.read (keylet::line (acc_, ctx.strandDeliver)))
+            // Trust line already exists.
+            reduceReserve_ = false;
 
     auto& src = isLast_ ? xrpAccount () : acc_;
     auto& dst = isLast_ ? acc_ : xrpAccount();
@@ -280,8 +301,16 @@ make_XRPEndpointStep (
     StrandContext const& ctx,
     AccountID const& acc)
 {
-    auto r = std::make_unique<XRPEndpointStep> (acc, ctx.isLast, ctx.j);
-    auto ter = r->check (ctx);
+    // For historical reasons, offer crossing is allowed to dig further
+    // into the XRP reserve than an ordinary payment.  (I believe it's
+    // because the trustline was created after the XRP was removed.)  Pass
+    // a flag that allows us to simulate the historical behavior.
+    bool const reduceReserve = ctx.offerCrossing && ctx.isFirst;
+
+    auto r = std::make_unique<XRPEndpointStep> (
+        acc, ctx.isLast, reduceReserve, ctx.j);
+
+    auto ter = r->checkAndAdjust (ctx);
     if (ter != tesSUCCESS)
         return {ter, nullptr};
     return {tesSUCCESS, std::move (r)};
