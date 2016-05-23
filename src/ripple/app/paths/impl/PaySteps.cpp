@@ -137,6 +137,7 @@ toStrand (
     AccountID const& src,
     AccountID const& dst,
     Issue const& deliver,
+    boost::optional<Quality> const& limitQuality,
     boost::optional<Issue> const& sendMaxIssue,
     STPath const& path,
     bool ownerPaysTransferFee,
@@ -217,6 +218,7 @@ toStrand (
 
     auto const strandSrc = firstNode.getAccountID ();
     auto const strandDst = lastNode.getAccountID ();
+    bool const isDefaultPath = path == STPath();
 
     Strand result;
     result.reserve (2 * pes.size ());
@@ -234,8 +236,9 @@ toStrand (
     seenBookOuts.reserve (pes.size());
     auto ctx = [&](bool isLast = false)
     {
-        return StrandContext{view, result, strandSrc, strandDst, deliver, isLast,
-            ownerPaysTransferFee, offerCrossing, seenDirectIssues, seenBookOuts, j};
+        return StrandContext{view, result, strandSrc, strandDst, deliver,
+            limitQuality, isLast, ownerPaysTransferFee, offerCrossing,
+            isDefaultPath, seenDirectIssues, seenBookOuts, j};
     };
 
     for (int i = 0; i < pes.size () - 1; ++i)
@@ -375,6 +378,7 @@ toStrands (
     AccountID const& src,
     AccountID const& dst,
     Issue const& deliver,
+    boost::optional<Quality> const& limitQuality,
     boost::optional<Issue> const& sendMax,
     STPathSet const& paths,
     bool addDefaultPath,
@@ -395,8 +399,8 @@ toStrands (
 
     if (addDefaultPath)
     {
-        auto sp = toStrand (
-            view, src, dst, deliver, sendMax, STPath(), ownerPaysTransferFee, offerCrossing, j);
+        auto sp = toStrand (view, src, dst, deliver, limitQuality,
+            sendMax, STPath(), ownerPaysTransferFee, offerCrossing, j);
         auto const ter = sp.first;
         auto& strand = sp.second;
 
@@ -427,8 +431,8 @@ toStrands (
     TER lastFailTer = tesSUCCESS;
     for (auto const& p : paths)
     {
-        auto sp = toStrand (
-            view, src, dst, deliver, sendMax, p, ownerPaysTransferFee, offerCrossing, j);
+        auto sp = toStrand (view, src, dst, deliver,
+            limitQuality, sendMax, p, ownerPaysTransferFee, offerCrossing, j);
         auto ter = sp.first;
         auto& strand = sp.second;
 
@@ -465,9 +469,11 @@ StrandContext::StrandContext (
     AccountID const& strandSrc_,
     AccountID const& strandDst_,
     Issue const& strandDeliver_,
+    boost::optional<Quality> const& limitQuality_,
     bool isLast_,
     bool ownerPaysTransferFee_,
     bool offerCrossing_,
+    bool isDefaultPath_,
     std::array<boost::container::flat_set<Issue>, 2>& seenDirectIssues_,
     boost::container::flat_set<Issue>& seenBookOuts_,
     beast::Journal j_)
@@ -475,10 +481,12 @@ StrandContext::StrandContext (
         , strandSrc (strandSrc_)
         , strandDst (strandDst_)
         , strandDeliver (strandDeliver_)
+        , limitQuality (limitQuality_)
         , isFirst (strand_.empty ())
         , isLast (isLast_)
         , ownerPaysTransferFee (ownerPaysTransferFee_)
         , offerCrossing (offerCrossing_)
+        , isDefaultPath (isDefaultPath_)
         , strandSize (strand_.size ())
         , prevStep (!strand_.empty () ? strand_.back ().get ()
                      : nullptr)

@@ -22,6 +22,7 @@
 
 #include <ripple/app/paths/impl/AmountSpec.h>
 #include <ripple/basics/Log.h>
+#include <ripple/protocol/Quality.h>
 #include <ripple/protocol/STLedgerEntry.h>
 #include <ripple/protocol/TER.h>
 
@@ -74,7 +75,7 @@ public:
        @param ofrsToRm offers found unfunded or in an error state are added to this collection
        @param out requested step output
        @return actual step input and output
-     */
+    */
     virtual
     std::pair<EitherAmount, EitherAmount>
     rev (
@@ -222,6 +223,7 @@ bool operator==(Strand const& lhs, Strand const& rhs)
    @param dst Account that is receiving assets
    @param deliver Asset the dst account will receive
    (if issuer of deliver == dst, then accept any issuer)
+   @param limitQuality Do not use liquidity below this quality threshold
    @param sendMax Optional asset to send.
    @param path Liquidity sources to use for this strand of the payment. The path
                contains an ordered collection of the offer books to use and
@@ -236,6 +238,7 @@ toStrand (
     AccountID const& src,
     AccountID const& dst,
     Issue const& deliver,
+    boost::optional<Quality> const& limitQuality,
     boost::optional<Issue> const& sendMaxIssue,
     STPath const& path,
     bool ownerPaysTransferFee,
@@ -251,6 +254,7 @@ toStrand (
    @param dst Account that is receiving assets
    @param deliver Asset the dst account will receive
                   (if issuer of deliver == dst, then accept any issuer)
+   @param limitQuality Do not use liquidity below this quality threshold
    @param sendMax Optional asset to send.
    @param paths Paths to use to fullfill the payment. Each path in the pathset
                 contains an ordered collection of the offer books to use and
@@ -264,6 +268,7 @@ toStrands (ReadView const& sb,
     AccountID const& src,
     AccountID const& dst,
     Issue const& deliver,
+    boost::optional<Quality> const& limitQuality,
     boost::optional<Issue> const& sendMax,
     STPathSet const& paths,
     bool addDefaultPath,
@@ -353,10 +358,12 @@ struct StrandContext
     AccountID const strandSrc;
     AccountID const strandDst;
     Issue const strandDeliver;
+    boost::optional<Quality> const& limitQuality;
     bool const isFirst;
     bool const isLast = false;
     bool ownerPaysTransferFee;
     bool const offerCrossing;
+    bool const isDefaultPath;
     size_t const strandSize;
     // The previous step in the strand. Needed to check the no ripple constraint
     Step const* const prevStep = nullptr;
@@ -376,9 +383,11 @@ struct StrandContext
         AccountID const& strandSrc_,
         AccountID const& strandDst_,
         Issue const& strandDeliver_,
+        boost::optional<Quality> const& limitQuality_,
         bool isLast_,
         bool ownerPaysTransferFee_,
         bool offerCrossing_,
+        bool isDefaultPath_,
         std::array<boost::container::flat_set<Issue>, 2>& seenDirectIssues_,
         boost::container::flat_set<Issue>& seenBookOuts_,
         beast::Journal j);

@@ -181,7 +181,7 @@ struct Flow_test : public beast::unit_test::suite
             boost::optional<Issue> const& sendMaxIssue, STPath const& path,
             TER expTer, auto&&... expSteps)
         {
-            auto r = toStrand (*env.current (), alice, bob, deliver,
+            auto r = toStrand (*env.current (), alice, bob, deliver, boost::none,
                 sendMaxIssue, path, true, false, env.app ().logs ().journal ("Flow"));
             expect (r.first == expTer);
             if (sizeof...(expSteps))
@@ -236,20 +236,23 @@ struct Flow_test : public beast::unit_test::suite
                 {
                     // The root account can't be the dst
                     auto r = toStrand (*env.current (), alice, xrpAccount (),
-                        XRP, USD.issue (), STPath (), true, false, flowJournal);
+                        XRP, boost::none, USD.issue (), STPath (), true,
+                        false, flowJournal);
                     expect (r.first == temBAD_PATH);
                 }
                 {
                     // The root account can't be the src
                     auto r =
                         toStrand (*env.current (), xrpAccount (), alice,
-                            XRP, boost::none, STPath (), true, false, flowJournal);
+                            XRP, boost::none, boost::none, STPath (), true,
+                            false, flowJournal);
                     expect (r.first == temBAD_PATH);
                 }
                 {
                     // The root account can't be the src
                     auto r = toStrand (*env.current (), noAccount (),
-                        bob, USD, boost::none, STPath (), true, false, flowJournal);
+                        bob, USD, boost::none, boost::none, STPath (), true,
+                        false, flowJournal);
                     expect (r.first == terNO_ACCOUNT);
                 }
             }
@@ -359,7 +362,8 @@ struct Flow_test : public beast::unit_test::suite
 
             // Check pure issue redeem still works
             auto r = toStrand (*env.current (), alice, gw, USD, boost::none,
-                STPath (), true, false, env.app ().logs ().journal ("Flow"));
+                boost::none, STPath (), true, false,
+                env.app ().logs ().journal ("Flow"));
             expect (r.first == tesSUCCESS);
             expect (equal (r.second, D{alice, gw, usdC}));
         }

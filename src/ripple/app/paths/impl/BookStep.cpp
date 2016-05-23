@@ -52,10 +52,11 @@ private:
     Book book_;
     AccountID strandSrc_;
     AccountID strandDst_;
-    // Charge transfer fees whan the prev step redeems
+    // Charge transfer fees when the prev step redeems
     Step const* const prevStep_ = nullptr;
     bool const ownerPaysTransferFee_;
-    bool const offerCrossing_;
+    bool const removeSelfCrossingOffers_;
+    Quality const limitQuality_;
     beast::Journal j_;
 
     struct Cache
@@ -78,14 +79,16 @@ public:
         AccountID const& strandDst,
         Step const* prevStep,
         bool ownerPaysTransferFee,
-        bool offerCrossing,
+        bool removeSelfCrossingOffers,
+        Quality const limitQuality,
         beast::Journal j)
         : book_ (in, out)
         , strandSrc_ (strandSrc)
         , strandDst_ (strandDst)
         , prevStep_ (prevStep)
         , ownerPaysTransferFee_ (ownerPaysTransferFee)
-        , offerCrossing_ (offerCrossing)
+        , removeSelfCrossingOffers_ (removeSelfCrossingOffers)
+        , limitQuality_ (limitQuality)
         , j_ (j)
     {
     }
@@ -158,6 +161,19 @@ private:
     }
 
     bool equal (Step const& rhs) const override;
+
+    // Iterate through the offers at the best quality in a book.
+    // Unfunded offers and bad offers are skipped (and returned).
+    // callback is called with the offer SLE, taker pays, taker gets.
+    // If callback returns false, don't process any more offers.
+    // Return the unfunded and bad offers and the number of offers consumed.
+    template <class Callback>
+    std::pair<boost::container::flat_set<uint256>, std::uint32_t>
+    forEachOffer (
+        PaymentSandbox& sb,
+        ApplyView& afView,
+        bool prevStepRedeems,
+        Callback& callback) const;
 
     void consumeOffer (PaymentSandbox& sb,
         TOffer<TIn, TOut>& offer,
@@ -240,51 +256,67 @@ void limitStepOut (Quality const& ofrQ,
    If callback returns false, don't process any more offers.
    Return the unfunded and bad offers and the number of offers consumed.
 */
-template <class TAmtIn, class TAmtOut, class Callback>
-static
+template <class TIn, class TOut>
+template <class Callback>
 std::pair<boost::container::flat_set<uint256>, std::uint32_t>
-forEachOffer (
+BookStep<TIn, TOut>::forEachOffer (
     PaymentSandbox& sb,
     ApplyView& afView,
-    Book const& book,
-    AccountID const& src,
-    AccountID const& dst,
     bool prevStepRedeems,
-    bool ownerPaysTransferFee,
-    bool offerCrossing,
-    Callback& callback,
-    std::uint32_t limit,
-    beast::Journal j)
+    Callback& callback) const
 {
     // Charge the offer owner, not the sender
     // Charge a fee even if the owner is the same as the issuer
     // (the old code does not charge a fee)
     // Calculate amount that goes to the taker and the amount charged the offer owner
-    auto transferRate = [&dst, &sb](AccountID const& id)->std::uint32_t
+    auto transferRate = [this, &sb](AccountID const& id)->std::uint32_t
     {
-        if (isXRP (id) || id == dst)
+        if (isXRP (id) || id == this->strandDst_)
             return QUALITY_ONE;
         return rippleTransferRate (sb, id);
     };
 
     std::uint32_t const trIn =
-            prevStepRedeems ? transferRate (book.in.account) : QUALITY_ONE;
+        prevStepRedeems ? transferRate (book_.in.account) : QUALITY_ONE;
     // Always charge the transfer fee, even if the owner is the issuer
     std::uint32_t const trOut =
-        ownerPaysTransferFee ? transferRate (book.out.account) : QUALITY_ONE;
+        ownerPaysTransferFee_ ? transferRate (book_.out.account) : QUALITY_ONE;
 
-    typename FlowOfferStream<TAmtIn, TAmtOut>::StepCounter counter (limit, j);
-    FlowOfferStream<TAmtIn, TAmtOut> offers (
-        sb, afView, book, sb.parentCloseTime (), counter, j);
+    typename FlowOfferStream<TIn, TOut>::StepCounter
+        counter (maxOffersToConsume_, j_);
+
+    FlowOfferStream<TIn, TOut> offers (
+        sb, afView, book_, sb.parentCloseTime (), counter, j_);
 
     boost::optional<Quality> ofrQ;
     while (offers.step ())
     {
         auto& offer = offers.tip ();
+
+        // Note that offer.quality() returns a (non-optional) Quality.  So
+        // ofrQ is always safe to use below this point in the loop.
         if (!ofrQ)
             ofrQ = offer.quality ();
         else if (*ofrQ != offer.quality ())
             break;
+
+        // Special rule for offer crossing.  If:
+        //   a. We're offer crossing using default path (no autobridging), and
+        //   b. The offer's quality is at least as good as our quality, and
+        //   c. We're about to cross one of our own offers, then
+        //   c. Delete the old offer.
+        // See explanation in the testSelfCrossOffer1() unit test.
+        if (removeSelfCrossingOffers_ &&
+            ofrQ >= limitQuality_ &&
+            strandSrc_ == offer.owner() &&
+            strandDst_ == offer.owner())
+        {
+            // Remove this offer even if no crossing occurs.
+            offers.permRmOffer (offer.getIndex());
+
+            // Note: continue deletes the offer when offers.step() is called.
+            continue;
+        }
 
         auto ofrAmt = offer.amount ();
         auto stpAmt = make_Amounts (
@@ -421,9 +453,7 @@ BookStep<TIn, TOut>::revImp (
 
     {
         auto const prevStepRedeems = prevStep_ && prevStep_->redeems (sb, false);
-        auto const r = forEachOffer<TIn, TOut> (sb, afView, book_, strandSrc_,
-            strandDst_, prevStepRedeems, ownerPaysTransferFee_, offerCrossing_,
-            eachOffer, maxOffersToConsume_, j_);
+        auto const r = forEachOffer (sb, afView, prevStepRedeems, eachOffer);
         boost::container::flat_set<uint256> toRm = std::move(std::get<0>(r));
         std::uint32_t const offersConsumed = std::get<1>(r);
         ofrsToRm.insert (boost::container::ordered_unique_range_t{},
@@ -569,9 +599,7 @@ BookStep<TIn, TOut>::fwdImp (
 
     {
         auto const prevStepRedeems = prevStep_ && prevStep_->redeems (sb, true);
-        auto const r = forEachOffer<TIn, TOut> (sb, afView, book_, strandSrc_,
-            strandDst_, prevStepRedeems, ownerPaysTransferFee_, offerCrossing_,
-            eachOffer, maxOffersToConsume_, j_);
+        auto const r = forEachOffer (sb, afView, prevStepRedeems, eachOffer);
         boost::container::flat_set<uint256> toRm = std::move(std::get<0>(r));
         std::uint32_t const offersConsumed = std::get<1>(r);
         ofrsToRm.insert (boost::container::ordered_unique_range_t{},
@@ -715,9 +743,22 @@ make_BookStepHelper (
     Issue const& in,
     Issue const& out)
 {
+    // For compatibility with old offer crossing code, we delete self
+    // crossing offers when using the default path.  See discussion in the
+    // testSelfCrossOffer1() unit test.
+    bool const removeSelfCrossingOffers =
+        ctx.offerCrossing && ctx.isDefaultPath;
+
+    // The StrandContext.limitQuality is required if we are offer crossing
+    if (ctx.offerCrossing && !ctx.limitQuality)
+        Throw<FlowException> (tefINTERNAL, "Offer requires quality.");
+
+    Quality limitQ = ctx.offerCrossing ?
+        *ctx.limitQuality : Quality (QUALITY_ONE);
+
     auto r = std::make_unique<BookStep<TIn, TOut>> (
         in, out, ctx.strandSrc, ctx.strandDst, ctx.prevStep,
-        ctx.ownerPaysTransferFee, ctx.offerCrossing, ctx.j);
+        ctx.ownerPaysTransferFee, removeSelfCrossingOffers, limitQ, ctx.j);
     auto ter = r->check (ctx);
     if (ter != tesSUCCESS)
         return {ter, nullptr};

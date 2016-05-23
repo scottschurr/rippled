@@ -84,8 +84,8 @@ flow (
 
     // convert the paths to a collection of strands. Each strand is the collection
     // of account->account steps and book steps that may be used in this payment.
-    auto sr = toStrands (sb, src, dst, dstIssue, sendMaxIssue, paths,
-        defaultPaths, ownerPaysTransferFee, offerCrossing, j);
+    auto sr = toStrands (sb, src, dst, dstIssue, limitQuality, sendMaxIssue,
+        paths, defaultPaths, ownerPaysTransferFee, offerCrossing, j);
 
     if (sr.first != tesSUCCESS)
     {

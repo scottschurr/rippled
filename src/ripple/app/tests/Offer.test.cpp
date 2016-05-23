@@ -1712,6 +1712,207 @@ public:
         }
     }
 
+    void
+    testSelfCrossOffer1()
+    {
+        // The following test verifies some correct but slightly surprising
+        // behavior in offer crossing.  The scenario:
+        //
+        //  o An entity has created one or more offers.
+        //  o The entity creates another offer that can be crossed by the
+        //    previously created offer(s).
+        //
+        // What does the offer crossing do?
+        //
+        //  o The offer crossing could go ahead and cross the offers leaving
+        //    either one reduced offer (partial crossing) or zero offers
+        //    (exact crossing) in the ledger.  We don't do this.  And, really,
+        //    the offer creator probably didn't want us to.
+        //
+        //  o We could skip over the self offer and only cross offers that are
+        //    not our own.  This would make a lot of sense, but we don't do
+        //    it.  Part of the rationale is that we can only operate on the
+        //    tip of the order book.  We can't leave an offer behind -- it
+        //    would sit on th tip and block access to other offers.
+        //
+        //  o We could delete the self-crossable offer(s) off the tip of the
+        //    book and continue with offer crossing.  That's what we do.
+        //
+        // Note that, in this particular example, one offer causes several
+        // crossable offers (worth considerable more than the new offer)
+        // to be removed from the book.
+        using namespace jtx;
+
+        auto const gw = Account("gateway");
+        auto const USD = gw["USD"];
+
+        Env env(*this);
+
+        // The fee that's charged for transactions.
+        auto const fee = env.current ()->fees ().base;
+        auto const startBalance = XRP(1000000);
+
+        env.fund (startBalance + (fee*4), gw);
+        env.close();
+
+        env (offer (gw, USD(60), XRP(600)));
+        env.close();
+        env (offer (gw, USD(60), XRP(600)));
+        env.close();
+        env (offer (gw, USD(60), XRP(600)));
+        env.close();
+
+        env.require (owners (gw, 3));
+        env.require (balance (gw, startBalance + fee));
+
+        auto gwOffers = offersOnAccount (env, gw);
+        expect (gwOffers.size() == 3);
+        for (auto const& offerPtr : gwOffers)
+        {
+            auto const offer = *offerPtr;
+            expect (offer[sfLedgerEntryType] == ltOFFER);
+            expect (offer[sfTakerGets] == XRP (600));
+            expect (offer[sfTakerPays] == USD ( 60));
+        }
+
+        // Since this offer crosses the first offers, the previous offers
+        // will be deleted and this offer will be put on the order book.
+        env (offer (gw, XRP(1000), USD(100)));
+        env.close();
+        env.require (owners (gw, 1));
+        env.require (offers (gw, 1));
+        env.require (balance (gw, startBalance));
+
+        gwOffers = offersOnAccount (env, gw);
+        expect (gwOffers.size() == 1);
+        for (auto const& offerPtr : gwOffers)
+        {
+            auto const offer = *offerPtr;
+            expect (offer[sfLedgerEntryType] == ltOFFER);
+            expect (offer[sfTakerGets] == USD (100));
+            expect (offer[sfTakerPays] == XRP (1000));
+        }
+    }
+
+    void
+    testSelfCrossOffer2()
+    {
+        using namespace jtx;
+
+        auto const gw1 = Account("gateway1");
+        auto const gw2 = Account("gateway2");
+        auto const alice = Account("alice");
+        auto const USD = gw1["USD"];
+        auto const EUR = gw2["EUR"];
+
+        Env env(*this);
+
+        env.fund (XRP(1000000), gw1, gw2);
+        env.close();
+
+        // The fee that's charged for transactions.
+        auto const f = env.current ()->fees ().base;
+
+        // Test cases
+        struct TestData
+        {
+            std::string acct;          // Account operated on
+            STAmount fundXRP;          // XRP acct funded with
+            STAmount fundUSD;          // USD acct funded with
+            STAmount fundEUR;          // EUR acct funded with
+            TER firstOfferTec;         // tec code on first offer
+            TER secondOfferTec;        // tec code on second offer
+        };
+
+        TestData const tests[]
+        {
+// acct               fundXRP    fundUSD    fundEUR           firstOfferTec          secondOfferTec
+{"ann", reserve(env, 3) + f*4, USD(1000), EUR(1000),             tesSUCCESS,             tesSUCCESS},
+{"bev", reserve(env, 3) + f*4, USD(   1), EUR(1000),             tesSUCCESS,             tesSUCCESS},
+{"cam", reserve(env, 3) + f*4, USD(1000), EUR(   1),             tesSUCCESS,             tesSUCCESS},
+{"deb", reserve(env, 3) + f*4, USD(   0), EUR(   1),             tesSUCCESS,      tecUNFUNDED_OFFER},
+{"eve", reserve(env, 3) + f*4, USD(   1), EUR(   0),      tecUNFUNDED_OFFER,             tesSUCCESS},
+{"flo", reserve(env, 3) +   0, USD(1000), EUR(1000), tecINSUF_RESERVE_OFFER, tecINSUF_RESERVE_OFFER},
+        };
+
+        for (auto const& t : tests)
+        {
+            auto const acct = Account (t.acct);
+            env.fund (t.fundXRP, acct);
+            env.close();
+
+            env (trust (acct, USD(1000)));
+            env (trust (acct, EUR(1000)));
+            env.close();
+
+            if (t.fundUSD > USD(0))
+                env (pay (gw1, acct, t.fundUSD));
+            if (t.fundEUR > EUR(0))
+                env (pay (gw2, acct, t.fundEUR));
+            env.close();
+
+            env (offer (acct, USD(500), EUR(600)), ter (t.firstOfferTec));
+            env.close();
+            std::uint32_t const firstOfferSeq = env.seq (acct) - 1;
+
+            int offerCount = t.firstOfferTec == tesSUCCESS ? 1 : 0;
+            env.require (owners (acct, 2 + offerCount));
+            env.require (balance (acct, t.fundUSD));
+            env.require (balance (acct, t.fundEUR));
+
+            auto acctOffers = offersOnAccount (env, acct);
+            expect (acctOffers.size() == offerCount);
+            for (auto const& offerPtr : acctOffers)
+            {
+                auto const offer = *offerPtr;
+                expect (offer[sfLedgerEntryType] == ltOFFER);
+                expect (offer[sfTakerGets] == EUR (600));
+                expect (offer[sfTakerPays] == USD (500));
+            }
+
+            env (offer (acct, EUR(600), USD(500)), ter (t.secondOfferTec));
+            env.close();
+            std::uint32_t const secondOfferSeq = env.seq (acct) - 1;
+
+            offerCount = t.secondOfferTec == tesSUCCESS ? 1 : offerCount;
+            env.require (owners (acct, 2 + offerCount));
+            env.require (balance (acct, t.fundUSD));
+            env.require (balance (acct, t.fundEUR));
+
+            acctOffers = offersOnAccount (env, acct);
+            expect (acctOffers.size() == offerCount);
+            for (auto const& offerPtr : acctOffers)
+            {
+                auto const offer = *offerPtr;
+                expect (offer[sfLedgerEntryType] == ltOFFER);
+                if (offer[sfSequence] == firstOfferSeq)
+                {
+                    expect (offer[sfTakerGets] == EUR (600));
+                    expect (offer[sfTakerPays] == USD (500));
+                }
+                else
+                {
+                    expect (offer[sfTakerGets] == USD (500));
+                    expect (offer[sfTakerPays] == EUR (600));
+                }
+            }
+
+            // Remove any offers from acct for the next pass.
+            env (offer_cancel (acct, firstOfferSeq));
+            env.close();
+            env (offer_cancel (acct, secondOfferSeq));
+            env.close();
+        }
+    }
+
+    void
+    testSelfCrossOffer()
+    {
+        testcase ("Self Cross Offer");
+        testSelfCrossOffer1();
+        testSelfCrossOffer2();
+    }
+
     void run ()
     {
         testCanceledOffer ();
@@ -1730,6 +1931,7 @@ public:
         testBridgedCross();
         testSellOffer();
         testTransferRateOffer();
+        testSelfCrossOffer();
     }
 };
 
