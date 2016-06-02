@@ -137,7 +137,7 @@ RippleCalc::Output RippleCalc::rippleCalculate (
                     view.rules ().enabled (featureOwnerPaysFee, config.features);
             flowV2Out = flow (flowV2SB, saDstAmountReq, uSrcAccountID,
                 uDstAccountID, spsPaths, defaultPaths, partialPayment,
-                ownerPaysTransferFee, limitQuality, sendMax, j);
+                ownerPaysTransferFee, /* offerCrossing */ false, limitQuality, sendMax, j);
         }
         catch (std::exception& e)
         {

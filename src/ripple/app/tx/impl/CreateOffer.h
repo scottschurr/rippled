@@ -120,6 +120,14 @@ private:
         ApplyView& cancel_view,
         Amounts const& taker_amount);
 
+    // EXPERIMENTAL
+    // See if we can do offer crossing using payment flow code.
+    std::pair<TER, Amounts>
+    flow_cross (
+        ApplyView& view,
+        ApplyView& cancel_view,
+        Amounts const& taker_amount);
+
     static
     std::string
     format_amount (STAmount const& amount);

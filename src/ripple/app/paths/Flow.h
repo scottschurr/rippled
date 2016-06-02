@@ -38,9 +38,11 @@ namespace ripple
   @param defaultPaths Include defaultPaths in the path set
   @param partialPayment If the payment cannot deliver the entire
            requested amount, deliver as much as possible, given the constraints
+  @param ownerPaysTransferFee If true then owner, not receiver, pays fee
+  @param offerCrossing We are offer crossing, so use special rules
   @param limitQuality Do not use liquidity below this quality threshold
   @param sendMax Do not spend more than this amount
-  @param logs Logs to write journal messages to
+  @param j Journal to write journal messages to
   @return Actual amount in and out, and the result code
 */
 path::RippleCalc::Output
@@ -52,6 +54,7 @@ flow (PaymentSandbox& view,
     bool defaultPaths,
     bool partialPayment,
     bool ownerPaysTransferFee,
+    bool offerCrossing,
     boost::optional<Quality> const& limitQuality,
     boost::optional<STAmount> const& sendMax,
     beast::Journal j);

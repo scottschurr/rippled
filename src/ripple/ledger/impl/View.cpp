@@ -1229,7 +1229,7 @@ offerDelete (ApplyView& view,
 
 // Direct send w/o fees:
 // - Redeeming IOUs and/or sending sender's own IOUs.
-// - Create trust line of needed.
+// - Create trust line if needed.
 // --> bCheckIssuer : normally require issuer to be involved.
 TER
 rippleCredit (ApplyView& view,

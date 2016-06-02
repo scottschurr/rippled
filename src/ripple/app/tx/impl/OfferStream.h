@@ -174,6 +174,16 @@ protected:
 public:
     using TOfferStreamBase<TIn, TOut>::TOfferStreamBase;
 
+    // The following interface allows offer crossing to permanently
+    // remove self crossed offers.  The motivation is somewhat
+    // unintuitive.  See the discussion in the testSelfCrossOffer1()
+    // unit test.
+    void
+    permRmOffer (uint256 const& offerIndex)
+    {
+        permToRemove_.insert (offerIndex);
+    }
+
     boost::container::flat_set<uint256> const& permToRemove () const
     {
         return permToRemove_;
