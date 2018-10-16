@@ -27,7 +27,11 @@
 #include <ripple/nodestore/DatabaseShard.h>
 #include <ripple/protocol/JsonFields.h>
 #include <ripple/beast/core/LexicalCast.h>
-#include <ripple/beast/container/aged_map.h>
+
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+
 #include <memory>
 #include <mutex>
 
@@ -42,6 +46,51 @@ private:
     std::mutex fetchRateMutex_;
     // measures ledgers per second, constants are important
     DecayWindow<30, clock_type> fetchRate_;
+
+    clock_type& m_clock;
+
+    using ScopedLockType = std::unique_lock <std::recursive_mutex>;
+    std::recursive_mutex mLock;
+
+    using MapType = hash_map <uint256, std::shared_ptr<InboundLedger>>;
+    MapType mLedgers;
+
+    // Tags for boost::multi_index_container
+    struct byHash {};
+    struct byTime {};
+
+    struct TimeStampedLedgerID
+    {
+        uint256 hash;
+        std::uint32_t seq;
+        clock_type::time_point time;
+
+        explicit TimeStampedLedgerID (
+            uint256 const& hash_,
+            std::uint32_t seq_, clock_type::time_point time_)
+        : hash {hash_}
+        , seq {seq_}
+        , time {time_}
+        { }
+    };
+
+    using TimeStampedLedgerMap = boost::multi_index::multi_index_container <
+        TimeStampedLedgerID,
+        boost::multi_index::indexed_by <
+            // By ledger hash
+            boost::multi_index::ordered_unique <
+                boost::multi_index::tag<byHash>, boost::multi_index::member <
+                    TimeStampedLedgerID, uint256, &TimeStampedLedgerID::hash> >,
+            // By timestamp
+            boost::multi_index::ordered_non_unique <
+                boost::multi_index::tag<byTime>, boost::multi_index::member <
+                    TimeStampedLedgerID,
+                    clock_type::time_point, &TimeStampedLedgerID::time> > > >;
+
+    TimeStampedLedgerMap recentFailures_;
+
+    beast::insight::Counter mCounter;
+
     beast::Journal j_;
 
 public:
@@ -57,10 +106,9 @@ public:
         : Stoppable ("InboundLedgers", parent)
         , app_ (app)
         , fetchRate_(clock.now())
-        , j_ (app.journal ("InboundLedger"))
         , m_clock (clock)
-        , mRecentFailures (clock)
         , mCounter(collector->make_counter("ledger_fetches"))
+        , j_ (app.journal ("InboundLedger"))
     {
     }
 
@@ -227,16 +275,36 @@ public:
     void logFailure (uint256 const& h, std::uint32_t seq) override
     {
         ScopedLockType sl (mLock);
-
-        mRecentFailures.emplace(h, seq);
+        recentFailures_.emplace (h, seq, m_clock.now());
     }
 
+private:
+    // Remove entries in recentFailures_ predating now() - when.
+    // mLock must be held when calling expire().  The passed lock is a reminder.
+    void expire (ScopedLockType const&, std::chrono::minutes when)
+    {
+        auto const before = m_clock.now() - when;
+
+        auto& failuresByTime {recentFailures_.get<byTime>()};
+        auto const expired = failuresByTime.range (
+            boost::multi_index::unbounded,
+            [before] (clock_type::time_point t)
+            {
+                return t < before;
+            });
+
+        failuresByTime.erase (expired.first, expired.second);
+    }
+
+public:
     bool isFailure (uint256 const& h) override
     {
         ScopedLockType sl (mLock);
 
-        beast::expire (mRecentFailures, kReacquireInterval);
-        return mRecentFailures.find (h) != mRecentFailures.end();
+        expire (sl, kReacquireInterval);
+
+        auto const& failuresByHash {recentFailures_.get<byHash>()};
+        return failuresByHash.find (h) != failuresByHash.end();
     }
 
     void doLedgerData (LedgerHash hash) override
@@ -291,7 +359,7 @@ public:
     {
         ScopedLockType sl (mLock);
 
-        mRecentFailures.clear();
+        recentFailures_.clear();
         mLedgers.clear();
     }
 
@@ -325,13 +393,13 @@ public:
                 assert (it.second);
                 acquires.push_back (it);
             }
-            for (auto const& it : mRecentFailures)
+            for (auto const& failedLedger : recentFailures_.get<byHash>())
             {
-                if (it.second > 1)
+                if (failedLedger.seq > 1)
                     ret[beast::lexicalCastThrow <std::string>(
-                        it.second)][jss::failed] = true;
+                        failedLedger.seq)][jss::failed] = true;
                 else
-                    ret[to_string (it.first)][jss::failed] = true;
+                    ret[to_string (failedLedger.hash)][jss::failed] = true;
             }
         }
 
@@ -402,7 +470,7 @@ public:
                 }
             }
 
-            beast::expire (mRecentFailures, kReacquireInterval);
+            expire (sl, kReacquireInterval);
 
         }
 
@@ -416,23 +484,10 @@ public:
         ScopedLockType lock (mLock);
 
         mLedgers.clear();
-        mRecentFailures.clear();
+        recentFailures_.clear();
 
         stopped();
     }
-
-private:
-    clock_type& m_clock;
-
-    using ScopedLockType = std::unique_lock <std::recursive_mutex>;
-    std::recursive_mutex mLock;
-
-    using MapType = hash_map <uint256, std::shared_ptr<InboundLedger>>;
-    MapType mLedgers;
-
-    beast::aged_map <uint256, std::uint32_t> mRecentFailures;
-
-    beast::insight::Counter mCounter;
 };
 
 //------------------------------------------------------------------------------
