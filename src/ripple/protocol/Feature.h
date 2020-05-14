@@ -69,28 +69,29 @@ namespace detail {
 
 class FeatureCollections
 {
+    // clang-format off
     static constexpr char const* const featureNames[] = {
-        "MultiSign",      // Unconditionally supported.
-        "TrustSetAuth",   // Unconditionally supported.
-        "FeeEscalation",  // Unconditionally supported.
+        "MultiSign",                 // Unconditionally supported.
+        "TrustSetAuth",              // Unconditionally supported.
+        "FeeEscalation",             // Unconditionally supported.
         "OwnerPaysFee",
-        "PayChan",
-        "Flow",  // Unconditionally supported.
+        "PayChan",                   // Unconditionally supported.
+        "Flow",                      // Unconditionally supported.
         "CompareTakerFlowCross",
         "FlowCross",
-        "CryptoConditions",
-        "TickSize",
-        "fix1368",
-        "Escrow",
+        "CryptoConditions",          // Unconditionally supported.
+        "TickSize",                  // Unconditionally supported.
+        "fix1368",                   // Unconditionally supported.
+        "Escrow",                    // Unconditionally supported.
         "CryptoConditionsSuite",
-        "fix1373",
-        "EnforceInvariants",
-        "SortedDirectories",
-        "fix1201",
-        "fix1512",
+        "fix1373",                   // Unconditionally supported.
+        "EnforceInvariants",         // Unconditionally supported.
+        "SortedDirectories",         // Unconditionally supported.
+        "fix1201",                   // Unconditionally supported.
+        "fix1512",                   // Unconditionally supported.
         "fix1513",
-        "fix1523",
-        "fix1528",
+        "fix1523",                   // Unconditionally supported.
+        "fix1528",                   // Unconditionally supported.
         "DepositAuth",
         "Checks",
         "fix1571",
@@ -108,12 +109,12 @@ class FeatureCollections
         // fixQualityUpperBound should be activated before FlowCross
         "fixQualityUpperBound",
         "RequireFullyCanonicalSig",
-        "fix1781",  // XRPEndpointSteps should be included in the circular
-                    // payment check
+        "fix1781",     // Include XRPEndpointSteps in circular payment check
         "HardenedValidations",
         "fixAmendmentMajorityCalc",  // Fix Amendment majority calculation
         "NegativeUNL",
         "TicketBatch"};
+    // clang-format on
 
     std::vector<uint256> features;
     boost::container::flat_map<uint256, std::size_t> featureToIndex;
