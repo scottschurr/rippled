@@ -354,8 +354,45 @@ public:
 
         @returns a `Json objectvalue`
     */
-    Json::Value
-    doRPC(Application& app) const;
+    struct FeeData
+    {
+        struct Levels
+        {
+            FeeLevel64 reference_level;
+            FeeLevel64 minimum_level;
+            FeeLevel64 median_level;
+            FeeLevel64 open_ledger_level;
+
+            explicit Levels(Metrics const& metrics);
+        };
+
+        struct Drops
+        {
+            XRPAmount base_fee;
+            XRPAmount minimum_fee;
+            XRPAmount median_fee;
+            XRPAmount open_ledger_fee;
+
+            Drops(Metrics const& metrics, XRPAmount baseFee);
+        };
+
+        LedgerIndex ledger_current_index;
+        std::size_t expected_ledger_size;
+        std::size_t current_ledger_size;
+        std::size_t current_queue_size;
+        boost::optional<std::size_t> max_queue_size;
+
+        Levels levels;
+        Drops drops;
+
+        FeeData(
+            std::uint32_t ledgerCurIndex,
+            Metrics const& metrics,
+            XRPAmount baseFee);
+    };
+
+    boost::optional<TxQ::FeeData>
+    getFeeRPCData(Application& app) const;
 
 private:
     // Implementation for nextQueuableSeq().  The passed lock must be held.

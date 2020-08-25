@@ -21,6 +21,7 @@
 #include <ripple/app/misc/TxQ.h>
 #include <ripple/basics/mulDiv.h>
 #include <ripple/core/DatabaseCon.h>
+#include <ripple/json/json_reader.h>
 #include <ripple/protocol/ErrorCodes.h>
 #include <ripple/protocol/jss.h>
 #include <ripple/rpc/GRPCHandlers.h>
@@ -29,6 +30,8 @@
 #include <test/jtx/Env.h>
 #include <test/jtx/envconfig.h>
 #include <test/rpc/GRPCTestClientBase.h>
+
+#include <google/protobuf/util/json_util.h>
 
 namespace ripple {
 namespace test {
@@ -125,11 +128,139 @@ class Fee_test : public beast::unit_test::suite
         BEAST_EXPECT(fee.open_ledger_fee().drops() == openLedgerFee.drops());
     }
 
+    // Helper function for testCompareFeeGrpcToRpc().  This can't be declared
+    // as a lambda, since a lambda cannot recurse into itself.
+    int
+    compareFields(Json::Value& grpcObj, Json::Value& rpcObj)
+    {
+        BEAST_EXPECT(grpcObj.isObject());
+        BEAST_EXPECT(rpcObj.isObject());
+
+        Json::Value::Members memberNames = grpcObj.getMemberNames();
+        for (auto const& memberName : memberNames)
+        {
+            if (grpcObj[memberName].isObject())
+            {
+                if (compareFields(grpcObj[memberName], rpcObj[memberName]) != 0)
+                {
+                    fail(
+                        std::string(
+                            "Fee inner object `" + memberName +
+                            "had different field counts between gRPC and RPC"),
+                        __FILE__,
+                        __LINE__);
+                }
+                else
+                    pass();
+            }
+            else
+            {
+                if (grpcObj[memberName] != rpcObj[memberName])
+                    fail(
+                        std::string("gRPC did not match RPC value for '") +
+                            memberName + "'",
+                        __FILE__,
+                        __LINE__);
+                else
+                    pass();
+            }
+            grpcObj.removeMember(memberName);
+            rpcObj.removeMember(memberName);
+        }
+        // Inner objects should be the same size.  Return the size delta
+        // so the caller can determine whether to check.
+        return (static_cast<int>(rpcObj.size() - grpcObj.size()));
+    };
+
+    void
+    testCompareFeeGrpcToRpc()
+    {
+        testcase("Test Compare Fee Grpc To Rpc");
+
+        using namespace test::jtx;
+        std::unique_ptr<Config> config = envconfig(addGrpcConfig);
+        std::string grpcPort = *(*config)["port_grpc"].get<std::string>("port");
+        Env env(*this, std::move(config));
+        Account A1{"A1"};
+        Account A2{"A2"};
+        env.fund(XRP(10000), A1);
+        env.fund(XRP(10000), A2);
+        env.close();
+        env.trust(A2["USD"](1000), A1);
+        env.close();
+        for (int i = 0; i < 9; ++i)
+        {
+            env(pay(A2, A1, A2["USD"](100)));
+            if (i == 4)
+                env.close();
+        }
+
+        // Examine RPC and gRPC output as JSON so they are easier to compare.
+        Json::Value rpcFee = env.rpc("fee")["result"];
+        Json::Value grpcFee;
+        {
+            auto const grpcResult = grpcGetFee(grpcPort);
+            if (!BEAST_EXPECT(grpcResult.first == true))
+                return;
+
+            std::string jsonTxt;
+
+            using namespace google::protobuf::util;
+            JsonPrintOptions options;
+            options.always_print_primitive_fields = true;
+            options.preserve_proto_field_names = true;
+
+            MessageToJsonString(grpcResult.second, &jsonTxt, options);
+            Json::Reader().parse(jsonTxt, grpcFee);
+        }
+
+        // The structures of the "fee" / "drops" results are different
+        // between gRPC and RPC.  Get that comparison over with before
+        // moving on to simpler stuff.
+        {
+            Json::Value grpcFees = grpcFee.removeMember(jss::fee);
+            Json::Value rpcDrops = rpcFee.removeMember(jss::drops);
+            BEAST_EXPECT(grpcFees.size() == rpcDrops.size());
+
+            Json::Value::Members feeNames = grpcFees.getMemberNames();
+            for (auto const& feeName : feeNames)
+            {
+                if (grpcFees[feeName][jss::drops] != rpcDrops[feeName])
+                {
+                    fail(
+                        std::string("gRPC did not match RPC value for '") +
+                            feeName + "'",
+                        __FILE__,
+                        __LINE__);
+                }
+                else
+                {
+                    pass();
+                }
+                grpcFees.removeMember(feeName);
+                rpcDrops.removeMember(feeName);
+            }
+            BEAST_EXPECT(grpcFees.size() == 0);
+            BEAST_EXPECT(rpcDrops.size() == 0);
+        }
+
+        // Invoke the comparison.
+        compareFields(grpcFee, rpcFee);
+
+        // We expect all fields in grpcFee to be accounted for.
+        BEAST_EXPECT(grpcFee.size() == 0);
+
+        // We expect one leftover field in rpcFee.
+        BEAST_EXPECT(rpcFee.size() == 1);
+        BEAST_EXPECT(rpcFee[jss::status] == jss::success);
+    }
+
 public:
     void
     run() override
     {
         testFeeGrpc();
+        testCompareFeeGrpcToRpc();
     }
 };
 

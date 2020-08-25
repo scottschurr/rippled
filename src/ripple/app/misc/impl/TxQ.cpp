@@ -1780,46 +1780,48 @@ TxQ::getTxs(ReadView const& view) const
     return result;
 }
 
-Json::Value
-TxQ::doRPC(Application& app) const
+TxQ::FeeData::Levels::Levels(Metrics const& metrics)
+    : reference_level(metrics.referenceFeeLevel)
+    , minimum_level(metrics.minProcessingFeeLevel)
+    , median_level(metrics.medFeeLevel)
+    , open_ledger_level(metrics.openLedgerFeeLevel)
+{
+}
+
+TxQ::FeeData::Drops::Drops(Metrics const& metrics, XRPAmount baseFee)
+    : base_fee(toDrops(metrics.referenceFeeLevel, baseFee))
+    , minimum_fee(toDrops(metrics.minProcessingFeeLevel, baseFee))
+    , median_fee(toDrops(metrics.medFeeLevel, baseFee))
+    , open_ledger_fee(
+          toDrops(metrics.openLedgerFeeLevel - FeeLevel64{1}, baseFee) + 1)
+{
+}
+
+TxQ::FeeData::FeeData(
+    std::uint32_t ledgerCurIndex,
+    Metrics const& metrics,
+    XRPAmount baseFee)
+    : ledger_current_index(ledgerCurIndex)
+    , expected_ledger_size(metrics.txPerLedger)
+    , current_ledger_size(metrics.txInLedger)
+    , current_queue_size(metrics.txCount)
+    , max_queue_size(metrics.txQMaxSize)
+    , levels(metrics)
+    , drops(metrics, baseFee)
+{
+}
+
+boost::optional<TxQ::FeeData>
+TxQ::getFeeRPCData(Application& app) const
 {
     auto const view = app.openLedger().current();
     if (!view)
-    {
-        BOOST_ASSERT(false);
         return {};
-    }
 
     auto const metrics = getMetrics(*view);
-
-    Json::Value ret(Json::objectValue);
-
-    auto& levels = ret[jss::levels] = Json::objectValue;
-
-    ret[jss::ledger_current_index] = view->info().seq;
-    ret[jss::expected_ledger_size] = std::to_string(metrics.txPerLedger);
-    ret[jss::current_ledger_size] = std::to_string(metrics.txInLedger);
-    ret[jss::current_queue_size] = std::to_string(metrics.txCount);
-    if (metrics.txQMaxSize)
-        ret[jss::max_queue_size] = std::to_string(*metrics.txQMaxSize);
-
-    levels[jss::reference_level] = to_string(metrics.referenceFeeLevel);
-    levels[jss::minimum_level] = to_string(metrics.minProcessingFeeLevel);
-    levels[jss::median_level] = to_string(metrics.medFeeLevel);
-    levels[jss::open_ledger_level] = to_string(metrics.openLedgerFeeLevel);
-
     auto const baseFee = view->fees().base;
-    auto& drops = ret[jss::drops] = Json::Value();
 
-    drops[jss::base_fee] =
-        to_string(toDrops(metrics.referenceFeeLevel, baseFee));
-    drops[jss::minimum_fee] =
-        to_string(toDrops(metrics.minProcessingFeeLevel, baseFee));
-    drops[jss::median_fee] = to_string(toDrops(metrics.medFeeLevel, baseFee));
-    drops[jss::open_ledger_fee] = to_string(
-        toDrops(metrics.openLedgerFeeLevel - FeeLevel64{1}, baseFee) + 1);
-
-    return ret;
+    return {{view->info().seq, metrics, baseFee}};
 }
 
 //////////////////////////////////////////////////////////////////////////
