@@ -377,10 +377,10 @@ public:
         };
 
         LedgerIndex ledger_current_index;
-        std::size_t expected_ledger_size;
-        std::size_t current_ledger_size;
-        std::size_t current_queue_size;
-        boost::optional<std::size_t> max_queue_size;
+        std::uint64_t expected_ledger_size;
+        std::uint64_t current_ledger_size;
+        std::uint64_t current_queue_size;
+        boost::optional<std::uint64_t> max_queue_size;
 
         Levels levels;
         Drops drops;
