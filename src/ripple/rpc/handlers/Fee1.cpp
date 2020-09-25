@@ -17,88 +17,19 @@
 */
 //==============================================================================
 
+#include <org/xrpl/rpc/v1/xrp_ledger.grpc.pb.h>
+
 #include <ripple/app/ledger/OpenLedger.h>
 #include <ripple/app/main/Application.h>
 #include <ripple/app/misc/TxQ.h>
 #include <ripple/basics/mulDiv.h>
+#include <ripple/json/json_reader.h>
 #include <ripple/protocol/ErrorCodes.h>
 #include <ripple/protocol/Feature.h>
 #include <ripple/rpc/Context.h>
 #include <ripple/rpc/GRPCHandlers.h>
 
 namespace ripple {
-
-//------------------------------------------------------------------------------
-// fee RPC command entry point.
-//
-// The RPC command has the following output format
-//
-// {
-//    "current_ledger_size" : "4",
-//    "current_queue_size" : "0",
-//    "drops" : {
-//       "base_fee" : "10",
-//       "median_fee" : "5000",
-//       "minimum_fee" : "10",
-//       "open_ledger_fee" : "10"
-//    },
-//    "expected_ledger_size" : "1000",
-//    "ledger_current_index" : 6,
-//    "levels" : {
-//       "median_level" : "128000",
-//       "minimum_level" : "256",
-//       "open_ledger_level" : "256",
-//       "reference_level" : "256"
-//    },
-//    "max_queue_size" : "20000",
-//    "status" : "success"
-// }
-Json::Value
-doFee(RPC::JsonContext& context)
-{
-    boost::optional<TxQ::FeeData> feeData =
-        context.app.getTxQ().getFeeRPCData(context.app);
-
-    if (!feeData)
-    {
-        RPC::inject_error(rpcINTERNAL, context.params);
-        return context.params;
-    }
-
-    Json::Value ret(Json::objectValue);
-
-    // current ledger data
-    ret[jss::ledger_current_index] = feeData->ledger_current_index;
-    ret[jss::expected_ledger_size] =
-        std::to_string(feeData->expected_ledger_size);
-    ret[jss::current_ledger_size] =
-        std::to_string(feeData->current_ledger_size);
-    ret[jss::current_queue_size] = std::to_string(feeData->current_queue_size);
-    if (feeData->max_queue_size)
-        ret[jss::max_queue_size] = std::to_string(*feeData->max_queue_size);
-
-    {
-        // fee levels data
-        auto& levels = ret[jss::levels] = Json::objectValue;
-
-        levels[jss::reference_level] =
-            to_string(feeData->levels.reference_level);
-        levels[jss::minimum_level] = to_string(feeData->levels.minimum_level);
-        levels[jss::median_level] = to_string(feeData->levels.median_level);
-        levels[jss::open_ledger_level] =
-            to_string(feeData->levels.open_ledger_level);
-    }
-    {
-        // fee data
-        auto& drops = ret[jss::drops] = Json::objectValue;
-
-        drops[jss::base_fee] = to_string(feeData->drops.base_fee);
-        drops[jss::minimum_fee] = to_string(feeData->drops.minimum_fee);
-        drops[jss::median_fee] = to_string(feeData->drops.median_fee);
-        drops[jss::open_ledger_fee] = to_string(feeData->drops.open_ledger_fee);
-    }
-    return ret;
-}
 
 //------------------------------------------------------------------------------
 // fee gRPC command entry point.
@@ -171,4 +102,102 @@ doFeeGrpc(RPC::GRPCContext<org::xrpl::rpc::v1::GetFeeRequest>& context)
 
     return {reply, status};
 }
+
+//------------------------------------------------------------------------------
+// fee RPC command entry point.
+//
+// The RPC command has the following output format
+//
+// {
+//    "current_ledger_size" : "4",
+//    "current_queue_size" : "0",
+//    "drops" : {
+//       "base_fee" : "10",
+//       "median_fee" : "5000",
+//       "minimum_fee" : "10",
+//       "open_ledger_fee" : "10"
+//    },
+//    "expected_ledger_size" : "1000",
+//    "ledger_current_index" : 6,
+//    "levels" : {
+//       "median_level" : "128000",
+//       "minimum_level" : "256",
+//       "open_ledger_level" : "256",
+//       "reference_level" : "256"
+//    },
+//    "max_queue_size" : "20000",
+//    "status" : "success"
+// }
+Json::Value
+doFee(RPC::JsonContext& context)
+{
+    // In order to keep the RPC and gRPC responses synchronized, generate
+    // the RPC response by generating JSON from the gRPC output.  In this
+    // way if the gRPC response changes then so will the RPC response.
+    //
+    // NOTE: DON'T JUST HACK SOMETHING INTO THE RPC RESPONSE.  Please.
+    //
+    // If you must hack, then hack it into the gRPC response.  This will
+    // maintain the parallel output between gRPC and RPC.  Thanks.
+
+    RPC::GRPCContext<org::xrpl::rpc::v1::GetFeeRequest> grpcContext{
+        {context}, org::xrpl::rpc::v1::GetFeeRequest{}};
+
+    auto [grpcReply, grpcStatus] = doFeeGrpc(grpcContext);
+
+    auto fail = [&context]() {
+        RPC::inject_error(rpcINTERNAL, context.params);
+        return context.params;
+    };
+
+    if (!grpcStatus.ok())
+        return fail();
+
+    Json::Value rpcFee;
+    {
+        // Convert the gRPC response into JSON text.  Then convert the text
+        // to a Json::Value.
+        std::string jsonTxt;
+
+        using namespace google::protobuf::util;
+        JsonPrintOptions options;
+        options.always_print_primitive_fields = true;
+        options.preserve_proto_field_names = true;
+
+        MessageToJsonString(grpcReply, &jsonTxt, options);
+        Json::Reader().parse(jsonTxt, rpcFee);
+    }
+
+    // Unfortunately the gRPC and historic RPC outputs are not aligned on all
+    // fronts.  In particular the gRPC "fee" object must be converted into the
+    // RPC "drops" object.  Do that now.
+    {
+        Json::Value grpcFees = rpcFee.removeMember(jss::fee);
+        std::vector<std::string> const names = grpcFees.getMemberNames();
+
+        auto& rpcDrops = rpcFee[jss::drops] = Json::objectValue;
+        for (std::string const& name : names)
+        {
+            Json::Value const& drops = grpcFees[name][jss::drops];
+            if (!drops.isString())
+                return fail();
+
+            rpcDrops[name] = drops;
+        }
+    }
+
+    // Additionally, we may need to remove the max_queue_size entry.  Since
+    // we have
+    //    options.always_print_primitive_fields = true
+    // a max_queue_size that is supposed to be missing may come back as zero.
+    //
+    // To accommodate that, if max_queue_size is zero then remove the field.
+    if (rpcFee[jss::max_queue_size] == "0")
+        rpcFee.removeMember(jss::max_queue_size);
+
+    // Indicate success and we're good to go.
+    rpcFee[jss::status] = jss::success;
+    return rpcFee;
+}
+
 }  // namespace ripple
