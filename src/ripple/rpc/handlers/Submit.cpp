@@ -17,10 +17,13 @@
 */
 //==============================================================================
 
+#include <org/xrpl/rpc/v1/xrp_ledger.grpc.pb.h>
+
 #include <ripple/app/ledger/LedgerMaster.h>
 #include <ripple/app/misc/HashRouter.h>
 #include <ripple/app/misc/Transaction.h>
 #include <ripple/app/tx/apply.h>
+#include <ripple/json/json_reader.h>
 #include <ripple/net/RPCErr.h>
 #include <ripple/protocol/ErrorCodes.h>
 #include <ripple/resource/Fees.h>
@@ -290,6 +293,87 @@ doSubmitGrpc(
         result.set_hash(hash.data(), hash.size());
     }
     return {result, status};
+}
+
+Json::Value
+doSubmitNew(RPC::JsonContext& context)
+{
+    context.loadType = Resource::feeMediumBurdenRPC;
+
+    if (!context.params.isMember(jss::tx_blob))
+    {
+        auto const failType = getFailHard(context);
+
+        if (context.role != Role::ADMIN && !context.app.config().canSign())
+            return RPC::make_error(
+                rpcNOT_SUPPORTED, "Signing is not supported by this server.");
+
+        auto ret = RPC::transactionSubmit(
+            context.params,
+            failType,
+            context.role,
+            context.ledgerMaster.getValidatedLedgerAge(),
+            context.app,
+            RPC::getProcessTxnFn(context.netOps));
+
+        ret[jss::deprecated] =
+            "Signing support in the 'submit' command has been "
+            "deprecated and will be removed in a future version "
+            "of the server. Please migrate to a standalone "
+            "signing tool.";
+
+        return ret;
+    }
+
+    auto txBlob = strUnHex(context.params[jss::tx_blob].asString());
+
+    if (!txBlob || !txBlob->size())
+    {
+        return rpcError(rpcINVALID_PARAMS);
+    }
+
+    // In order to keep the RPC and gRPC responses synchronized, generate
+    // the RPC response by generating JSON from the gRPC output.  In this
+    // way if the gRPC response changes then so will the RPC response.
+    //
+    // NOTE: DON'T JUST HACK SOMETHING INTO THE RPC RESPONSE.  Please.
+    //
+    // If you must hack, then hack it into the gRPC response.  This will
+    // maintain the parallel output between gRPC and RPC.  Thanks.
+
+    RPC::GRPCContext<org::xrpl::rpc::v1::SubmitTransactionRequest> grpcContext{
+        {context}, org::xrpl::rpc::v1::SubmitTransactionRequest{}};
+    grpcContext.params.set_signed_transaction(txBlob->data(), txBlob->size());
+    grpcContext.params.set_fail_hard(
+        getFailHard(context) == NetworkOPs::FailHard::yes);
+
+    auto [grpcReply, grpcStatus] = doSubmitGrpc(grpcContext);
+
+    Json::Value jvResult;
+    if (! grpcStatus.ok())
+    {
+        jvResult[jss::error] = "invalidTransaction";
+        jvResult[jss::error_exception] = grpcStatus.error_message();
+
+        return jvResult;
+    }
+    {
+        // Convert the grpcReply into JSON text.  Then convert the
+        // text to a Json::Value.
+        std::string jsonTxt;
+
+        using namespace google::protobuf::util;
+        JsonPrintOptions options;
+        options.always_print_primitive_fields = true;
+        options.preserve_proto_field_names = true;
+
+        MessageToJsonString(grpcReply, &jsonTxt, options);
+
+        Json::Value jsonStatus;
+        Json::Reader().parse(jsonTxt, jvResult);
+    }
+
+    return jvResult;
 }
 
 }  // namespace ripple
