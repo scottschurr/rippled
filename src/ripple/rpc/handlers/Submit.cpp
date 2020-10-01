@@ -49,10 +49,9 @@ doSubmit(RPC::JsonContext& context)
 {
     context.loadType = Resource::feeMediumBurdenRPC;
 
+    auto const failType = getFailHard(context);
     if (!context.params.isMember(jss::tx_blob))
     {
-        auto const failType = getFailHard(context);
-
         if (context.role != Role::ADMIN && !context.app.config().canSign())
             return RPC::make_error(
                 rpcNOT_SUPPORTED, "Signing is not supported by this server.");
@@ -129,8 +128,6 @@ doSubmit(RPC::JsonContext& context)
 
     try
     {
-        auto const failType = getFailHard(context);
-
         context.netOps.processTransaction(
             tpTrans, isUnlimited(context.role), true, failType);
     }
@@ -195,7 +192,7 @@ doSubmit(RPC::JsonContext& context)
 }
 
 std::pair<org::xrpl::rpc::v1::SubmitTransactionResponse, grpc::Status>
-doSubmitGrpc(
+doSubmitGrpcOld(
     RPC::GRPCContext<org::xrpl::rpc::v1::SubmitTransactionRequest>& context)
 {
     // return values
@@ -289,7 +286,70 @@ doSubmitGrpc(
         uint256 hash = tpTrans->getID();
         result.set_hash(hash.data(), hash.size());
     }
+
     return {result, status};
+}
+
+std::pair<org::xrpl::rpc::v1::SubmitTransactionResponse, grpc::Status>
+doSubmitGrpc(
+    RPC::GRPCContext<org::xrpl::rpc::v1::SubmitTransactionRequest>& context)
+{
+    // return values
+    org::xrpl::rpc::v1::SubmitTransactionResponse result;
+
+    // input
+    std::string const& tx = context.params.signed_transaction();
+
+    // Create context for RPC call.
+    RPC::JsonContext rpcContext{context, Json::objectValue};
+    rpcContext.params[jss::api_version] = RPC::APIVersionIfUnspecified;
+    rpcContext.params[jss::command] = "submit";
+    rpcContext.params[jss::tx_blob] = strHex(tx);
+    rpcContext.params[jss::fail_hard] = context.params.fail_hard();
+
+    Json::Value const rpcResult = doSubmit(rpcContext);
+
+    if (rpcResult.isMember(jss::error))
+    {
+        std::string errorText = "invalid transaction";
+        if (rpcResult.isMember(jss::error_exception) &&
+            rpcResult[jss::error_exception].isString())
+        {
+            errorText = "invalid transaction: " +
+                rpcResult[jss::error_exception].asString();
+        }
+        return {result, {grpc::StatusCode::INVALID_ARGUMENT, errorText}};
+    }
+
+    // return preliminary result
+    std::string terStr;
+    if (rpcResult.isMember(jss::engine_result) &&
+        rpcResult[jss::engine_result].isString())
+    {
+        terStr = rpcResult[jss::engine_result].asString();
+    }
+
+    boost::optional<TER> const ter = transCode(terStr);
+    if (ter && *ter != temUNCERTAIN)
+    {
+        if (rpcResult[jss::tx_json].isObject() &&
+            rpcResult[jss::tx_json][jss::hash].isString())
+        {
+            RPC::convert(*result.mutable_engine_result(), *ter);
+
+            result.mutable_engine_result()->set_result(terStr);
+            result.set_engine_result_code(TERtoInt(*ter));
+            result.set_engine_result_message(transHuman(*ter));
+
+            if (rpcResult[jss::tx_json][jss::hash].isString())
+            {
+                uint256 const hash = from_hex_text<uint256>(
+                    rpcResult[jss::tx_json][jss::hash].asString());
+                result.set_hash(hash.data(), hash.size());
+            }
+        }
+    }
+    return {result, grpc::Status::OK};
 }
 
 }  // namespace ripple
