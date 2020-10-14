@@ -157,6 +157,9 @@ to_uint64(std::string const& s);
 bool
 isProperlyFormedTomlDomain(std::string const& domain);
 
+std::string
+camelToSnakeCase(std::string const& camelName);
+
 }  // namespace ripple
 
 #endif

@@ -157,6 +157,8 @@ public:
     static const SField&
     getField(std::string const& fieldName);
     static const SField&
+    getFieldCI(std::string const& fieldName);  // Case insensitive.
+    static const SField&
     getField(int type, int value)
     {
         return getField(field_code(type, value));

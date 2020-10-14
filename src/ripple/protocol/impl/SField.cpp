@@ -18,6 +18,9 @@
 //==============================================================================
 
 #include <ripple/protocol/SField.h>
+
+#include <boost/algorithm/string/predicate.hpp>
+
 #include <cassert>
 #include <string>
 #include <utility>
@@ -356,6 +359,18 @@ SField::getField(std::string const& fieldName)
     {
         (void)_;
         if (f->fieldName == fieldName)
+            return *f;
+    }
+    return sfInvalid;
+}
+
+SField const&
+SField::getFieldCI(std::string const& fieldName)
+{
+    for (auto const& [_, f] : knownCodeToField)
+    {
+        (void)_;
+        if (boost::iequals(f->fieldName, fieldName))
             return *f;
     }
     return sfInvalid;

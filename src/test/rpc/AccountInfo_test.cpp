@@ -46,7 +46,7 @@ public:
                 "Missing field 'account'.");
         }
         {
-            // account_info with a malformed account sting.
+            // account_info with a malformed account string.
             auto const info = env.rpc(
                 "json",
                 "account_info",
@@ -489,7 +489,7 @@ public:
     void
     testSignerListsGrpc()
     {
-        testcase("gRPC singer lists");
+        testcase("gRPC signer lists");
 
         using namespace jtx;
         std::unique_ptr<Config> config = envconfig(addGrpcConfig);

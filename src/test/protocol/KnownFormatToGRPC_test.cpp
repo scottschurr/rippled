@@ -17,6 +17,7 @@
 */
 //==============================================================================
 
+#include <ripple/basics/StringUtilities.h>
 #include <ripple/basics/safe_cast.h>
 #include <ripple/beast/unit_test.h>
 #include <ripple/protocol/InnerObjectFormats.h>
@@ -56,28 +57,6 @@ private:
 
     static constexpr auto fieldTYPE_MESSAGE =
         google::protobuf::FieldDescriptor::Type::TYPE_MESSAGE;
-
-    // Format names are CamelCase and FieldDescriptor names are snake_case.
-    // Convert from CamelCase to snake_case.  Do not be fooled by consecutive
-    // capital letters like in NegativeUNL.
-    static std::string
-    formatNameToEntryTypeName(std::string const& fmtName)
-    {
-        std::string entryName;
-        entryName.reserve(fmtName.size());
-        bool prevUpper = false;
-        for (std::size_t i = 0; i < fmtName.size(); i++)
-        {
-            char const ch = fmtName[i];
-            bool const upper = std::isupper(ch);
-            if (i > 0 && !prevUpper && upper)
-                entryName.push_back('_');
-
-            prevUpper = upper;
-            entryName.push_back(std::tolower(ch));
-        }
-        return entryName;
-    };
 
     // Create a map of (most) all the SFields in an SOTemplate.  This map
     // can be used to correlate a gRPC Descriptor to its corresponding SField.
@@ -853,8 +832,7 @@ private:
             }
 
             BEAST_EXPECT(
-                formatTypes
-                    .insert({formatNameToEntryTypeName(item.getName()), &item})
+                formatTypes.insert({camelToSnakeCase(item.getName()), &item})
                     .second == true);
         }
 

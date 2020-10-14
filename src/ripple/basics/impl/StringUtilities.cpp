@@ -147,4 +147,25 @@ isProperlyFormedTomlDomain(std::string const& domain)
     return boost::regex_match(domain, re);
 }
 
+// Convert from CamelCase to snake_case.  Do not be fooled by consecutive
+// capital letters like in NegativeUNL.
+std::string
+camelToSnakeCase(std::string const& camelName)
+{
+    std::string entryName;
+    entryName.reserve(camelName.size());
+    bool prevUpper = false;
+    for (std::size_t i = 0; i < camelName.size(); i++)
+    {
+        char const ch = camelName[i];
+        bool const upper = std::isupper(ch);
+        if (i > 0 && !prevUpper && upper)
+            entryName.push_back('_');
+
+        prevUpper = upper;
+        entryName.push_back(std::tolower(ch));
+    }
+    return entryName;
+};
+
 }  // namespace ripple
