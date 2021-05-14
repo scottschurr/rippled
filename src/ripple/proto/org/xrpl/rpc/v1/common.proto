@@ -90,6 +90,16 @@ message LowQualityOut
     uint32 value = 1;
 }
 
+message NotValidAfter
+{
+    uint32 value = 1;
+}
+
+message NotValidBefore
+{
+    uint32 value = 1;
+}
+
 message OfferSequence
 {
     uint32 value = 1;

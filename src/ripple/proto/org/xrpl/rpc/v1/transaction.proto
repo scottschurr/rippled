@@ -9,7 +9,7 @@ import "org/xrpl/rpc/v1/amount.proto";
 import "org/xrpl/rpc/v1/account.proto";
 
 // A message encompassing all transaction types
-// Next field: 32
+// Next field: 34
 message Transaction
 {
     Account account = 1;
@@ -77,6 +77,10 @@ message Transaction
     AccountTransactionID account_transaction_id = 12;
 
     TicketSequence ticket_sequence = 31;
+
+    NotValidAfter not_valid_after = 32;
+
+    NotValidBefore not_valid_before = 33;
 }
 
 // Next field: 4
