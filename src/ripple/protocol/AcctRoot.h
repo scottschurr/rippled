@@ -20,6 +20,7 @@
 #ifndef RIPPLE_PROTOCOL_ACCT_ROOT_H_INCLUDED
 #define RIPPLE_PROTOCOL_ACCT_ROOT_H_INCLUDED
 
+#include <ripple/basics/tl/expected.hpp>
 #include <ripple/protocol/STAccount.h>
 #include <ripple/protocol/STLedgerEntry.h>
 #include <ripple/protocol/TER.h>
@@ -32,9 +33,6 @@ namespace ripple {
 class AcctRoot
 {
     std::shared_ptr<SLE> wrapped_;
-
-    [[nodiscard]] Blob
-    getOptionalVL(SF_VL const& field) const;
 
     template <typename SF, typename T>
     void
@@ -61,24 +59,26 @@ class AcctRoot
             wrapped_->makeFieldAbsent(field);
     }
 
+    [[nodiscard]] Blob
+    getOptionalVL(SF_VL const& field) const;
+
     void
     setOrClearVLIfEmpty(SF_VL const& field, Blob const& value);
 
-    AcctRoot(AcctRoot const&) = default;
-    AcctRoot&
-    operator=(AcctRoot const&) = default;
-
-public:
-    AcctRoot() = delete;
+    // These constructors are private so only the factory functions can
+    // construct an AcctRoot.
     AcctRoot(std::shared_ptr<SLE>&& w);
     AcctRoot(std::shared_ptr<SLE const>&& w);
-    AcctRoot(std::nullptr_t);
+
+    // Friend declarations of factory functions.
+    friend tl::expected<AcctRoot const, NotTEC>
+    makeAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr);
+
+    friend tl::expected<AcctRoot, NotTEC>
+    makeAcctRoot(std::shared_ptr<STLedgerEntry> slePtr);
+
+public:
     AcctRoot(AcctRoot&&) = default;
-
-    bool
-    has_value() const;
-
-    explicit operator bool() const;
 
     [[nodiscard]] std::shared_ptr<SLE const>
     slePtr() const;
@@ -213,10 +213,10 @@ public:
     clearTicketCount();
 };
 
-[[nodiscard]] std::pair<AcctRoot const, NotTEC>
+[[nodiscard]] tl::expected<AcctRoot const, NotTEC>
 makeAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr);
 
-[[nodiscard]] std::pair<AcctRoot, NotTEC>
+[[nodiscard]] tl::expected<AcctRoot, NotTEC>
 makeAcctRoot(std::shared_ptr<STLedgerEntry> slePtr);
 
 }  // namespace ripple
