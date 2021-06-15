@@ -20,6 +20,7 @@
 #include <ripple/app/tx/impl/DepositPreauth.h>
 #include <ripple/basics/Log.h>
 #include <ripple/ledger/View.h>
+#include <ripple/protocol/AcctRoot.h>
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/TxFlags.h>
@@ -113,12 +114,14 @@ DepositPreauth::doApply()
         if (!sleOwner)
             return {tefINTERNAL};
 
+        AcctRoot owner(sleOwner);
+
         // A preauth counts against the reserve of the issuing account, but we
         // check the starting balance because we want to allow dipping into the
         // reserve to pay fees.
         {
-            STAmount const reserve{view().fees().accountReserve(
-                sleOwner->getFieldU32(sfOwnerCount) + 1)};
+            STAmount const reserve{
+                view().fees().accountReserve(owner.ownerCount() + 1)};
 
             if (mPriorBalance < reserve)
                 return tecINSUFFICIENT_RESERVE;
