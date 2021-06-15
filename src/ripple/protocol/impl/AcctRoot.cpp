@@ -18,6 +18,7 @@
 //==============================================================================
 
 #include <ripple/protocol/AcctRoot.h>
+#include <type_traits>
 
 namespace ripple {
 
@@ -50,21 +51,6 @@ AcctRoot::AcctRoot(std::shared_ptr<SLE>&& w) : wrapped_(std::move(w))
 AcctRoot::AcctRoot(std::shared_ptr<SLE const>&& w)
     : wrapped_(std::const_pointer_cast<SLE>(std::move(w)))
 {
-}
-
-AcctRoot::AcctRoot(std::nullptr_t)
-{
-}
-
-bool
-AcctRoot::has_value() const
-{
-    return bool(wrapped_);
-}
-
-AcctRoot::operator bool() const
-{
-    return has_value();
 }
 
 std::shared_ptr<SLE>
@@ -331,34 +317,39 @@ AcctRoot::clearTicketCount()
     clearOptional(sfTicketCount);
 }
 
-std::pair<AcctRoot const, NotTEC>
-makeAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr)
+template <class T>
+[[nodiscard]] static NotTEC
+validateAcctRootSle(std::shared_ptr<T> const& slePtr)
 {
-    using R = std::pair<AcctRoot, NotTEC>;
+    static_assert(std::is_same_v<std::remove_const_t<T>, STLedgerEntry>);
+
     if (!slePtr)
-        return R{AcctRoot{nullptr}, terNO_ACCOUNT};
+        return terNO_ACCOUNT;
 
     std::uint16_t const type = {slePtr->at(sfLedgerEntryType)};
     assert(type == ltACCOUNT_ROOT);
     if (type != ltACCOUNT_ROOT)
-        return R{AcctRoot{nullptr}, tefINTERNAL};
+        return tefINTERNAL;
 
-    return R{AcctRoot(std::move(slePtr)), tesSUCCESS};
+    return tesSUCCESS;
 }
 
-std::pair<AcctRoot, NotTEC>
+tl::expected<AcctRoot const, NotTEC>
+makeAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr)
+{
+    if (NotTEC const ter = validateAcctRootSle(slePtr); !isTesSuccess(ter))
+        return tl::unexpected(ter);
+
+    return AcctRoot(std::move(slePtr));
+}
+
+tl::expected<AcctRoot, NotTEC>
 makeAcctRoot(std::shared_ptr<STLedgerEntry> slePtr)
 {
-    using R = std::pair<AcctRoot, NotTEC>;
-    if (!slePtr)
-        return R{AcctRoot{nullptr}, terNO_ACCOUNT};
+    if (NotTEC const ter = validateAcctRootSle(slePtr); !isTesSuccess(ter))
+        return tl::unexpected(ter);
 
-    std::uint16_t const type = {slePtr->at(sfLedgerEntryType)};
-    assert(type == ltACCOUNT_ROOT);
-    if (type != ltACCOUNT_ROOT)
-        return R{AcctRoot{nullptr}, tefINTERNAL};
-
-    return R{AcctRoot(std::move(slePtr)), tesSUCCESS};
+    return AcctRoot(std::move(slePtr));
 }
 
 }  // namespace ripple
