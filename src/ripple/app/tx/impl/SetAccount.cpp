@@ -21,6 +21,7 @@
 #include <ripple/basics/Log.h>
 #include <ripple/core/Config.h>
 #include <ripple/ledger/View.h>
+#include <ripple/protocol/AcctRoot.h>
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/PublicKey.h>
@@ -183,13 +184,13 @@ SetAccount::preclaim(PreclaimContext const& ctx)
 
     std::uint32_t const uTxFlags = ctx.tx.getFlags();
 
-    auto const sle = ctx.view.read(keylet::account(id));
-    if (!sle)
-        return terNO_ACCOUNT;
+    auto const acctRoot = makeAcctRootRd(ctx.view.read(keylet::account(id)));
+    if (!acctRoot.has_value())
+        return acctRoot.error();
 
-    std::uint32_t const uFlagsIn = sle->getFieldU32(sfFlags);
+    std::uint32_t const uFlagsIn = {acctRoot->flags()};
 
-    std::uint32_t const uSetFlag = ctx.tx.getFieldU32(sfSetFlag);
+    std::uint32_t const uSetFlag = {ctx.tx.getFieldU32(sfSetFlag)};
 
     // legacy AccountSet flags
     bool bSetRequireAuth =
@@ -213,12 +214,12 @@ SetAccount::preclaim(PreclaimContext const& ctx)
 TER
 SetAccount::doApply()
 {
-    auto const sle = view().peek(keylet::account(account_));
-    if (!sle)
-        return tefINTERNAL;
+    auto acctRoot = makeAcctRoot(view().peek(keylet::account(account_)));
+    if (!acctRoot.has_value())
+        return acctRoot.error();
 
-    std::uint32_t const uFlagsIn = sle->getFieldU32(sfFlags);
-    std::uint32_t uFlagsOut = uFlagsIn;
+    std::uint32_t const uFlagsIn = {acctRoot->flags()};
+    std::uint32_t uFlagsOut = {uFlagsIn};
 
     STTx const& tx{ctx_.tx};
     std::uint32_t const uSetFlag{tx.getFieldU32(sfSetFlag)};
@@ -308,8 +309,8 @@ SetAccount::doApply()
             return tecNEED_MASTER_KEY;
         }
 
-        if ((!sle->isFieldPresent(sfRegularKey)) &&
-            (!view().peek(keylet::signers(account_))))
+        if (!acctRoot->regularKey() &&
+            (!view().exists(keylet::signers(account_))))
         {
             // Account has no regular key or multi-signer signer list.
             return tecNO_ALTERNATIVE_KEY;
@@ -374,16 +375,16 @@ SetAccount::doApply()
     //
     // Track transaction IDs signed by this account in its root
     //
-    if ((uSetFlag == asfAccountTxnID) && !sle->isFieldPresent(sfAccountTxnID))
+    if (uSetFlag == asfAccountTxnID && !acctRoot->accountTxnID())
     {
         JLOG(j_.trace()) << "Set AccountTxnID.";
-        sle->makeFieldPresent(sfAccountTxnID);
+        acctRoot->setAccountTxnID(uint256(beast::zero));
     }
 
-    if ((uClearFlag == asfAccountTxnID) && sle->isFieldPresent(sfAccountTxnID))
+    if (uClearFlag == asfAccountTxnID)
     {
         JLOG(j_.trace()) << "Clear AccountTxnID.";
-        sle->makeFieldAbsent(sfAccountTxnID);
+        acctRoot->clearAccountTxnID();
     }
 
     //
@@ -413,12 +414,12 @@ SetAccount::doApply()
         if (!uHash)
         {
             JLOG(j_.trace()) << "unset email hash";
-            sle->makeFieldAbsent(sfEmailHash);
+            acctRoot->clearEmailHash();
         }
         else
         {
             JLOG(j_.trace()) << "set email hash";
-            sle->setFieldH128(sfEmailHash, uHash);
+            acctRoot->setEmailHash(uHash);
         }
     }
 
@@ -432,12 +433,12 @@ SetAccount::doApply()
         if (!uHash)
         {
             JLOG(j_.trace()) << "unset wallet locator";
-            sle->makeFieldAbsent(sfWalletLocator);
+            acctRoot->clearWalletLocator();
         }
         else
         {
             JLOG(j_.trace()) << "set wallet locator";
-            sle->setFieldH256(sfWalletLocator, uHash);
+            acctRoot->setWalletLocator(uHash);
         }
     }
 
@@ -448,16 +449,8 @@ SetAccount::doApply()
     {
         Blob const messageKey = tx.getFieldVL(sfMessageKey);
 
-        if (messageKey.empty())
-        {
-            JLOG(j_.debug()) << "set message key";
-            sle->makeFieldAbsent(sfMessageKey);
-        }
-        else
-        {
-            JLOG(j_.debug()) << "set message key";
-            sle->setFieldVL(sfMessageKey, messageKey);
-        }
+        JLOG(j_.debug()) << "change message key";
+        acctRoot->setMessageKey(messageKey);
     }
 
     //
@@ -467,16 +460,8 @@ SetAccount::doApply()
     {
         Blob const domain = tx.getFieldVL(sfDomain);
 
-        if (domain.empty())
-        {
-            JLOG(j_.trace()) << "unset domain";
-            sle->makeFieldAbsent(sfDomain);
-        }
-        else
-        {
-            JLOG(j_.trace()) << "set domain";
-            sle->setFieldVL(sfDomain, domain);
-        }
+        JLOG(j_.trace()) << "change domain";
+        acctRoot->setDomain(domain);
     }
 
     //
@@ -489,12 +474,12 @@ SetAccount::doApply()
         if (uRate == 0 || uRate == QUALITY_ONE)
         {
             JLOG(j_.trace()) << "unset transfer rate";
-            sle->makeFieldAbsent(sfTransferRate);
+            acctRoot->clearTransferRate();
         }
         else
         {
             JLOG(j_.trace()) << "set transfer rate";
-            sle->setFieldU32(sfTransferRate, uRate);
+            acctRoot->setTransferRate(uRate);
         }
     }
 
@@ -507,17 +492,17 @@ SetAccount::doApply()
         if ((uTickSize == 0) || (uTickSize == Quality::maxTickSize))
         {
             JLOG(j_.trace()) << "unset tick size";
-            sle->makeFieldAbsent(sfTickSize);
+            acctRoot->clearTickSize();
         }
         else
         {
             JLOG(j_.trace()) << "set tick size";
-            sle->setFieldU8(sfTickSize, uTickSize);
+            acctRoot->setTickSize(uTickSize);
         }
     }
 
     if (uFlagsIn != uFlagsOut)
-        sle->setFieldU32(sfFlags, uFlagsOut);
+        acctRoot->replaceAllFlags(uFlagsOut);
 
     return tesSUCCESS;
 }
