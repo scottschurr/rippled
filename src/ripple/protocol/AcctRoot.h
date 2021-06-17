@@ -20,7 +20,9 @@
 #ifndef RIPPLE_PROTOCOL_ACCT_ROOT_H_INCLUDED
 #define RIPPLE_PROTOCOL_ACCT_ROOT_H_INCLUDED
 
+#include <ripple/basics/tl/expected.hpp>
 #include <ripple/protocol/STLedgerEntry.h>
+#include <utility>
 
 namespace ripple {
 
@@ -44,24 +46,23 @@ private:
     mutable std::optional<AccountID> accountID_;
 
 public:
-    AcctRoot(std::shared_ptr<STLE>&& acctRootPtr)
-        : slePtr_(std::move(acctRootPtr))
-    {
-        std::uint16_t const type = {slePtr_->at(sfLedgerEntryType)};
-        assert(type == ltACCOUNT_ROOT);
-        if (type != ltACCOUNT_ROOT)
-            Throw<std::runtime_error>("Wrong ledger type for AcctRoot");
-    }
-
-    AcctRoot(std::shared_ptr<STLE> const& acctRootPtr)
-        : AcctRoot(std::shared_ptr<STLE>(acctRootPtr))
-    {
-    }
-
+    AcctRoot(AcctRoot const&) = default;
     AcctRoot&
     operator=(AcctRoot const&) = delete;
 
 private:
+    // Constructors (private and accessed through a factory function) ----------
+    AcctRoot(std::shared_ptr<STLE>&& acctRootPtr)
+        : slePtr_(std::move(acctRootPtr))
+    {
+    }
+
+    // Declare the factory function a friend -----------------------------------
+    template <class T>
+    friend auto
+    makeAcctRoot(std::shared_ptr<T> slePtr)
+        -> tl::expected<AcctRoot<T>, NotTEC>;
+
     // Helper functions --------------------------------------------------------
     template <typename SF, typename T>
     void
@@ -111,6 +112,13 @@ private:
     }
 
 public:
+    // Raw SLE access ----------------------------------------------------------
+    [[nodiscard]] std::shared_ptr<STLE> const&
+    slePtr()
+    {
+        return slePtr_;
+    }
+
     // AccountID field (immutable) ---------------------------------------------
     [[nodiscard]] AccountID const&
     accountID() const
@@ -388,6 +396,23 @@ static_assert(std::is_copy_assignable_v<AcctRoot<SLE>> == false, "");
 static_assert(std::is_move_assignable_v<AcctRoot<SLE>> == false, "");
 static_assert(std::is_nothrow_destructible_v<AcctRoot<SLE>> == true, "");
 #endif
+
+// Factory function returns a tl::expected<AcctRoot<STLE>, NotTEC> -------------
+template <class STLE>
+[[nodiscard]] auto
+makeAcctRoot(std::shared_ptr<STLE> slePtr)
+    -> tl::expected<AcctRoot<STLE>, NotTEC>
+{
+    if (!slePtr)
+        return tl::unexpected(terNO_ACCOUNT);
+
+    std::uint16_t const type = {slePtr->at(sfLedgerEntryType)};
+    assert(type == ltACCOUNT_ROOT);
+    if (type != ltACCOUNT_ROOT)
+        return tl::unexpected(tefINTERNAL);
+
+    return AcctRoot(std::move(slePtr));
+}
 
 }  // namespace ripple
 

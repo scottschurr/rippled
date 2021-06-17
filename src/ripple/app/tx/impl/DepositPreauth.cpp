@@ -110,18 +110,16 @@ DepositPreauth::doApply()
 {
     if (ctx_.tx.isFieldPresent(sfAuthorize))
     {
-        auto const sleOwner = view().peek(keylet::account(account_));
-        if (!sleOwner)
-            return {tefINTERNAL};
-
-        AcctRoot owner(sleOwner);
+        auto expOwner = makeAcctRoot(view().peek(keylet::account(account_)));
+        if (!expOwner.has_value())
+            return expOwner.error();
 
         // A preauth counts against the reserve of the issuing account, but we
         // check the starting balance because we want to allow dipping into the
         // reserve to pay fees.
         {
             STAmount const reserve{
-                view().fees().accountReserve(owner.ownerCount() + 1)};
+                view().fees().accountReserve(expOwner->ownerCount() + 1)};
 
             if (mPriorBalance < reserve)
                 return tecINSUFFICIENT_RESERVE;
@@ -153,7 +151,7 @@ DepositPreauth::doApply()
         slePreauth->setFieldU64(sfOwnerNode, *page);
 
         // If we succeeded, the new entry counts against the creator's reserve.
-        adjustOwnerCount(view(), sleOwner, 1, viewJ);
+        adjustOwnerCount(view(), expOwner->slePtr(), 1, viewJ);
     }
     else
     {
