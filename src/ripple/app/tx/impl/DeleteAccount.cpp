@@ -24,6 +24,7 @@
 #include <ripple/basics/Log.h>
 #include <ripple/basics/mulDiv.h>
 #include <ripple/ledger/View.h>
+#include <ripple/protocol/AcctRoot.h>
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/TxFlags.h>
@@ -156,25 +157,25 @@ DeleteAccount::preclaim(PreclaimContext const& ctx)
     AccountID const account{ctx.tx[sfAccount]};
     AccountID const dst{ctx.tx[sfDestination]};
 
-    auto sleDst = ctx.view.read(keylet::account(dst));
-
-    if (!sleDst)
+    auto const dstRootRd = makeAcctRootRd(ctx.view.read(keylet::account(dst)));
+    if (!dstRootRd.has_value())
         return tecNO_DST;
 
-    if ((*sleDst)[sfFlags] & lsfRequireDestTag && !ctx.tx[~sfDestinationTag])
+    if (dstRootRd->flags() & lsfRequireDestTag && !ctx.tx[~sfDestinationTag])
         return tecDST_TAG_NEEDED;
 
     // Check whether the destination account requires deposit authorization.
     if (ctx.view.rules().enabled(featureDepositAuth) &&
-        (sleDst->getFlags() & lsfDepositAuth))
+        (dstRootRd->flags() & lsfDepositAuth))
     {
         if (!ctx.view.exists(keylet::depositPreauth(dst, account)))
             return tecNO_PERMISSION;
     }
 
-    auto sleAccount = ctx.view.read(keylet::account(account));
-    assert(sleAccount);
-    if (!sleAccount)
+    auto const acctRootRd =
+        makeAcctRootRd(ctx.view.read(keylet::account(account)));
+    assert(acctRootRd.has_value());
+    if (!acctRootRd.has_value())
         return terNO_ACCOUNT;
 
     // We don't allow an account to be deleted if its sequence number
@@ -184,7 +185,7 @@ DeleteAccount::preclaim(PreclaimContext const& ctx)
     // We look at the account's Sequence rather than the transaction's
     // Sequence in preparation for Tickets.
     constexpr std::uint32_t seqDelta{255};
-    if ((*sleAccount)[sfSequence] + seqDelta > ctx.view.seq())
+    if (acctRootRd->sequence() + seqDelta > ctx.view.seq())
         return tecTOO_SOON;
 
     // Verify that the account does not own any objects that would prevent
@@ -245,13 +246,14 @@ DeleteAccount::preclaim(PreclaimContext const& ctx)
 TER
 DeleteAccount::doApply()
 {
-    auto src = view().peek(keylet::account(account_));
-    assert(src);
+    auto srcRoot = makeAcctRoot(view().peek(keylet::account(account_)));
+    assert(srcRoot.has_value());
 
-    auto dst = view().peek(keylet::account(ctx_.tx[sfDestination]));
-    assert(dst);
+    auto dstRoot =
+        makeAcctRoot(view().peek(keylet::account(ctx_.tx[sfDestination])));
+    assert(dstRoot.has_value());
 
-    if (!src || !dst)
+    if (!srcRoot.has_value() || !dstRoot.has_value())
         return tefBAD_LEDGER;
 
     // Delete all of the entries in the account directory.
@@ -328,11 +330,11 @@ DeleteAccount::doApply()
     }
 
     // Transfer any XRP remaining after the fee is paid to the destination:
-    (*dst)[sfBalance] = (*dst)[sfBalance] + mSourceBalance;
-    (*src)[sfBalance] = (*src)[sfBalance] - mSourceBalance;
+    dstRoot->setBalance(dstRoot->balance() + mSourceBalance);
+    srcRoot->setBalance(srcRoot->balance() - mSourceBalance);
     ctx_.deliver(mSourceBalance);
 
-    assert((*src)[sfBalance] == XRPAmount(0));
+    assert(srcRoot->balance() == XRPAmount(0));
 
     // If there's still an owner directory associated with the source account
     // delete it.
@@ -344,11 +346,11 @@ DeleteAccount::doApply()
     }
 
     // Re-arm the password change fee if we can and need to.
-    if (mSourceBalance > XRPAmount(0) && dst->isFlag(lsfPasswordSpent))
-        dst->clearFlag(lsfPasswordSpent);
+    if (mSourceBalance > XRPAmount(0) && dstRoot->isFlag(lsfPasswordSpent))
+        dstRoot->clearFlag(lsfPasswordSpent);
 
-    view().update(dst);
-    view().erase(src);
+    view().update(dstRoot->slePtr());
+    view().erase(srcRoot->slePtr());
 
     return tesSUCCESS;
 }

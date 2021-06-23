@@ -20,6 +20,7 @@
 #include <ripple/app/ledger/Ledger.h>
 #include <ripple/app/ledger/LocalTxs.h>
 #include <ripple/app/main/Application.h>
+#include <ripple/protocol/AcctRoot.h>
 #include <ripple/protocol/Indexes.h>
 
 /*
@@ -156,13 +157,12 @@ public:
                 return true;
 
             AccountID const acctID = txn.getAccount();
-            auto const sleAcct = view.read(keylet::account(acctID));
-
-            if (!sleAcct)
+            auto const acctRootRd =
+                makeAcctRootRd(view.read(keylet::account(acctID)));
+            if (!acctRootRd.has_value())
                 return false;
 
-            SeqProxy const acctSeq =
-                SeqProxy::sequence(sleAcct->getFieldU32(sfSequence));
+            SeqProxy const acctSeq = SeqProxy::sequence(acctRootRd->sequence());
             SeqProxy const seqProx = txn.getSeqProxy();
 
             if (seqProx.isSeq())

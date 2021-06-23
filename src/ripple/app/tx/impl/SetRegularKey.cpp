@@ -19,6 +19,7 @@
 
 #include <ripple/app/tx/impl/SetRegularKey.h>
 #include <ripple/basics/Log.h>
+#include <ripple/protocol/AcctRoot.h>
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/TxFlags.h>
 
@@ -34,9 +35,10 @@ SetRegularKey::calculateBaseFee(ReadView const& view, STTx const& tx)
     {
         if (calcAccountID(PublicKey(makeSlice(spk))) == id)
         {
-            auto const sle = view.read(keylet::account(id));
-
-            if (sle && (!(sle->getFlags() & lsfPasswordSpent)))
+            auto const acctRootRd =
+                makeAcctRootRd(view.read(keylet::account(id)));
+            if (acctRootRd.has_value() &&
+                !(acctRootRd->flags() & lsfPasswordSpent))
             {
                 // flag is armed and they signed with the right account
                 return FeeUnit64{0};
@@ -76,25 +78,25 @@ SetRegularKey::preflight(PreflightContext const& ctx)
 TER
 SetRegularKey::doApply()
 {
-    auto const sle = view().peek(keylet::account(account_));
-    if (!sle)
+    auto acctRoot = makeAcctRoot(view().peek(keylet::account(account_)));
+    if (!acctRoot.has_value())
         return tefINTERNAL;
 
     if (!minimumFee(ctx_.app, ctx_.baseFee, view().fees(), view().flags()))
-        sle->setFlag(lsfPasswordSpent);
+        acctRoot->setFlag(lsfPasswordSpent);
 
     if (ctx_.tx.isFieldPresent(sfRegularKey))
     {
-        sle->setAccountID(sfRegularKey, ctx_.tx.getAccountID(sfRegularKey));
+        acctRoot->setRegularKey(ctx_.tx.getAccountID(sfRegularKey));
     }
     else
     {
         // Account has disabled master key and no multi-signer signer list.
-        if (sle->isFlag(lsfDisableMaster) &&
-            !view().peek(keylet::signers(account_)))
+        if (acctRoot->isFlag(lsfDisableMaster) &&
+            !view().exists(keylet::signers(account_)))
             return tecNO_ALTERNATIVE_KEY;
 
-        sle->makeFieldAbsent(sfRegularKey);
+        acctRoot->clearRegularKey();
     }
 
     return tesSUCCESS;

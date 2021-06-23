@@ -184,13 +184,13 @@ SetAccount::preclaim(PreclaimContext const& ctx)
 
     std::uint32_t const uTxFlags = ctx.tx.getFlags();
 
-    auto expAcct = makeAcctRoot(ctx.view.read(keylet::account(id)));
-    if (!expAcct.has_value())
-        return expAcct.error();
+    auto acctRootRd = makeAcctRootRd(ctx.view.read(keylet::account(id)));
+    if (!acctRootRd.has_value())
+        return acctRootRd.error();
 
-    std::uint32_t const uFlagsIn = expAcct->flags();
+    std::uint32_t const uFlagsIn = {acctRootRd->flags()};
 
-    std::uint32_t const uSetFlag = ctx.tx.getFieldU32(sfSetFlag);
+    std::uint32_t const uSetFlag = {ctx.tx.getFieldU32(sfSetFlag)};
 
     // legacy AccountSet flags
     bool bSetRequireAuth =
@@ -214,12 +214,12 @@ SetAccount::preclaim(PreclaimContext const& ctx)
 TER
 SetAccount::doApply()
 {
-    auto expAcct = makeAcctRoot(view().peek(keylet::account(account_)));
-    if (!expAcct.has_value())
-        return expAcct.error();
+    auto acctRoot = makeAcctRoot(view().peek(keylet::account(account_)));
+    if (!acctRoot.has_value())
+        return acctRoot.error();
 
-    std::uint32_t const uFlagsIn = expAcct->flags();
-    std::uint32_t uFlagsOut = uFlagsIn;
+    std::uint32_t const uFlagsIn = {acctRoot->flags()};
+    std::uint32_t uFlagsOut = {uFlagsIn};
 
     STTx const& tx{ctx_.tx};
     std::uint32_t const uSetFlag{tx.getFieldU32(sfSetFlag)};
@@ -309,7 +309,8 @@ SetAccount::doApply()
             return tecNEED_MASTER_KEY;
         }
 
-        if (!expAcct->regularKey() && (!view().peek(keylet::signers(account_))))
+        if (!acctRoot->regularKey() &&
+            (!view().exists(keylet::signers(account_))))
         {
             // Account has no regular key or multi-signer signer list.
             return tecNO_ALTERNATIVE_KEY;
@@ -374,16 +375,16 @@ SetAccount::doApply()
     //
     // Track transaction IDs signed by this account in its root
     //
-    if (uSetFlag == asfAccountTxnID && !expAcct->accountTxnID())
+    if (uSetFlag == asfAccountTxnID && !acctRoot->accountTxnID())
     {
         JLOG(j_.trace()) << "Set AccountTxnID.";
-        expAcct->setAccountTxnID(uint256(beast::zero));
+        acctRoot->setAccountTxnID(uint256(beast::zero));
     }
 
     if (uClearFlag == asfAccountTxnID)
     {
         JLOG(j_.trace()) << "Clear AccountTxnID.";
-        expAcct->clearAccountTxnID();
+        acctRoot->clearAccountTxnID();
     }
 
     //
@@ -413,12 +414,12 @@ SetAccount::doApply()
         if (!uHash)
         {
             JLOG(j_.trace()) << "unset email hash";
-            expAcct->clearEmailHash();
+            acctRoot->clearEmailHash();
         }
         else
         {
             JLOG(j_.trace()) << "set email hash";
-            expAcct->setEmailHash(uHash);
+            acctRoot->setEmailHash(uHash);
         }
     }
 
@@ -432,12 +433,12 @@ SetAccount::doApply()
         if (!uHash)
         {
             JLOG(j_.trace()) << "unset wallet locator";
-            expAcct->clearWalletLocator();
+            acctRoot->clearWalletLocator();
         }
         else
         {
             JLOG(j_.trace()) << "set wallet locator";
-            expAcct->setWalletLocator(uHash);
+            acctRoot->setWalletLocator(uHash);
         }
     }
 
@@ -449,7 +450,7 @@ SetAccount::doApply()
         Blob const messageKey = tx.getFieldVL(sfMessageKey);
 
         JLOG(j_.debug()) << "change message key";
-        expAcct->setMessageKey(messageKey);
+        acctRoot->setMessageKey(messageKey);
     }
 
     //
@@ -460,7 +461,7 @@ SetAccount::doApply()
         Blob const domain = tx.getFieldVL(sfDomain);
 
         JLOG(j_.trace()) << "change domain";
-        expAcct->setDomain(domain);
+        acctRoot->setDomain(domain);
     }
 
     //
@@ -473,12 +474,12 @@ SetAccount::doApply()
         if (uRate == 0 || uRate == QUALITY_ONE)
         {
             JLOG(j_.trace()) << "unset transfer rate";
-            expAcct->clearTransferRate();
+            acctRoot->clearTransferRate();
         }
         else
         {
             JLOG(j_.trace()) << "set transfer rate";
-            expAcct->setTransferRate(uRate);
+            acctRoot->setTransferRate(uRate);
         }
     }
 
@@ -491,17 +492,17 @@ SetAccount::doApply()
         if ((uTickSize == 0) || (uTickSize == Quality::maxTickSize))
         {
             JLOG(j_.trace()) << "unset tick size";
-            expAcct->clearTickSize();
+            acctRoot->clearTickSize();
         }
         else
         {
             JLOG(j_.trace()) << "set tick size";
-            expAcct->setTickSize(uTickSize);
+            acctRoot->setTickSize(uTickSize);
         }
     }
 
     if (uFlagsIn != uFlagsOut)
-        expAcct->setFlags(uFlagsOut);
+        acctRoot->setFlags(uFlagsOut);
 
     return tesSUCCESS;
 }
