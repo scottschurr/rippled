@@ -502,7 +502,7 @@ SetAccount::doApply()
     }
 
     if (uFlagsIn != uFlagsOut)
-        acctRoot->setFlags(uFlagsOut);
+        acctRoot->replaceAllFlags(uFlagsOut);
 
     return tesSUCCESS;
 }

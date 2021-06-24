@@ -27,10 +27,12 @@
 
 namespace ripple {
 
-// Use CRTP to provide identical interfaces to both the AcctRootRd and
-// AcctRoot classes.
-template <class Derived>
-class AcctRootRdIfc
+// AcctRoot ====================================================================
+
+// Use CRTP to provide a common interface for AcctRoot and AcctRootRd.
+// The Writable argument enables mutating methods only if true.
+template <class Derived, bool Writable>
+class AcctRootIfc
 {
 private:
     // The constructor is private as a hack to guarantee that the Derived
@@ -40,7 +42,7 @@ private:
     //
     // Give Derived access to private constructor.
     friend Derived;
-    AcctRootRdIfc() = default;
+    AcctRootIfc() = default;
 
     // A virtual destructor is not necessary since this base class is empty.
 
@@ -51,6 +53,12 @@ private:
         return static_cast<Derived const&>(*this);
     }
 
+    [[nodiscard]] Derived&
+    asDerived()
+    {
+        return static_cast<Derived&>(*this);
+    }
+
     [[nodiscard]] Blob
     getOptionalVL(SF_VL const& field) const
     {
@@ -59,6 +67,48 @@ private:
         if (derived.slePtr()->isFieldPresent(field))
             ret = derived.slePtr()->getFieldVL(field);
         return ret;
+    }
+
+    template <typename SF, typename T, bool W = Writable>
+    std::enable_if_t<W>
+    setOptional(SF const& field, T const& value)
+    {
+        static_assert(
+            std::is_base_of_v<SField, SF>,
+            "setOptional()requires an SField as its first argument.");
+
+        Derived& derived = asDerived();
+        if (!derived.slePtr()->isFieldPresent(field))
+            derived.slePtr()->makeFieldPresent(field);
+        derived.slePtr()->at(field) = value;
+    }
+
+    template <typename SF, bool W = Writable>
+    std::enable_if_t<W>
+    clearOptional(SF const& field)
+    {
+        static_assert(
+            std::is_base_of_v<SField, SF>,
+            "setOptional()requires an SField as its argument.");
+
+        Derived& derived = asDerived();
+        if (derived.slePtr()->isFieldPresent(field))
+            derived.slePtr()->makeFieldAbsent(field);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setOrClearVLIfEmpty(SF_VL const& field, Blob const& value)
+    {
+        if (value.empty())
+        {
+            clearOptional(field);
+            return;
+        }
+        Derived& derived = asDerived();
+        if (!derived.slePtr()->isFieldPresent(field))
+            derived.slePtr()->makeFieldPresent(field);
+        derived.slePtr()->setFieldVL(field, value);
     }
 
 public:
@@ -82,11 +132,39 @@ public:
         return (flags() & flagsToCheck) == flagsToCheck;
     }
 
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    replaceAllFlags(std::uint32_t newFlags)
+    {
+        asDerived().slePtr()->at(sfFlags) = newFlags;
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setFlag(std::uint32_t flagsToSet)
+    {
+        replaceAllFlags(flags() | flagsToSet);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    clearFlag(std::uint32_t flagsToClear)
+    {
+        replaceAllFlags(flags() & ~flagsToClear);
+    }
+
     // Sequence field ----------------------------------------------------------
     [[nodiscard]] std::uint32_t
     sequence() const
     {
         return asDerived().slePtr()->at(sfSequence);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setSequence(std::uint32_t seq)
+    {
+        asDerived().slePtr()->at(sfSequence) = seq;
     }
 
     // Balance field -----------------------------------------------------------
@@ -96,28 +174,53 @@ public:
         return asDerived().slePtr()->at(sfBalance);
     }
 
-    // OwnerCount field
-    // ----------------------------------------------------------
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setBalance(STAmount const& amount)
+    {
+        asDerived().slePtr()->at(sfBalance) = amount;
+    }
+
+    // OwnerCount field --------------------------------------------------------
     [[nodiscard]] std::uint32_t
     ownerCount() const
     {
         return asDerived().slePtr()->at(sfOwnerCount);
     }
 
-    // PreviousTxnID field
-    // ----------------------------------------------------------
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setOwnerCount(std::uint32_t newCount)
+    {
+        asDerived().slePtr()->at(sfOwnerCount) = newCount;
+    }
+
+    // PreviousTxnID field -----------------------------------------------------
     [[nodiscard]] std::uint32_t
     previousTxnID() const
     {
         return asDerived().slePtr()->at(sfOwnerCount);
     }
 
-    // PreviousTxnLgrSeq field
-    // ----------------------------------------------------------
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setPreviousTxnID(uint256 prevTxID)
+    {
+        asDerived().slePtr()->at(sfPreviousTxnID) = prevTxID;
+    }
+
+    // PreviousTxnLgrSeq field -------------------------------------------------
     [[nodiscard]] std::uint32_t
     previousTxnLgrSeq() const
     {
         return asDerived().slePtr()->at(sfPreviousTxnLgrSeq);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setPreviousTxnLgrSeq(std::uint32_t prevTxLgrSeq)
+    {
+        asDerived().slePtr()->at(sfPreviousTxnLgrSeq) = prevTxLgrSeq;
     }
 
     // AccountTxnID field (optional) -------------------------------------------
@@ -127,11 +230,39 @@ public:
         return asDerived().slePtr()->at(~sfAccountTxnID);
     }
 
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setAccountTxnID(uint256 const& newAcctTxnID)
+    {
+        setOptional(sfAccountTxnID, newAcctTxnID);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    clearAccountTxnID()
+    {
+        clearOptional(sfAccountTxnID);
+    }
+
     // RegularKey field (optional) ---------------------------------------------
     [[nodiscard]] std::optional<AccountID>
     regularKey() const
     {
         return asDerived().slePtr()->at(~sfRegularKey);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setRegularKey(AccountID const& newRegKey)
+    {
+        setOptional(sfRegularKey, newRegKey);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    clearRegularKey()
+    {
+        clearOptional(sfRegularKey);
     }
 
     // EmailHash field (optional) ----------------------------------------------
@@ -141,6 +272,20 @@ public:
         return asDerived().slePtr()->at(~sfEmailHash);
     }
 
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setEmailHash(uint128 const& newEmailHash)
+    {
+        setOptional(sfEmailHash, newEmailHash);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    clearEmailHash()
+    {
+        clearOptional(sfEmailHash);
+    }
+
     // WalletLocator field (optional) ------------------------------------------
     [[nodiscard]] std::optional<uint256>
     walletLocator() const
@@ -148,25 +293,77 @@ public:
         return asDerived().slePtr()->at(~sfWalletLocator);
     }
 
-    // WalletSize field (optional) -------------------------------------------
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setWalletLocator(uint256 const& newWalletLocator)
+    {
+        setOptional(sfWalletLocator, newWalletLocator);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    clearWalletLocator()
+    {
+        clearOptional(sfWalletLocator);
+    }
+
+    // WalletSize field (optional) ---------------------------------------------
     [[nodiscard]] std::optional<std::uint32_t>
     walletSize()
     {
         return asDerived().slePtr()->at(~sfWalletSize);
     }
 
-    // MessageKey field (optional) -------------------------------------------
+    /*
+    // There is currently no code in the server that modifies a WalletSize
+    // field.  So these interfaces are omitted.
+    template<bool W = Writable>
+    std::enable_if_t<W>
+    setWalletSize(std::uint32_t newWalletSize)
+    {
+        setOptional(sfWalletSize, newWalletSize);
+    }
+
+    template<bool W = Writable>
+    std::enable_if_t<W>
+    clearWalletSize()
+    {
+        clearOptional(sfWalletSize);
+    } */
+
+    // MessageKey field (optional) ---------------------------------------------
     [[nodiscard]] Blob
     messageKey() const
     {
         return getOptionalVL(sfMessageKey);
     }
 
-    // TransferRate field (optional) -----------------------------------------
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setMessageKey(Blob const& newMessageKey)
+    {
+        setOrClearVLIfEmpty(sfMessageKey, newMessageKey);
+    }
+
+    // TransferRate field (optional) -------------------------------------------
     [[nodiscard]] std::optional<std::uint32_t>
     transferRate() const
     {
         return asDerived().slePtr()->at(~sfTransferRate);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setTransferRate(std::uint32_t newTransferRate)
+    {
+        setOptional(sfTransferRate, newTransferRate);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    clearTransferRate()
+    {
+        clearOptional(sfTransferRate);
     }
 
     // Domain field (optional) -------------------------------------------------
@@ -176,11 +373,32 @@ public:
         return getOptionalVL(sfDomain);
     }
 
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setDomain(Blob const& newDomain)
+    {
+        setOrClearVLIfEmpty(sfDomain, newDomain);
+    }
+
     // TickSize (optional) -----------------------------------------------------
     [[nodiscard]] std::optional<std::uint8_t>
     tickSize() const
     {
         return asDerived().slePtr()->at(sfTickSize);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setTickSize(std::uint8_t newTickSize)
+    {
+        setOptional(sfTickSize, newTickSize);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    clearTickSize()
+    {
+        clearOptional(sfTickSize);
     }
 
     // TicketCount (optional) --------------------------------------------------
@@ -189,11 +407,27 @@ public:
     {
         return asDerived().slePtr()->at(~sfTicketCount);
     }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    setTicketCount(std::uint32_t newTicketCount)
+    {
+        setOptional(sfTicketCount, newTicketCount);
+    }
+
+    template <bool W = Writable>
+    std::enable_if_t<W>
+    clearTicketCount()
+    {
+        clearOptional(sfTicketCount);
+    }
 };
+
+// AcctRootRd ==================================================================
 
 // A wrapper that improves read-only access to an AccountRoot through an
 // STLedgerEntry const.
-class AcctRootRd : public AcctRootRdIfc<AcctRootRd>
+class AcctRootRd : public AcctRootIfc<AcctRootRd const, false>
 {
 private:
     // The serialized ledger entry that this type wraps.
@@ -205,17 +439,17 @@ public:
     operator=(AcctRootRd const&) = delete;
 
 private:
-    // Constructor (private and accessed through a factory function) ----------
+    // Constructor (private and accessed through a factory function) -----------
     AcctRootRd(std::shared_ptr<STLedgerEntry const>&& acctRootPtr)
         : slePtr_(std::move(acctRootPtr))
     {
     }
 
-    // Declare the factory function a friend -----------------------------------
+    // Declare the factory function a friend
     friend tl::expected<AcctRootRd, NotTEC>
     makeAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr);
 
-    // Declare AcctRoot a friend so it can construct an AcctRootRd -------------
+    // Declare AcctRoot a friend so it can construct an AcctRootRd
     friend class AcctRoot;
 
 public:
@@ -236,8 +470,10 @@ static_assert(std::is_move_assignable_v<AcctRootRd> == false, "");
 static_assert(std::is_nothrow_destructible_v<AcctRootRd> == true, "");
 #endif
 
+// AcctRoot ====================================================================
+
 // A wrapper that improves access to an AccountRoot through an STLedgerEntry.
-class AcctRoot : public AcctRootRdIfc<AcctRoot>
+class AcctRoot : public AcctRootIfc<AcctRoot, true>
 {
 private:
     // The serialized ledger entry that this type wraps.
@@ -263,64 +499,28 @@ public:
     }
 
 private:
-    // Constructor (private and accessed through a factory function) ----------
+    // Constructor (private and accessed through a factory function) -----------
     AcctRoot(std::shared_ptr<STLedgerEntry>&& acctRootPtr)
         : slePtr_(std::move(acctRootPtr))
     {
     }
 
-    // Declare the factory function a friend -----------------------------------
+    // Declare the factory function a friend
     friend tl::expected<AcctRoot, NotTEC>
     makeAcctRoot(std::shared_ptr<STLedgerEntry> slePtr);
 
     // Helper functions --------------------------------------------------------
-    template <typename SF, typename T>
-    void
-    setOptional(SF const& field, T const& value)
-    {
-        static_assert(
-            std::is_base_of_v<SField, SF>,
-            "setOptional()requires an SField as its first argument.");
 
-        if (!slePtr()->isFieldPresent(field))
-            slePtr()->makeFieldPresent(field);
-        slePtr()->at(field) = value;
-    }
-
-    template <typename SF>
-    void
-    clearOptional(SF const& field)
-    {
-        static_assert(
-            std::is_base_of_v<SField, SF>,
-            "setOptional()requires an SField as its argument.");
-
-        if (slePtr()->isFieldPresent(field))
-            slePtr()->makeFieldAbsent(field);
-    }
-
-    void
-    setOrClearVLIfEmpty(SF_VL const& field, Blob const& value)
-    {
-        if (value.empty())
-        {
-            clearOptional(field);
-            return;
-        }
-        if (!slePtr()->isFieldPresent(field))
-            slePtr()->makeFieldPresent(field);
-        slePtr()->setFieldVL(field, value);
-    }
-
-    // Interface used by AcctRootRdIfc
+    // Interface used by AcctRootIfc.  We trust that AcctRootIfc will not
+    // modify the returned STLedgerEntry when it calls this interface.
     [[nodiscard]] std::shared_ptr<STLedgerEntry> const&
     slePtr() const
     {
         return slePtr_;
     }
 
-    // Allow AcctRootRdIfc access to slePtr()
-    friend class AcctRootRdIfc<AcctRoot>;
+    // Allow AcctRootIfc access to slePtr() const
+    friend class AcctRootIfc<AcctRoot, true>;
 
 public:
     // Raw SLE access ----------------------------------------------------------
@@ -328,185 +528,6 @@ public:
     slePtr()
     {
         return slePtr_;
-    }
-
-    // Flags field -------------------------------------------------------------
-    void
-    setFlags(std::uint32_t newFlags)
-    {
-        slePtr()->at(sfFlags) = newFlags;
-    }
-
-    void
-    setFlag(std::uint32_t flagsToSet)
-    {
-        setFlags(flags() | flagsToSet);
-    }
-
-    void
-    clearFlag(std::uint32_t flagsToClear)
-    {
-        setFlags(flags() & ~flagsToClear);
-    }
-
-    // Sequence field ----------------------------------------------------------
-    void
-    setSequence(std::uint32_t seq)
-    {
-        slePtr()->at(sfSequence) = seq;
-    }
-
-    // Balance field -----------------------------------------------------------
-    void
-    setBalance(STAmount const& amount)
-    {
-        slePtr()->at(sfBalance) = amount;
-    }
-
-    // OwnerCount field
-    // ----------------------------------------------------------
-    void
-    setOwnerCount(std::uint32_t newCount)
-    {
-        slePtr()->at(sfOwnerCount) = newCount;
-    }
-
-    // PreviousTxnID field
-    // ----------------------------------------------------------
-    void
-    setPreviousTxnID(uint256 prevTxID)
-    {
-        slePtr()->at(sfPreviousTxnID) = prevTxID;
-    }
-
-    // PreviousTxnLgrSeq field
-    // ----------------------------------------------------------
-    void
-    setPreviousTxnLgrSeq(std::uint32_t prevTxLgrSeq)
-    {
-        slePtr()->at(sfPreviousTxnLgrSeq) = prevTxLgrSeq;
-    }
-
-    // AccountTxnID field (optional) -------------------------------------------
-    void
-    setAccountTxnID(uint256 const& newAcctTxnID)
-    {
-        setOptional(sfAccountTxnID, newAcctTxnID);
-    }
-
-    void
-    clearAccountTxnID()
-    {
-        clearOptional(sfAccountTxnID);
-    }
-
-    // RegularKey field (optional) ---------------------------------------------
-    void
-    setRegularKey(AccountID const& newRegKey)
-    {
-        setOptional(sfRegularKey, newRegKey);
-    }
-
-    void
-    clearRegularKey()
-    {
-        clearOptional(sfRegularKey);
-    }
-
-    // EmailHash field (optional) ----------------------------------------------
-    void
-    setEmailHash(uint128 const& newEmailHash)
-    {
-        setOptional(sfEmailHash, newEmailHash);
-    }
-
-    void
-    clearEmailHash()
-    {
-        clearOptional(sfEmailHash);
-    }
-
-    // WalletLocator field (optional) ------------------------------------------
-    void
-    setWalletLocator(uint256 const& newWalletLocator)
-    {
-        setOptional(sfWalletLocator, newWalletLocator);
-    }
-
-    void
-    clearWalletLocator()
-    {
-        clearOptional(sfWalletLocator);
-    }
-
-    // WalletSize field (optional) -------------------------------------------
-    //
-    // There is currently no code in the server that modifies a WalletSize
-    // field.  So these interfaces are omitted.
-    /*
-        void
-        setWalletSize(std::uint32_t newWalletSize)
-        {
-            setOptional(sfWalletSize, newWalletSize);
-        }
-
-        void
-        clearWalletSize()
-        {
-            clearOptional(sfWalletSize);
-        }
-    */
-    // MessageKey field (optional) -------------------------------------------
-    void
-    setMessageKey(Blob const& newMessageKey)
-    {
-        setOrClearVLIfEmpty(sfMessageKey, newMessageKey);
-    }
-
-    // TransferRate field (optional) -----------------------------------------
-    void
-    setTransferRate(std::uint32_t newTransferRate)
-    {
-        setOptional(sfTransferRate, newTransferRate);
-    }
-
-    void
-    clearTransferRate()
-    {
-        clearOptional(sfTransferRate);
-    }
-
-    // Domain field (optional) -------------------------------------------------
-    void
-    setDomain(Blob const& newDomain)
-    {
-        setOrClearVLIfEmpty(sfDomain, newDomain);
-    }
-
-    // TickSize (optional) -----------------------------------------------------
-    void
-    setTickSize(std::uint8_t newTickSize)
-    {
-        setOptional(sfTickSize, newTickSize);
-    }
-
-    void
-    clearTickSize()
-    {
-        clearOptional(sfTickSize);
-    }
-
-    // TicketCount (optional) --------------------------------------------------
-    void
-    setTicketCount(std::uint32_t newTicketCount)
-    {
-        setOptional(sfTicketCount, newTicketCount);
-    }
-
-    void
-    clearTicketCount()
-    {
-        clearOptional(sfTicketCount);
     }
 };
 
@@ -519,10 +540,11 @@ static_assert(std::is_move_assignable_v<AcctRoot> == false, "");
 static_assert(std::is_nothrow_destructible_v<AcctRoot> == true, "");
 #endif
 
+// Factory functions ===========================================================
+
 // Factory function returns a tl::expected<AcctRootRd, NotTEC>
-[[nodiscard]] inline auto
+[[nodiscard]] inline tl::expected<AcctRootRd, NotTEC>
 makeAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr)
-    -> tl::expected<AcctRootRd, NotTEC>
 {
     if (!slePtr)
         return tl::unexpected(terNO_ACCOUNT);
@@ -535,10 +557,9 @@ makeAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr)
     return AcctRootRd(std::move(slePtr));
 }
 
-// Factory function returns a tl::expected<AcctRoot, NotTEC> -------------
-[[nodiscard]] inline auto
+// Factory function returns a tl::expected<AcctRoot, NotTEC>
+[[nodiscard]] inline tl::expected<AcctRoot, NotTEC>
 makeAcctRoot(std::shared_ptr<STLedgerEntry> slePtr)
-    -> tl::expected<AcctRoot, NotTEC>
 {
     if (!slePtr)
         return tl::unexpected(terNO_ACCOUNT);
