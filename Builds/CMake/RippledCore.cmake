@@ -80,6 +80,7 @@ target_sources (xrpl_core PRIVATE
   src/ripple/protocol/impl/Issue.cpp
   src/ripple/protocol/impl/Keylet.cpp
   src/ripple/protocol/impl/LedgerFormats.cpp
+  src/ripple/protocol/impl/OwnerDirPage.cpp
   src/ripple/protocol/impl/PublicKey.cpp
   src/ripple/protocol/impl/Quality.cpp
   src/ripple/protocol/impl/Rate2.cpp
@@ -482,6 +483,7 @@ target_sources (rippled PRIVATE
   src/ripple/ledger/impl/CashDiff.cpp
   src/ripple/ledger/impl/Directory.cpp
   src/ripple/ledger/impl/OpenView.cpp
+  src/ripple/ledger/impl/OwnerDirPageIter.cpp
   src/ripple/ledger/impl/PaymentSandbox.cpp
   src/ripple/ledger/impl/RawStateTable.cpp
   src/ripple/ledger/impl/ReadView.cpp

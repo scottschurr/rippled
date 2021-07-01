@@ -37,12 +37,12 @@ public:
     {
     }
 
-    explicit STVector256(std::vector<uint256> const& vector) : mValue(vector)
+    explicit STVector256(std::vector<uint256> const& vector) : value_(vector)
     {
     }
 
     STVector256(SField const& n, std::vector<uint256> const& vector)
-        : STBase(n), mValue(vector)
+        : STBase(n), value_(vector)
     {
     }
 
@@ -77,127 +77,127 @@ public:
     bool
     isDefault() const override
     {
-        return mValue.empty();
+        return value_.empty();
     }
 
     STVector256&
     operator=(std::vector<uint256> const& v)
     {
-        mValue = v;
+        value_ = v;
         return *this;
     }
 
     STVector256&
     operator=(std::vector<uint256>&& v)
     {
-        mValue = std::move(v);
+        value_ = std::move(v);
         return *this;
     }
 
     void
     setValue(const STVector256& v)
     {
-        mValue = v.mValue;
+        value_ = v.value_;
     }
 
     /** Retrieve a copy of the vector we contain */
     explicit operator std::vector<uint256>() const
     {
-        return mValue;
+        return value_;
     }
 
     std::size_t
     size() const
     {
-        return mValue.size();
+        return value_.size();
     }
 
     void
     resize(std::size_t n)
     {
-        return mValue.resize(n);
+        return value_.resize(n);
     }
 
     bool
     empty() const
     {
-        return mValue.empty();
+        return value_.empty();
     }
 
     std::vector<uint256>::reference
     operator[](std::vector<uint256>::size_type n)
     {
-        return mValue[n];
+        return value_[n];
     }
 
     std::vector<uint256>::const_reference
     operator[](std::vector<uint256>::size_type n) const
     {
-        return mValue[n];
+        return value_[n];
     }
 
     std::vector<uint256> const&
     value() const
     {
-        return mValue;
+        return value_;
     }
 
     std::vector<uint256>::iterator
     insert(std::vector<uint256>::const_iterator pos, uint256 const& value)
     {
-        return mValue.insert(pos, value);
+        return value_.insert(pos, value);
     }
 
     std::vector<uint256>::iterator
     insert(std::vector<uint256>::const_iterator pos, uint256&& value)
     {
-        return mValue.insert(pos, std::move(value));
+        return value_.insert(pos, std::move(value));
     }
 
     void
     push_back(uint256 const& v)
     {
-        mValue.push_back(v);
+        value_.push_back(v);
     }
 
     std::vector<uint256>::iterator
     begin()
     {
-        return mValue.begin();
+        return value_.begin();
     }
 
     std::vector<uint256>::const_iterator
     begin() const
     {
-        return mValue.begin();
+        return value_.begin();
     }
 
     std::vector<uint256>::iterator
     end()
     {
-        return mValue.end();
+        return value_.end();
     }
 
     std::vector<uint256>::const_iterator
     end() const
     {
-        return mValue.end();
+        return value_.end();
     }
 
     std::vector<uint256>::iterator
     erase(std::vector<uint256>::iterator position)
     {
-        return mValue.erase(position);
+        return value_.erase(position);
     }
 
     void
     clear() noexcept
     {
-        return mValue.clear();
+        return value_.clear();
     }
 
 private:
-    std::vector<uint256> mValue;
+    std::vector<uint256> value_;
 };
 
 }  // namespace ripple
