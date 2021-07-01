@@ -23,6 +23,7 @@
 #include <ripple/basics/FeeUnits.h>
 #include <ripple/basics/Log.h>
 #include <ripple/basics/mulDiv.h>
+#include <ripple/ledger/OwnerDirPageIter.h>
 #include <ripple/ledger/View.h>
 #include <ripple/protocol/AcctRoot.h>
 #include <ripple/protocol/Feature.h>
@@ -190,56 +191,41 @@ DeleteAccount::preclaim(PreclaimContext const& ctx)
 
     // Verify that the account does not own any objects that would prevent
     // the account from being deleted.
-    Keylet const ownerDirKeylet{keylet::ownerDir(account)};
-    if (dirIsEmpty(ctx.view, ownerDirKeylet))
-        return tesSUCCESS;
-
-    std::shared_ptr<SLE const> sleDirNode{};
-    unsigned int uDirEntry{0};
-    uint256 dirEntry{beast::zero};
-
-    if (!cdirFirst(
-            ctx.view,
-            ownerDirKeylet.key,
-            sleDirNode,
-            uDirEntry,
-            dirEntry,
-            ctx.j))
-        // Account has no directory at all.  This _should_ have been caught
-        // by the dirIsEmpty() check earlier, but it's okay to catch it here.
-        return tesSUCCESS;
-
-    std::int32_t deletableDirEntryCount{0};
-    do
+    std::int32_t deletableDirEntryCount = {0};
+    for (auto iter = OwnerDirPageConstIter::begin(ctx.view, account);
+         !iter.isEnd();
+         ++iter)
     {
-        // Make sure any directory node types that we find are the kind
-        // we can delete.
-        Keylet const itemKeylet{ltCHILD, dirEntry};
-        auto sleItem = ctx.view.read(itemKeylet);
-        if (!sleItem)
+        // Check all Indexes held by this page.
+        for (uint256 const& dirEntry : iter->indexes())
         {
-            // Directory node has an invalid index.  Bail out.
-            JLOG(ctx.j.fatal())
-                << "DeleteAccount: directory node in ledger " << ctx.view.seq()
-                << " has index to object that is missing: "
-                << to_string(dirEntry);
-            return tefBAD_LEDGER;
+            // Make sure any directory node types that we find are the kind
+            // we can delete.
+            Keylet const itemKeylet{ltCHILD, dirEntry};
+            auto sleItem = ctx.view.read(itemKeylet);
+            if (!sleItem)
+            {
+                // Directory node has an invalid index.  Bail out.
+                JLOG(ctx.j.fatal())
+                    << "DeleteAccount: directory node in ledger "
+                    << ctx.view.seq()
+                    << " has index to object that is missing: "
+                    << to_string(dirEntry);
+                return tefBAD_LEDGER;
+            }
+
+            LedgerEntryType const nodeType{
+                safe_cast<LedgerEntryType>((*sleItem)[sfLedgerEntryType])};
+
+            if (!nonObligationDeleter(nodeType))
+                return tecHAS_OBLIGATIONS;
+
+            // We found a deletable directory entry.  Count it.  If we find
+            // too many deletable directory entries then bail out.
+            if (++deletableDirEntryCount > maxDeletableDirEntries)
+                return tefTOO_BIG;
         }
-
-        LedgerEntryType const nodeType{
-            safe_cast<LedgerEntryType>((*sleItem)[sfLedgerEntryType])};
-
-        if (!nonObligationDeleter(nodeType))
-            return tecHAS_OBLIGATIONS;
-
-        // We found a deletable directory entry.  Count it.  If we find too
-        // many deletable directory entries then bail out.
-        if (++deletableDirEntryCount > maxDeletableDirEntries)
-            return tefTOO_BIG;
-
-    } while (cdirNext(
-        ctx.view, ownerDirKeylet.key, sleDirNode, uDirEntry, dirEntry, ctx.j));
-
+    }
     return tesSUCCESS;
 }
 
@@ -257,19 +243,21 @@ DeleteAccount::doApply()
         return tefBAD_LEDGER;
 
     // Delete all of the entries in the account directory.
-    Keylet const ownerDirKeylet{keylet::ownerDir(account_)};
-    std::shared_ptr<SLE> sleDirNode{};
-    unsigned int uDirEntry{0};
-    uint256 dirEntry{beast::zero};
-
-    if (view().exists(ownerDirKeylet) &&
-        dirFirst(
-            view(), ownerDirKeylet.key, sleDirNode, uDirEntry, dirEntry, j_))
+    auto iter = OwnerDirPageIter::begin(view(), account_);
+    for (; !iter.isEnd(); ++iter)
     {
-        do
+        // Delete all Indexes held by this page.  We delete the first entry
+        // in Indexes repeatedly until Indexes is empty.  It would be slightly
+        // more efficient to work backwards through Indexes, but that would be
+        // transaction changing.  The slight improvement in efficiency is not
+        // worth an amendment.
+        STVector256 const& indexes = iter->indexes();
+        while (!indexes.empty())
         {
+            uint256 const& index = indexes[0];
+
             // Choose the right way to delete each directory node.
-            Keylet const itemKeylet{ltCHILD, dirEntry};
+            Keylet const itemKeylet{ltCHILD, index};
             auto sleItem = view().peek(itemKeylet);
             if (!sleItem)
             {
@@ -277,7 +265,7 @@ DeleteAccount::doApply()
                 JLOG(j_.fatal())
                     << "DeleteAccount: Directory node in ledger "
                     << view().seq() << " has index to object that is missing: "
-                    << to_string(dirEntry);
+                    << to_string(index);
                 return tefBAD_LEDGER;
             }
 
@@ -287,7 +275,7 @@ DeleteAccount::doApply()
             if (auto deleter = nonObligationDeleter(nodeType))
             {
                 TER const result{
-                    deleter(ctx_.app, view(), account_, dirEntry, sleItem, j_)};
+                    deleter(ctx_.app, view(), account_, index, sleItem, j_)};
 
                 if (!isTesSuccess(result))
                     return result;
@@ -299,34 +287,7 @@ DeleteAccount::doApply()
                     << "DeleteAccount undeletable item not found in preclaim.";
                 return tecHAS_OBLIGATIONS;
             }
-
-            // dirFirst() and dirNext() are like iterators with exposed
-            // internal state.  We'll take advantage of that exposed state
-            // to solve a common C++ problem: iterator invalidation while
-            // deleting elements from a container.
-            //
-            // We have just deleted one directory entry, which means our
-            // "iterator state" is invalid.
-            //
-            //  1. During the process of getting an entry from the
-            //     directory uDirEntry was incremented from 0 to 1.
-            //
-            //  2. We then deleted the entry at index 0, which means the
-            //     entry that was at 1 has now moved to 0.
-            //
-            //  3. So we verify that uDirEntry is indeed 1.  Then we jam it
-            //     back to zero to "un-invalidate" the iterator.
-            assert(uDirEntry == 1);
-            if (uDirEntry != 1)
-            {
-                JLOG(j_.error())
-                    << "DeleteAccount iterator re-validation failed.";
-                return tefBAD_LEDGER;
-            }
-            uDirEntry = 0;
-
-        } while (dirNext(
-            view(), ownerDirKeylet.key, sleDirNode, uDirEntry, dirEntry, j_));
+        }
     }
 
     // Transfer any XRP remaining after the fee is paid to the destination:
@@ -338,7 +299,8 @@ DeleteAccount::doApply()
 
     // If there's still an owner directory associated with the source account
     // delete it.
-    if (view().exists(ownerDirKeylet) && !view().emptyDirDelete(ownerDirKeylet))
+    if (view().exists(iter.ownerRootKeylet()) &&
+        !view().emptyDirDelete(iter.ownerRootKeylet()))
     {
         JLOG(j_.error()) << "DeleteAccount cannot delete root dir node of "
                          << toBase58(account_);
