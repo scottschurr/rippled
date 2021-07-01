@@ -80,6 +80,7 @@ target_sources (xrpl_core PRIVATE
   src/ripple/protocol/impl/Issue.cpp
   src/ripple/protocol/impl/Keylet.cpp
   src/ripple/protocol/impl/LedgerFormats.cpp
+  src/ripple/protocol/impl/OwnerDirPage.cpp
   src/ripple/protocol/impl/PublicKey.cpp
   src/ripple/protocol/impl/Quality.cpp
   src/ripple/protocol/impl/Rate2.cpp

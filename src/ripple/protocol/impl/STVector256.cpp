@@ -28,7 +28,7 @@ STVector256::STVector256(SerialIter& sit, SField const& name) : STBase(name)
 {
     Blob data = sit.getVL();
     auto const count = data.size() / (256 / 8);
-    mValue.reserve(count);
+    value_.reserve(count);
     Blob::iterator begin = data.begin();
     unsigned int uStart = 0;
     for (unsigned int i = 0; i != count; i++)
@@ -36,7 +36,7 @@ STVector256::STVector256(SerialIter& sit, SField const& name) : STBase(name)
         unsigned int uEnd = uStart + (256 / 8);
         // This next line could be optimized to construct a default
         // uint256 in the vector and then copy into it
-        mValue.push_back(uint256(Blob(begin + uStart, begin + uEnd)));
+        value_.emplace_back(Blob(begin + uStart, begin + uEnd));
         uStart = uEnd;
     }
 }
@@ -46,21 +46,21 @@ STVector256::add(Serializer& s) const
 {
     assert(fName->isBinary());
     assert(fName->fieldType == STI_VECTOR256);
-    s.addVL(mValue.begin(), mValue.end(), mValue.size() * (256 / 8));
+    s.addVL(value_.begin(), value_.end(), value_.size() * (256 / 8));
 }
 
 bool
 STVector256::isEquivalent(const STBase& t) const
 {
     const STVector256* v = dynamic_cast<const STVector256*>(&t);
-    return v && (mValue == v->mValue);
+    return v && (value_ == v->value_);
 }
 
 Json::Value STVector256::getJson(JsonOptions) const
 {
     Json::Value ret(Json::arrayValue);
 
-    for (auto const& vEntry : mValue)
+    for (auto const& vEntry : value_)
         ret.append(to_string(vEntry));
 
     return ret;
