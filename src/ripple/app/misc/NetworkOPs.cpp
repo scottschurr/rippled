@@ -2009,13 +2009,13 @@ NetworkOPsImp::pubValidation(std::shared_ptr<STValidation> const& val)
         jvObj[jss::signing_time] = *(*val)[~sfSigningTime];
         jvObj[jss::data] = strHex(val->getSerializer().slice());
 
-        if (auto version = (*val)[~sfServerVersion]; version)
+        if (auto version = (*val)[~sfServerVersion])
             jvObj[jss::server_version] = std::to_string(*version);
 
-        if (auto cookie = (*val)[~sfCookie]; cookie)
+        if (auto cookie = (*val)[~sfCookie])
             jvObj[jss::cookie] = std::to_string(*cookie);
 
-        if (auto hash = (*val)[~sfValidatedHash]; hash)
+        if (auto hash = (*val)[~sfValidatedHash])
             jvObj[jss::validated_hash] = strHex(*hash);
 
         auto const masterKey =
