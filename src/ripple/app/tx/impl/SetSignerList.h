@@ -21,13 +21,13 @@
 #define RIPPLE_TX_SETSIGNERLIST_H_INCLUDED
 
 #include <ripple/app/ledger/Ledger.h>
-#include <ripple/app/tx/impl/SignerEntries.h>
 #include <ripple/app/tx/impl/Transactor.h>
 #include <ripple/basics/Log.h>
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/STArray.h>
 #include <ripple/protocol/STObject.h>
 #include <ripple/protocol/STTx.h>
+#include <ripple/protocol/SignerList.h>
 #include <algorithm>
 #include <cstdint>
 #include <vector>
@@ -45,7 +45,7 @@ private:
     enum Operation { unknown, set, destroy };
     Operation do_{unknown};
     std::uint32_t quorum_{0};
-    std::vector<SignerEntries::SignerEntry> signers_;
+    std::vector<SignerList::SignerEntry> signers_;
 
 public:
     static constexpr ConsequencesFactoryType ConsequencesFactory{Blocker};
@@ -74,14 +74,14 @@ private:
     static std::tuple<
         NotTEC,
         std::uint32_t,
-        std::vector<SignerEntries::SignerEntry>,
+        std::vector<SignerList::SignerEntry>,
         Operation>
     determineOperation(STTx const& tx, ApplyFlags flags, beast::Journal j);
 
     static NotTEC
     validateQuorumAndSignerEntries(
         std::uint32_t quorum,
-        std::vector<SignerEntries::SignerEntry> const& signers,
+        std::vector<SignerList::SignerEntry> const& signers,
         AccountID const& account,
         beast::Journal j);
 

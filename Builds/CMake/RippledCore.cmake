@@ -104,6 +104,7 @@ target_sources (xrpl_core PRIVATE
   src/ripple/protocol/impl/Seed.cpp
   src/ripple/protocol/impl/Serializer.cpp
   src/ripple/protocol/impl/Sign.cpp
+  src/ripple/protocol/impl/SignerList.cpp
   src/ripple/protocol/impl/TER.cpp
   src/ripple/protocol/impl/TxFormats.cpp
   src/ripple/protocol/impl/UintTypes.cpp
@@ -426,7 +427,6 @@ target_sources (rippled PRIVATE
   src/ripple/app/tx/impl/SetRegularKey.cpp
   src/ripple/app/tx/impl/SetSignerList.cpp
   src/ripple/app/tx/impl/SetTrust.cpp
-  src/ripple/app/tx/impl/SignerEntries.cpp
   src/ripple/app/tx/impl/Taker.cpp
   src/ripple/app/tx/impl/Transactor.cpp
   src/ripple/app/tx/impl/apply.cpp

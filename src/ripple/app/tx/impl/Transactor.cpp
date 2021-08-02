@@ -20,7 +20,6 @@
 #include <ripple/app/main/Application.h>
 #include <ripple/app/misc/LoadFeeTrack.h>
 #include <ripple/app/tx/apply.h>
-#include <ripple/app/tx/impl/SignerEntries.h>
 #include <ripple/app/tx/impl/Transactor.h>
 #include <ripple/basics/Log.h>
 #include <ripple/basics/contract.h>
@@ -32,6 +31,7 @@
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/Protocol.h>
 #include <ripple/protocol/STAccount.h>
+#include <ripple/protocol/SignerList.h>
 #include <ripple/protocol/UintTypes.h>
 
 namespace ripple {
@@ -537,25 +537,17 @@ Transactor::checkMultiSign(PreclaimContext const& ctx)
 {
     auto const id = ctx.tx.getAccountID(sfAccount);
     // Get mTxnAccountID's SignerList and Quorum.
-    std::shared_ptr<STLedgerEntry const> sleAccountSigners =
-        ctx.view.read(keylet::signers(id));
+    auto const signerList =
+        makeSignerListRd(ctx.view.read(keylet::signers(id)));
     // If the signer list doesn't exist the account is not multi-signing.
-    if (!sleAccountSigners)
+    if (!signerList.has_value())
     {
         JLOG(ctx.j.trace())
             << "applyTransaction: Invalid: Not a multi-signing account.";
         return tefNOT_MULTI_SIGNING;
     }
 
-    // We have plans to support multiple SignerLists in the future.  The
-    // presence and defaulted value of the SignerListID field will enable that.
-    assert(sleAccountSigners->isFieldPresent(sfSignerListID));
-    assert(sleAccountSigners->getFieldU32(sfSignerListID) == 0);
-
-    auto accountSigners =
-        SignerEntries::deserialize(*sleAccountSigners, ctx.j, "ledger");
-    if (accountSigners.second != tesSUCCESS)
-        return accountSigners.second;
+    auto accountSigners = signerList->signerEntries();
 
     // Get the array of transaction signers.
     STArray const& txSigners(ctx.tx.getFieldArray(sfSigners));
@@ -567,7 +559,7 @@ Transactor::checkMultiSign(PreclaimContext const& ctx)
     // matching multi-signers to account signers should be a simple
     // linear walk.  *All* signers must be valid or the transaction fails.
     std::uint32_t weightSum = 0;
-    auto iter = accountSigners.first.begin();
+    auto iter = accountSigners.begin();
     for (auto const& txSigner : txSigners)
     {
         AccountID const txSignerAcctID = txSigner.getAccountID(sfAccount);
@@ -575,7 +567,7 @@ Transactor::checkMultiSign(PreclaimContext const& ctx)
         // Attempt to match the SignerEntry with a Signer;
         while (iter->account < txSignerAcctID)
         {
-            if (++iter == accountSigners.first.end())
+            if (++iter == accountSigners.end())
             {
                 JLOG(ctx.j.trace())
                     << "applyTransaction: Invalid SigningAccount.Account.";
@@ -677,7 +669,7 @@ Transactor::checkMultiSign(PreclaimContext const& ctx)
     }
 
     // Cannot perform transaction if quorum is not met.
-    if (weightSum < sleAccountSigners->getFieldU32(sfSignerQuorum))
+    if (weightSum < signerList->signerQuorum())
     {
         JLOG(ctx.j.trace())
             << "applyTransaction: Signers failed to meet quorum.";

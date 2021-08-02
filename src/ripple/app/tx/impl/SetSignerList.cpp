@@ -40,7 +40,7 @@ static std::uint32_t const defaultSignerListID_ = 0;
 std::tuple<
     NotTEC,
     std::uint32_t,
-    std::vector<SignerEntries::SignerEntry>,
+    std::vector<SignerList::SignerEntry>,
     SetSignerList::Operation>
 SetSignerList::determineOperation(
     STTx const& tx,
@@ -50,21 +50,21 @@ SetSignerList::determineOperation(
     // Check the quorum.  A non-zero quorum means we're creating or replacing
     // the list.  A zero quorum means we're destroying the list.
     auto const quorum = tx[sfSignerQuorum];
-    std::vector<SignerEntries::SignerEntry> sign;
+    std::vector<SignerList::SignerEntry> sign;
     Operation op = unknown;
 
     bool const hasSignerEntries(tx.isFieldPresent(sfSignerEntries));
     if (quorum && hasSignerEntries)
     {
-        auto signers = SignerEntries::deserialize(tx, j, "transaction");
+        auto signers = SignerList::deserializeSignerEntries(tx);
 
-        if (signers.second != tesSUCCESS)
-            return std::make_tuple(signers.second, quorum, sign, op);
+        if (!signers.has_value())
+            return std::make_tuple(signers.error(), quorum, sign, op);
 
-        std::sort(signers.first.begin(), signers.first.end());
+        std::sort(signers->begin(), signers->end());
 
         // Save deserialized list for later.
-        sign = std::move(signers.first);
+        sign = std::move(*signers);
         op = set;
     }
     else if ((quorum == 0) && !hasSignerEntries)
@@ -182,27 +182,24 @@ removeSignersFromLedger(
 {
     // We have to examine the current SignerList so we know how much to
     // reduce the OwnerCount.
-    SLE::pointer signers = view.peek(signerListKeylet);
-
-    // If the signer list doesn't exist we've already succeeded in deleting it.
-    if (!signers)
+    auto signerList = makeSignerList(view.peek(signerListKeylet));
+    if (!signerList.has_value())
+        // If the SignerList doesn't exist we already succeeded in deleting it.
         return tesSUCCESS;
 
     // There are two different ways that the OwnerCount could be managed.
     // If the lsfOneOwnerCount bit is set then remove just one owner count.
     // Otherwise use the pre-MultiSignReserve amendment calculation.
-    int removeFromOwnerCount = -1;
-    if ((signers->getFlags() & lsfOneOwnerCount) == 0)
-    {
-        STArray const& actualList = signers->getFieldArray(sfSignerEntries);
-        removeFromOwnerCount =
-            signerCountBasedOwnerCountDelta(actualList.size()) * -1;
-    }
+    int const removeFromOwnerCount = signerList->isFlag(lsfOneOwnerCount)
+        ? -1
+        : signerCountBasedOwnerCountDelta(signerList->signerEntriesSize()) * -1;
 
     // Remove the node from the account directory.
-    auto const hint = (*signers)[sfOwnerNode];
-
-    if (!view.dirRemove(ownerDirKeylet, hint, signerListKeylet.key, false))
+    if (!view.dirRemove(
+            ownerDirKeylet,
+            signerList->ownerNode(),
+            signerListKeylet.key,
+            false))
     {
         JLOG(j.fatal()) << "Unable to delete SignerList from owner.";
         return tefBAD_LEDGER;
@@ -214,7 +211,7 @@ removeSignersFromLedger(
         removeFromOwnerCount,
         app.journal("View"));
 
-    view.erase(signers);
+    view.erase(signerList->slePtr());
 
     return tesSUCCESS;
 }
@@ -237,7 +234,7 @@ SetSignerList::removeFromLedger(
 NotTEC
 SetSignerList::validateQuorumAndSignerEntries(
     std::uint32_t quorum,
-    std::vector<SignerEntries::SignerEntry> const& signers,
+    std::vector<SignerList::SignerEntry> const& signers,
     AccountID const& account,
     beast::Journal j)
 {
