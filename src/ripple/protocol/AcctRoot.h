@@ -21,6 +21,7 @@
 #define RIPPLE_PROTOCOL_ACCT_ROOT_H_INCLUDED
 
 #include <ripple/basics/Result.h>
+#include <ripple/protocol/LedgerObjectWrapper.h>
 #include <ripple/protocol/STAccount.h>
 #include <ripple/protocol/STLedgerEntry.h>
 #include <ripple/protocol/TER.h>
@@ -29,203 +30,309 @@
 
 namespace ripple {
 
-class AcctRoot
+template <bool Const>
+class AcctRootImpl final : public LedgerObjectWrapper<Const>
 {
-    std::shared_ptr<SLE> wrapped_;
+private:
+    using SleT = typename LedgerObjectWrapper<Const>::SleT;
+    using LedgerObjectWrapper<Const>::wrapped_;
 
-    [[nodiscard]] Blob
-    getOptionalVL(SF_VL const& field) const;
-
-    template <typename SF, typename T>
-    void
-    setOptional(SF const& field, T const& value)
+    // This constructor is private so only the factory functions can
+    // construct an AcctRootImpl.
+    AcctRootImpl(std::shared_ptr<SleT>&& w)
+        : LedgerObjectWrapper<Const>(std::move(w))
     {
-        static_assert(
-            std::is_base_of_v<SField, SF>,
-            "setOptional()requires an SField as its first argument.");
-
-        if (!wrapped_->isFieldPresent(field))
-            wrapped_->makeFieldPresent(field);
-        wrapped_->at(field) = value;
     }
-
-    template <typename SF>
-    void
-    clearOptional(SF const& field)
-    {
-        static_assert(
-            std::is_base_of_v<SField, SF>,
-            "setOptional()requires an SField as its argument.");
-
-        if (wrapped_->isFieldPresent(field))
-            wrapped_->makeFieldAbsent(field);
-    }
-
-    void
-    setOrClearVLIfEmpty(SF_VL const& field, Blob const& value);
-
-    // These constructors are private so only the factory functions can
-    // construct an AcctRoot.
-    AcctRoot(std::shared_ptr<SLE>&& w);
-    AcctRoot(std::shared_ptr<SLE const>&& w);
 
     // Friend declarations of factory functions.
-    friend Result<AcctRoot const, NotTEC>
-    makeAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr);
+    friend Result<AcctRootImpl<true>, NotTEC>
+    asAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr);
 
-    friend Result<AcctRoot, NotTEC>
-    makeAcctRoot(std::shared_ptr<STLedgerEntry> slePtr);
+    friend Result<AcctRootImpl<false>, NotTEC>
+    asAcctRoot(std::shared_ptr<STLedgerEntry> slePtr);
 
 public:
-    AcctRoot(AcctRoot&&) = default;
+    AcctRootImpl(AcctRootImpl const&) = default;
+    AcctRootImpl(AcctRootImpl&&) = default;
 
-    [[nodiscard]] std::shared_ptr<SLE const>
-    slePtr() const;
-
-    [[nodiscard]] std::shared_ptr<SLE>
-    slePtr();
+    // Conversion operator from AcctRootImpl<false> to AcctRootImpl<true>.
+    operator AcctRootImpl<true>() const
+    {
+        return AcctRootImpl<true>(
+            std::const_pointer_cast<std::shared_ptr<STLedgerEntry const>>(
+                wrapped_));
+    }
 
     [[nodiscard]] AccountID
-    accountID() const;
+    accountID() const
+    {
+        return wrapped_->at(sfAccount);
+    }
 
     [[nodiscard]] std::uint32_t
-    flags() const;
-
-    [[nodiscard]] bool
-    isFlag(std::uint32_t flagsToCheck) const;
-
-    void
-    replaceAllFlags(std::uint32_t newFlags);
+    sequence() const
+    {
+        return wrapped_->at(sfSequence);
+    }
 
     void
-    setFlag(std::uint32_t flagsToSet);
-
-    void
-    clearFlag(std::uint32_t flagsToClear);
-
-    [[nodiscard]] std::uint32_t
-    sequence() const;
-
-    void
-    setSequence(std::uint32_t seq);
+    setSequence(std::uint32_t seq)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        wrapped_->at(sfSequence) = seq;
+    }
 
     [[nodiscard]] STAmount
-    balance() const;
+    balance() const
+    {
+        return wrapped_->at(sfBalance);
+    }
 
     void
-    setBalance(STAmount const& amount);
+    setBalance(STAmount const& amount)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        wrapped_->at(sfBalance) = amount;
+    }
 
     [[nodiscard]] std::uint32_t
-    ownerCount() const;
+    ownerCount() const
+    {
+        return wrapped_->at(sfOwnerCount);
+    }
 
     void
-    setOwnerCount(std::uint32_t newCount);
+    setOwnerCount(std::uint32_t newCount)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        wrapped_->at(sfOwnerCount) = newCount;
+    }
 
     [[nodiscard]] std::uint32_t
-    previousTxnID() const;
+    previousTxnID() const
+    {
+        return wrapped_->at(sfOwnerCount);
+    }
 
     void
-    setPreviousTxnID(uint256 prevTxID);
+    setPreviousTxnID(uint256 prevTxID)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        wrapped_->at(sfPreviousTxnID) = prevTxID;
+    }
 
     [[nodiscard]] std::uint32_t
-    previousTxnLgrSeq() const;
+    previousTxnLgrSeq() const
+    {
+        return wrapped_->at(sfPreviousTxnLgrSeq);
+    }
 
     void
-    setPreviousTxnLgrSeq(std::uint32_t prevTxLgrSeq);
+    setPreviousTxnLgrSeq(std::uint32_t prevTxLgrSeq)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        wrapped_->at(sfPreviousTxnLgrSeq) = prevTxLgrSeq;
+    }
 
     [[nodiscard]] std::optional<uint256>
-    accountTxnID() const;
+    accountTxnID() const
+    {
+        return wrapped_->at(~sfAccountTxnID);
+    }
 
     void
-    setAccountTxnID(uint256 const& newAcctTxnID);
+    setAccountTxnID(uint256 const& newAcctTxnID)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->setOptional(sfAccountTxnID, newAcctTxnID);
+    }
 
     void
-    clearAccountTxnID();
+    clearAccountTxnID()
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->clearOptional(sfAccountTxnID);
+    }
 
     [[nodiscard]] std::optional<AccountID>
-    regularKey() const;
+    regularKey() const
+    {
+        return wrapped_->at(~sfRegularKey);
+    }
 
     void
-    setRegularKey(AccountID const& newRegKey);
+    setRegularKey(AccountID const& newRegKey)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->setOptional(sfRegularKey, newRegKey);
+    }
 
     void
-    clearRegularKey();
+    clearRegularKey()
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->clearOptional(sfRegularKey);
+    }
 
     [[nodiscard]] std::optional<uint128>
-    emailHash() const;
+    emailHash() const
+    {
+        return wrapped_->at(~sfEmailHash);
+    }
 
     void
-    setEmailHash(uint128 const& newEmailHash);
+    setEmailHash(uint128 const& newEmailHash)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->setOptional(sfEmailHash, newEmailHash);
+    }
 
     void
-    clearEmailHash();
+    clearEmailHash()
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->clearOptional(sfEmailHash);
+    }
 
     [[nodiscard]] std::optional<uint256>
-    walletLocator() const;
+    walletLocator() const
+    {
+        return wrapped_->at(~sfWalletLocator);
+    }
 
     void
-    setWalletLocator(uint256 const& newWalletLocator);
+    setWalletLocator(uint256 const& newWalletLocator)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->setOptional(sfWalletLocator, newWalletLocator);
+    }
 
     void
-    clearWalletLocator();
+    clearWalletLocator()
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->clearOptional(sfWalletLocator);
+    }
 
     [[nodiscard]] std::optional<std::uint32_t>
-    walletSize();
+    walletSize() const
+    {
+        return wrapped_->at(~sfWalletSize);
+    }
 
     [[nodiscard]] Blob
-    messageKey() const;
+    messageKey() const
+    {
+        return this->getOptionalVL(sfMessageKey);
+    }
 
     void
-    setMessageKey(Blob const& newMessageKey);
+    setMessageKey(Blob const& newMessageKey)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->setOrClearVLIfEmpty(sfMessageKey, newMessageKey);
+    }
 
     [[nodiscard]] std::optional<std::uint32_t>
-    transferRate() const;
+    transferRate() const
+    {
+        return wrapped_->at(~sfTransferRate);
+    }
 
     void
-    setTransferRate(std::uint32_t newTransferRate);
+    setTransferRate(std::uint32_t newTransferRate)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->setOptional(sfTransferRate, newTransferRate);
+    }
 
     void
-    clearTransferRate();
+    clearTransferRate()
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->clearOptional(sfTransferRate);
+    }
 
     [[nodiscard]] Blob
-    domain() const;
+    domain() const
+    {
+        return this->getOptionalVL(sfDomain);
+    }
 
     void
-    setDomain(Blob const& newDomain);
+    setDomain(Blob const& newDomain)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->setOrClearVLIfEmpty(sfDomain, newDomain);
+    }
 
     [[nodiscard]] std::optional<std::uint8_t>
-    tickSize() const;
+    tickSize() const
+    {
+        return wrapped_->at(sfTickSize);
+    }
 
     void
-    setTickSize(std::uint8_t newTickSize);
+    setTickSize(std::uint8_t newTickSize)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->setOptional(sfTickSize, newTickSize);
+    }
 
     void
-    clearTickSize();
+    clearTickSize()
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->clearOptional(sfTickSize);
+    }
 
     [[nodiscard]] std::optional<std::uint32_t>
-    ticketCount() const;
+    ticketCount() const
+    {
+        return wrapped_->at(~sfTicketCount);
+    }
 
     void
-    setTicketCount(std::uint32_t newTicketCount);
+    setTicketCount(std::uint32_t newTicketCount)
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->setOptional(sfTicketCount, newTicketCount);
+    }
 
     void
-    clearTicketCount();
+    clearTicketCount()
+    {
+        static_assert(not Const, "Cannot set member of const ledger object.");
+        this->clearOptional(sfTicketCount);
+    }
 };
 
-#ifndef __INTELLISENSE__
-static_assert(!std::is_default_constructible_v<AcctRoot>);
-static_assert(!std::is_copy_constructible_v<AcctRoot>);
-static_assert(std::is_move_constructible_v<AcctRoot>);
-static_assert(!std::is_copy_assignable_v<AcctRoot>);
-static_assert(!std::is_move_assignable_v<AcctRoot>);
-static_assert(std::is_nothrow_destructible_v<AcctRoot>);
-#endif  // __INTELLISENSE__
+using AcctRoot = AcctRootImpl<false>;
+using AcctRootRd = AcctRootImpl<true>;
 
-[[nodiscard]] Result<AcctRoot const, NotTEC>
-makeAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr);
+// clang-format off
+#ifndef __INTELLISENSE__
+static_assert(not std::is_default_constructible_v<AcctRoot>);
+static_assert(    std::is_copy_constructible_v<AcctRoot>);
+static_assert(    std::is_move_constructible_v<AcctRoot>);
+static_assert(not std::is_copy_assignable_v<AcctRoot>);
+static_assert(not std::is_move_assignable_v<AcctRoot>);
+static_assert(    std::is_nothrow_destructible_v<AcctRoot>);
+
+static_assert(not std::is_default_constructible_v<AcctRootRd>);
+static_assert(    std::is_copy_constructible_v<AcctRootRd>);
+static_assert(    std::is_move_constructible_v<AcctRootRd>);
+static_assert(not std::is_copy_assignable_v<AcctRootRd>);
+static_assert(not std::is_move_assignable_v<AcctRootRd>);
+static_assert(    std::is_nothrow_destructible_v<AcctRootRd>);
+#endif  // __INTELLISENSE__
+// clang-format on
+
+[[nodiscard]] Result<AcctRootRd, NotTEC>
+asAcctRootRd(std::shared_ptr<STLedgerEntry const> slePtr);
 
 [[nodiscard]] Result<AcctRoot, NotTEC>
-makeAcctRoot(std::shared_ptr<STLedgerEntry> slePtr);
+asAcctRoot(std::shared_ptr<STLedgerEntry> slePtr);
 
 }  // namespace ripple
 

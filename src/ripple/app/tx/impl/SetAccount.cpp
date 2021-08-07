@@ -184,7 +184,7 @@ SetAccount::preclaim(PreclaimContext const& ctx)
 
     std::uint32_t const uTxFlags = ctx.tx.getFlags();
 
-    auto const acctRoot = makeAcctRootRd(ctx.view.read(keylet::account(id)));
+    auto const acctRoot = asAcctRootRd(ctx.view.read(keylet::account(id)));
     if (!acctRoot.has_value())
         return acctRoot.error();
 
@@ -214,7 +214,7 @@ SetAccount::preclaim(PreclaimContext const& ctx)
 TER
 SetAccount::doApply()
 {
-    auto acctRoot = makeAcctRoot(view().peek(keylet::account(account_)));
+    auto acctRoot = asAcctRoot(view().peek(keylet::account(account_)));
     if (!acctRoot.has_value())
         return acctRoot.error();
 

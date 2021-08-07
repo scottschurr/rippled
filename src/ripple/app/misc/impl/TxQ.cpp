@@ -372,7 +372,7 @@ TxQ::canBeHeld(
     STTx const& tx,
     ApplyFlags const flags,
     OpenView const& view,
-    AcctRoot const& acctRoot,
+    AcctRootRd const& acctRoot,
     AccountMap::iterator const& accountIter,
     std::optional<TxQAccount::TxMap::iterator> const& replacementIter,
     std::lock_guard<std::mutex> const& lock)
@@ -755,7 +755,7 @@ TxQ::apply(
     // If the account is not currently in the ledger, don't queue its tx.
     auto const accountID = (*tx)[sfAccount];
     Keylet const accountKey{keylet::account(accountID)};
-    auto const acctRoot = makeAcctRootRd(view.read(accountKey));
+    auto const acctRoot = asAcctRootRd(view.read(accountKey));
     if (!acctRoot.has_value())
         return {acctRoot.error(), false};
 
@@ -1114,7 +1114,7 @@ TxQ::apply(
             // Create the test view from the current view.
             multiTxn.emplace(view, flags);
 
-            auto acctBump = makeAcctRoot(multiTxn->applyView.peek(accountKey));
+            auto acctBump = asAcctRoot(multiTxn->applyView.peek(accountKey));
             if (!acctBump.has_value())
                 return {tefINTERNAL, false};
 
@@ -1551,7 +1551,7 @@ TxQ::accept(Application& app, OpenView& view)
 SeqProxy
 TxQ::nextQueuableSeq(std::shared_ptr<SLE const> const& sleAccount) const
 {
-    auto const acctRoot = makeAcctRootRd(sleAccount);
+    auto const acctRoot = asAcctRootRd(sleAccount);
     if (!acctRoot.has_value())
         // If the account is not in the ledger or a non-account was passed
         // then return zero.  We have no idea.
@@ -1568,7 +1568,7 @@ TxQ::nextQueuableSeq(std::shared_ptr<SLE const> const& sleAccount) const
 // be found and returned.
 SeqProxy
 TxQ::nextQueuableSeqImpl(
-    AcctRoot const& acctRoot,
+    AcctRootRd const& acctRoot,
     std::lock_guard<std::mutex> const&) const
 {
     SeqProxy const acctSeqProx = SeqProxy::sequence(acctRoot.sequence());
@@ -1633,7 +1633,7 @@ TxQ::tryDirectApply(
     beast::Journal j)
 {
     auto const accountID = (*tx)[sfAccount];
-    auto const acctRoot = makeAcctRootRd(view.read(keylet::account(accountID)));
+    auto const acctRoot = asAcctRootRd(view.read(keylet::account(accountID)));
     if (!acctRoot.has_value())
         return {};
 
@@ -1749,7 +1749,7 @@ TxQ::getTxRequiredFeeAndSeq(
     auto const fee = FeeMetrics::scaleFeeLevel(snapshot, view);
     auto const [overflow, txReqFee] = mulDiv(fee, baseFee, baseLevel);
 
-    auto const acctRoot = makeAcctRootRd(view.read(keylet::account(account)));
+    auto const acctRoot = asAcctRootRd(view.read(keylet::account(account)));
     if (!acctRoot.has_value())
         return {txReqFee, 0, 0};
 

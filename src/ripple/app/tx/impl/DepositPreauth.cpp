@@ -110,7 +110,7 @@ DepositPreauth::doApply()
 {
     if (ctx_.tx.isFieldPresent(sfAuthorize))
     {
-        auto acctRoot = makeAcctRoot(view().peek(keylet::account(account_)));
+        auto acctRoot = asAcctRoot(view().peek(keylet::account(account_)));
         if (!acctRoot.has_value())
             return acctRoot.error();
 

@@ -190,7 +190,7 @@ Transactor::checkFee(PreclaimContext const& ctx, FeeUnit64 baseFee)
         return tesSUCCESS;
 
     auto const id = ctx.tx.getAccountID(sfAccount);
-    auto const acctRoot = makeAcctRootRd(ctx.view.read(keylet::account(id)));
+    auto const acctRoot = asAcctRootRd(ctx.view.read(keylet::account(id)));
     if (!acctRoot.has_value())
         return terNO_ACCOUNT;
 
@@ -219,7 +219,7 @@ Transactor::payFee()
 {
     auto const feePaid = ctx_.tx[sfFee].xrp();
 
-    auto acctRoot = makeAcctRoot(view().peek(keylet::account(account_)));
+    auto acctRoot = asAcctRoot(view().peek(keylet::account(account_)));
     if (!acctRoot.has_value())
         return tefINTERNAL;
 
@@ -242,7 +242,7 @@ Transactor::checkSeqProxy(
 {
     auto const id = tx.getAccountID(sfAccount);
 
-    auto const acctRoot = makeAcctRootRd(view.read(keylet::account(id)));
+    auto const acctRoot = asAcctRootRd(view.read(keylet::account(id)));
 
     if (!acctRoot.has_value())
     {
@@ -311,7 +311,7 @@ Transactor::checkPriorTxAndLastLedger(PreclaimContext const& ctx)
 {
     auto const id = ctx.tx.getAccountID(sfAccount);
 
-    auto const acctRoot = makeAcctRootRd(ctx.view.read(keylet::account(id)));
+    auto const acctRoot = asAcctRootRd(ctx.view.read(keylet::account(id)));
     if (!acctRoot.has_value())
     {
         JLOG(ctx.j.trace())
@@ -376,7 +376,7 @@ Transactor::ticketDelete(
 
     // Update the account root's TicketCount.  If the ticket count drops to
     // zero remove the (optional) field.
-    auto acctRoot = makeAcctRoot(view.peek(keylet::account(account)));
+    auto acctRoot = asAcctRoot(view.peek(keylet::account(account)));
     if (!acctRoot.has_value())
     {
         JLOG(j.fatal()) << "Could not find Ticket owner account root.";
@@ -418,7 +418,7 @@ Transactor::apply()
 
     // If the transactor requires a valid account and the transaction doesn't
     // list one, preflight will have already a flagged a failure.
-    auto acctRoot = makeAcctRoot(view().peek(keylet::account(account_)));
+    auto acctRoot = asAcctRoot(view().peek(keylet::account(account_)));
 
     // acctRoot must exist except for transactions
     // that allow zero account.
@@ -472,7 +472,7 @@ Transactor::checkSingleSign(PreclaimContext const& ctx)
     auto const idSigner = calcAccountID(PublicKey(makeSlice(pkSigner)));
     auto const idAccount = ctx.tx.getAccountID(sfAccount);
     auto const acctRoot =
-        makeAcctRootRd(ctx.view.read(keylet::account(idAccount)));
+        asAcctRootRd(ctx.view.read(keylet::account(idAccount)));
     if (!acctRoot.has_value())
         return terNO_ACCOUNT;
 
@@ -631,7 +631,7 @@ Transactor::checkMultiSign(PreclaimContext const& ctx)
         // In any of these cases we need to know whether the account is in
         // the ledger.  Determine that now.
         auto const txSignerRoot =
-            makeAcctRootRd(ctx.view.read(keylet::account(txSignerAcctID)));
+            asAcctRootRd(ctx.view.read(keylet::account(txSignerAcctID)));
 
         if (signingAcctIDFromPubKey == txSignerAcctID)
         {
@@ -716,7 +716,7 @@ Transactor::reset(XRPAmount fee)
 {
     ctx_.discard();
 
-    auto txnAcctRoot = makeAcctRoot(
+    auto txnAcctRoot = asAcctRoot(
         view().peek(keylet::account(ctx_.tx.getAccountID(sfAccount))));
     if (!txnAcctRoot.has_value())
         // The account should never be missing from the ledger.  But if it

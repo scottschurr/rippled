@@ -158,7 +158,7 @@ public:
 
             AccountID const acctID = txn.getAccount();
             auto const acctRoot =
-                makeAcctRootRd(view.read(keylet::account(acctID)));
+                asAcctRootRd(view.read(keylet::account(acctID)));
             if (!acctRoot.has_value())
                 return false;
 

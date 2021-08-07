@@ -157,7 +157,7 @@ DeleteAccount::preclaim(PreclaimContext const& ctx)
     AccountID const account{ctx.tx[sfAccount]};
     AccountID const dst{ctx.tx[sfDestination]};
 
-    auto const dstRoot = makeAcctRootRd(ctx.view.read(keylet::account(dst)));
+    auto const dstRoot = asAcctRootRd(ctx.view.read(keylet::account(dst)));
     if (!dstRoot.has_value())
         return tecNO_DST;
 
@@ -172,8 +172,7 @@ DeleteAccount::preclaim(PreclaimContext const& ctx)
             return tecNO_PERMISSION;
     }
 
-    auto const acctRoot =
-        makeAcctRootRd(ctx.view.read(keylet::account(account)));
+    auto const acctRoot = asAcctRootRd(ctx.view.read(keylet::account(account)));
     assert(acctRoot.has_value());
     if (!acctRoot.has_value())
         return terNO_ACCOUNT;
@@ -246,11 +245,11 @@ DeleteAccount::preclaim(PreclaimContext const& ctx)
 TER
 DeleteAccount::doApply()
 {
-    auto srcRoot = makeAcctRoot(view().peek(keylet::account(account_)));
+    auto srcRoot = asAcctRoot(view().peek(keylet::account(account_)));
     assert(srcRoot.has_value());
 
     auto dstRoot =
-        makeAcctRoot(view().peek(keylet::account(ctx_.tx[sfDestination])));
+        asAcctRoot(view().peek(keylet::account(ctx_.tx[sfDestination])));
     assert(dstRoot.has_value());
 
     if (!srcRoot.has_value() || !dstRoot.has_value())

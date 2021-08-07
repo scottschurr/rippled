@@ -35,8 +35,7 @@ SetRegularKey::calculateBaseFee(ReadView const& view, STTx const& tx)
     {
         if (calcAccountID(PublicKey(makeSlice(spk))) == id)
         {
-            auto const acctRoot =
-                makeAcctRootRd(view.read(keylet::account(id)));
+            auto const acctRoot = asAcctRootRd(view.read(keylet::account(id)));
             if (acctRoot.has_value() && !(acctRoot->isFlag(lsfPasswordSpent)))
             {
                 // flag is armed and they signed with the right account
@@ -77,7 +76,7 @@ SetRegularKey::preflight(PreflightContext const& ctx)
 TER
 SetRegularKey::doApply()
 {
-    auto acctRoot = makeAcctRoot(view().peek(keylet::account(account_)));
+    auto acctRoot = asAcctRoot(view().peek(keylet::account(account_)));
     if (!acctRoot.has_value())
         return tefINTERNAL;
 

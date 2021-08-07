@@ -23,6 +23,7 @@
 #include <ripple/app/tx/applySteps.h>
 #include <ripple/ledger/ApplyView.h>
 #include <ripple/ledger/OpenView.h>
+#include <ripple/protocol/AcctRoot.h>
 #include <ripple/protocol/STTx.h>
 #include <ripple/protocol/SeqProxy.h>
 #include <ripple/protocol/TER.h>
@@ -32,7 +33,6 @@
 
 namespace ripple {
 
-class AcctRoot;
 class Application;
 class Config;
 
@@ -363,7 +363,7 @@ private:
     // Implementation for nextQueuableSeq().  The passed lock must be held.
     SeqProxy
     nextQueuableSeqImpl(
-        AcctRoot const& acctRoot,
+        AcctRootRd const& acctRoot,
         std::lock_guard<std::mutex> const&) const;
 
     /**
@@ -777,7 +777,7 @@ private:
         STTx const&,
         ApplyFlags const,
         OpenView const&,
-        AcctRoot const& acctRoot,
+        AcctRootRd const& acctRoot,
         AccountMap::iterator const&,
         std::optional<TxQAccount::TxMap::iterator> const&,
         std::lock_guard<std::mutex> const& lock);
