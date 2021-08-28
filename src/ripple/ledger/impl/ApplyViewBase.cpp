@@ -56,7 +56,7 @@ ApplyViewBase::rules() const
 }
 
 bool
-ApplyViewBase::exists(Keylet const& k) const
+ApplyViewBase::exists(KeyletBase const& k) const
 {
     return items_.exists(*base_, k);
 }
@@ -69,7 +69,7 @@ ApplyViewBase::succ(key_type const& key, std::optional<key_type> const& last)
 }
 
 std::shared_ptr<SLE const>
-ApplyViewBase::read(Keylet const& k) const
+ApplyViewBase::read(KeyletBase const& k) const
 {
     return items_.read(*base_, k);
 }
@@ -126,7 +126,7 @@ ApplyViewBase::flags() const
 }
 
 std::shared_ptr<SLE>
-ApplyViewBase::peek(Keylet const& k)
+ApplyViewBase::peek(KeyletBase const& k)
 {
     return items_.peek(*base_, k);
 }

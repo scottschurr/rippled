@@ -126,7 +126,7 @@ doAccountChannels(RPC::JsonContext& context)
             return rpcError(rpcINVALID_PARAMS);
         }
 
-        auto const sleChannel = ledger->read({ltPAYCHAN, startAfter});
+        auto const sleChannel = ledger->read(Keylet(ltPAYCHAN, startAfter));
 
         if (!sleChannel)
             return rpcError(rpcINVALID_PARAMS);

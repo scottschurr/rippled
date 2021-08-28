@@ -104,7 +104,7 @@ doAccountOffers(RPC::JsonContext& context)
         if (!startAfter.parseHex(marker.asString()))
             return rpcError(rpcINVALID_PARAMS);
 
-        auto const sleOffer = ledger->read({ltOFFER, startAfter});
+        auto const sleOffer = ledger->read(Keylet(ltOFFER, startAfter));
 
         if (!sleOffer || accountID != sleOffer->getAccountID(sfAccount))
         {

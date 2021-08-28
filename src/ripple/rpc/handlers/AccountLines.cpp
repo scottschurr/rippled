@@ -142,7 +142,7 @@ doAccountLines(RPC::JsonContext& context)
         if (!startAfter.parseHex(marker.asString()))
             return rpcError(rpcINVALID_PARAMS);
 
-        auto const sleLine = ledger->read({ltRIPPLE_STATE, startAfter});
+        auto const sleLine = ledger->read(Keylet(ltRIPPLE_STATE, startAfter));
 
         if (!sleLine)
             return rpcError(rpcINVALID_PARAMS);

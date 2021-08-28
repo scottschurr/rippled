@@ -405,7 +405,7 @@ deserializeTxPlusMeta(SHAMapItem const& item)
 //------------------------------------------------------------------------------
 
 bool
-Ledger::exists(Keylet const& k) const
+Ledger::exists(KeyletBase const& k) const
 {
     // VFALCO NOTE Perhaps check the type for debug builds?
     return stateMap_->hasItem(k.key);
@@ -429,7 +429,7 @@ Ledger::succ(uint256 const& key, std::optional<uint256> const& last) const
 }
 
 std::shared_ptr<SLE const>
-Ledger::read(Keylet const& k) const
+Ledger::read(KeyletBase const& k) const
 {
     if (k.key == beast::zero)
     {
@@ -641,7 +641,7 @@ Ledger::setup(Config const& config)
 }
 
 std::shared_ptr<SLE>
-Ledger::peek(Keylet const& k) const
+Ledger::peek(KeyletBase const& k) const
 {
     auto const& value = stateMap_->peekItem(k.key);
     if (!value)

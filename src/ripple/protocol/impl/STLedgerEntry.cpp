@@ -29,7 +29,7 @@
 
 namespace ripple {
 
-STLedgerEntry::STLedgerEntry(Keylet const& k)
+STLedgerEntry::STLedgerEntry(KeyletBase const& k)
     : STObject(sfLedgerEntry), key_(k.key), type_(k.type)
 {
     // The on-ledger representation of a key type is a 16-bit unsigned integer

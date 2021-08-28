@@ -169,7 +169,7 @@ public:
     }
 
     bool
-    exists(Keylet const& k) const override;
+    exists(KeyletBase const& k) const override;
 
     bool
     exists(uint256 const& key) const;
@@ -179,7 +179,7 @@ public:
         const override;
 
     std::shared_ptr<SLE const>
-    read(Keylet const& k) const override;
+    read(KeyletBase const& k) const override;
 
     std::unique_ptr<sles_type::iter_base>
     slesBegin() const override;
@@ -388,7 +388,7 @@ public:
     isVotingLedger() const;
 
     std::shared_ptr<SLE>
-    peek(Keylet const& k) const;
+    peek(KeyletBase const& k) const;
 
 private:
     class sles_iter_impl;

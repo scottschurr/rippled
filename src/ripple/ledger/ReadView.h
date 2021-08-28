@@ -278,7 +278,7 @@ public:
                 specified key.
     */
     virtual bool
-    exists(Keylet const& k) const = 0;
+    exists(KeyletBase const& k) const = 0;
 
     /** Return the key of the next state item.
 
@@ -309,7 +309,7 @@ public:
                 if the type does not match.
     */
     virtual std::shared_ptr<SLE const>
-    read(Keylet const& k) const = 0;
+    read(KeyletBase const& k) const = 0;
 
     // Accounts in a payment are not allowed to use assets acquired during that
     // payment. The PaymentSandbox tracks the debits, credits, and owner count
