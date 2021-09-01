@@ -216,7 +216,7 @@ Env::le(Account const& account) const
 }
 
 std::shared_ptr<SLE const>
-Env::le(Keylet const& k) const
+Env::le(KeyletBase const& k) const
 {
     return current()->read(k);
 }

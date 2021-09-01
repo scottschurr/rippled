@@ -519,7 +519,8 @@ struct ExistingElementPool
     {
         std::vector<std::tuple<STAmount, STAmount, AccountID, AccountID>> diffs;
 
-        auto xrpBalance = [](ReadView const& v, ripple::Keylet const& k) {
+        auto xrpBalance = [](ReadView const& v,
+                             ripple::AccountRootKeylet const& k) {
             auto const sle = v.read(k);
             if (!sle)
                 return STAmount{};

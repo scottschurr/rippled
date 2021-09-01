@@ -753,7 +753,7 @@ TxQ::apply(
 
     // If the account is not currently in the ledger, don't queue its tx.
     auto const account = (*tx)[sfAccount];
-    Keylet const accountKey{keylet::account(account)};
+    AccountRootKeylet const accountKey{keylet::account(account)};
     auto const sleAccount = view.read(accountKey);
     if (!sleAccount)
         return {terNO_ACCOUNT, false};

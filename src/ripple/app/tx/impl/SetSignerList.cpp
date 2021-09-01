@@ -175,7 +175,7 @@ static TER
 removeSignersFromLedger(
     Application& app,
     ApplyView& view,
-    Keylet const& accountKeylet,
+    AccountRootKeylet const& accountKeylet,
     Keylet const& ownerDirKeylet,
     Keylet const& signerListKeylet,
     beast::Journal j)

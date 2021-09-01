@@ -178,6 +178,19 @@ public:
     virtual std::shared_ptr<SLE>
     peek(KeyletBase const& k) = 0;
 
+    template <
+        class TKeylet,
+        typename Wrapped = typename TKeylet::template TWrapped<true>>
+    auto
+    peekWrapper(TKeylet const& keylet) -> std::optional<Wrapped>
+    {
+        if (auto sle = peek(keylet))
+        {
+            return Wrapped(std::move(sle));
+        }
+        return {};
+    }
+
     /** Remove a peeked SLE.
 
         Requirements:
