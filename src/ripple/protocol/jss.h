@@ -400,6 +400,7 @@ JSS(needed_transaction_hashes);  // out: InboundLedger
 JSS(network_id);                 // out: NetworkOPs
 JSS(network_ledger);             // out: NetworkOPs
 JSS(next_refresh_time);          // out: ValidatorSite
+JSS(nft_id);                     // in: nft_sell_offers, nft_buy_offers
 JSS(nft_offer);                  // in: LedgerEntry
 JSS(nft_page);                   // in: LedgerEntry
 JSS(nft_serial);                 // out: account_nfts
@@ -564,7 +565,6 @@ JSS(time);
 JSS(timeouts);                // out: InboundLedger
 JSS(track);                   // out: PeerImp
 JSS(traffic);                 // out: Overlay
-JSS(tokenid);                 // in: nft_sell_offers, nft_buy_offers
 JSS(total);                   // out: counters
 JSS(totalCoins);              // out: LedgerToJson
 JSS(total_bytes_recv);        // out: Peers

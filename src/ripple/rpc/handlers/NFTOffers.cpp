@@ -1,3 +1,21 @@
+//------------------------------------------------------------------------------
+/*
+    This file is part of rippled: https://github.com/ripple/rippled
+    Copyright (c) 2022 Ripple Labs Inc.
+
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose  with  or without fee is hereby granted, provided that the above
+    copyright notice and this permission notice appear in all copies.
+
+    THE  SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH  REGARD  TO  THIS  SOFTWARE  INCLUDING  ALL  IMPLIED  WARRANTIES  OF
+    MERCHANTABILITY  AND  FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+    ANY  SPECIAL ,  DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER  RESULTING  FROM  LOSS  OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION  OF  CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+//==============================================================================
 
 #include <ripple/app/main/Application.h>
 #include <ripple/json/json_value.h>
@@ -37,7 +55,7 @@ appendNftOfferJson(
 }
 
 // {
-//   tokenid: <token hash>
+//   nft_id: <token hash>
 //   ledger_hash : <ledger>
 //   ledger_index : <ledger_index>
 //   limit: integer                 // optional
@@ -46,7 +64,7 @@ appendNftOfferJson(
 static Json::Value
 enumerateNFTOffers(
     RPC::JsonContext& context,
-    uint256 const& tokenid,
+    uint256 const& nftId,
     Keylet const& directory)
 {
     unsigned int limit;
@@ -62,7 +80,7 @@ enumerateNFTOffers(
         return rpcError(rpcOBJECT_NOT_FOUND);
 
     Json::Value result;
-    result[jss::tokenid] = to_string(tokenid);
+    result[jss::nft_id] = to_string(nftId);
 
     Json::Value& jsonOffers(result[jss::offers] = Json::arrayValue);
 
@@ -85,7 +103,7 @@ enumerateNFTOffers(
 
         auto const sle = ledger->read(keylet::nftoffer(startAfter));
 
-        if (!sle || tokenid != sle->getFieldH256(sfTokenID))
+        if (!sle || nftId != sle->getFieldH256(sfTokenID))
             return rpcError(rpcINVALID_PARAMS);
 
         startHint = sle->getFieldU64(sfOfferNode);
@@ -134,29 +152,29 @@ enumerateNFTOffers(
 Json::Value
 doNFTSellOffers(RPC::JsonContext& context)
 {
-    if (!context.params.isMember(jss::tokenid))
-        return RPC::missing_field_error(jss::tokenid);
+    if (!context.params.isMember(jss::nft_id))
+        return RPC::missing_field_error(jss::nft_id);
 
-    uint256 tokenid;
+    uint256 nftId;
 
-    if (!tokenid.parseHex(context.params[jss::tokenid].asString()))
-        return RPC::invalid_field_error(jss::tokenid);
+    if (!nftId.parseHex(context.params[jss::nft_id].asString()))
+        return RPC::invalid_field_error(jss::nft_id);
 
-    return enumerateNFTOffers(context, tokenid, keylet::nft_sells(tokenid));
+    return enumerateNFTOffers(context, nftId, keylet::nft_sells(nftId));
 }
 
 Json::Value
 doNFTBuyOffers(RPC::JsonContext& context)
 {
-    if (!context.params.isMember(jss::tokenid))
-        return RPC::missing_field_error(jss::tokenid);
+    if (!context.params.isMember(jss::nft_id))
+        return RPC::missing_field_error(jss::nft_id);
 
-    uint256 tokenid;
+    uint256 nftId;
 
-    if (!tokenid.parseHex(context.params[jss::tokenid].asString()))
-        return RPC::invalid_field_error(jss::tokenid);
+    if (!nftId.parseHex(context.params[jss::nft_id].asString()))
+        return RPC::invalid_field_error(jss::nft_id);
 
-    return enumerateNFTOffers(context, tokenid, keylet::nft_buys(tokenid));
+    return enumerateNFTOffers(context, nftId, keylet::nft_buys(nftId));
 }
 
 }  // namespace ripple
