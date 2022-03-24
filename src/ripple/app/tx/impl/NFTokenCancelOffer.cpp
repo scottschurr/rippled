@@ -62,10 +62,17 @@ NFTokenCancelOffer::preclaim(PreclaimContext const& ctx)
 
     auto ret = std::find_if(
         ids.begin(), ids.end(), [&ctx, &account](uint256 const& id) {
-            auto offer = ctx.view.read(keylet::nftoffer(id));
+            auto const offer = ctx.view.read(keylet::child(id));
 
+            // If id is not in the ledger we assume the offer was consumed
+            // before we got here.
             if (!offer)
                 return false;
+
+            // If id is in the ledger but is not an NFTokenOffer, then
+            // they have no permission.
+            if (offer->getType() != ltNFTOKEN_OFFER)
+                return true;
 
             // Anyone can cancel, if expired
             if (hasExpired(ctx.view, (*offer)[~sfExpiration]))

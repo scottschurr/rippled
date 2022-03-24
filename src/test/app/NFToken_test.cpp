@@ -970,6 +970,20 @@ class NFToken_test : public beast::unit_test::suite
             env.close();
         }
 
+        {
+            // gw attempts to cancel a Check as through it is an NFTokenOffer.
+            auto const gwCheckId = keylet::check(gw, env.seq(gw)).key;
+            env(check::create(gw, env.master, XRP(300)));
+            env.close();
+
+            env(token::cancelOffer(gw, {gwCheckId}), ter(tecNO_PERMISSION));
+            env.close();
+
+            // Cancel the check so it doesn't mess up later tests.
+            env(check::cancel(gw, gwCheckId));
+            env.close();
+        }
+
         // gw attempts to cancel an offer they don't have permission to cancel.
         env(token::cancelOffer(gw, {buyerOfferIndex}), ter(tecNO_PERMISSION));
         env.close();
