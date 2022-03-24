@@ -88,7 +88,8 @@ NFTokenAcceptOffer::preclaim(PreclaimContext const& ctx)
         return ret;
 
     if (buy && sell)
-    {  // Brokered mode:
+    {
+        // Brokered mode:
         auto const bo = ctx.view.read(keylet::nftoffer(*buy));
         auto const so = ctx.view.read(keylet::nftoffer(*sell));
 
@@ -106,10 +107,10 @@ NFTokenAcceptOffer::preclaim(PreclaimContext const& ctx)
             return tecINSUFFICIENT_PAYMENT;
 
         // If the seller specified a destination, that destination must be
-        // the buyer.
+        // the buyer or the broker.
         if (auto const dest = so->at(~sfDestination))
         {
-            if (*dest != bo->at(sfOwner))
+            if (*dest != bo->at(sfOwner) && *dest != ctx.tx[sfAccount])
                 return tecNFTOKEN_BUY_SELL_MISMATCH;
         }
 
@@ -306,10 +307,10 @@ NFTokenAcceptOffer::doApply()
         //
         // It is important that the issuer's cut be calculated after the
         // broker's portion is already removed.  Calculating the issuer's
-        // cut before the broker's cut it removed can result in more money
+        // cut before the broker's cut is removed can result in more money
         // being paid out than the seller authorized.  That would be bad!
 
-        // Send the broker the amount they requested
+        // Send the broker the amount they requested.
         if (auto const cut = ctx_.tx[~sfBrokerFee];
             cut && cut.value() != beast::zero)
         {
@@ -320,7 +321,7 @@ NFTokenAcceptOffer::doApply()
             amount -= cut.value();
         }
 
-        // Calculate the issuer's cut, if any:
+        // Calculate the issuer's cut, if any.
         if (auto const fee = nft::getTransferFee(tokenID);
             amount != beast::zero && fee != 0)
         {
@@ -336,7 +337,7 @@ NFTokenAcceptOffer::doApply()
             }
         }
 
-        // And send whatever remains to the seller
+        // And send whatever remains to the seller.
         if (amount > beast::zero)
         {
             if (auto const r = pay(buyer, seller, amount); !isTesSuccess(r))

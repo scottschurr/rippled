@@ -2649,8 +2649,9 @@ class NFToken_test : public beast::unit_test::suite
         Account const issuer{"issuer"};
         Account const minter{"minter"};
         Account const buyer{"buyer"};
+        Account const broker{"broker"};
 
-        env.fund(XRP(1000), issuer, minter, buyer);
+        env.fund(XRP(1000), issuer, minter, buyer, broker);
 
         // We want to explore how issuers vs minters fits into the permission
         // scheme.  So issuer issues and minter mints.
@@ -2775,14 +2776,13 @@ class NFToken_test : public beast::unit_test::suite
             BEAST_EXPECT(ownerCount(env, buyer) == 0);
         }
 
-        // Show that brokered mode cannot complete a transfer where the
-        // Destination doesn't match, but can complete if the Destination
-        // does match.
+        // Show that a sell offer's Destination can broker that sell offer
+        // to another account.
         {
-            uint256 const offerMinterToBuyer =
+            uint256 const offerMinterToBroker =
                 keylet::nftoffer(minter, env.seq(minter)).key;
             env(token::createOffer(minter, tokenID, drops(1)),
-                token::destination(buyer),
+                token::destination(broker),
                 txflags(tfSellToken));
 
             uint256 const offerBuyerToMinter =
@@ -2790,32 +2790,72 @@ class NFToken_test : public beast::unit_test::suite
             env(token::createOffer(buyer, tokenID, drops(1)),
                 token::owner(minter));
 
-            uint256 const offerIssuerToMinter =
+            env.close();
+            BEAST_EXPECT(ownerCount(env, issuer) == 0);
+            BEAST_EXPECT(ownerCount(env, minter) == 2);
+            BEAST_EXPECT(ownerCount(env, buyer) == 1);
+
+            // issuer cannot broker the offers, because they are not the
+            // Destination.
+            env(token::brokerOffers(
+                    issuer, offerBuyerToMinter, offerMinterToBroker),
+                ter(tecNFTOKEN_BUY_SELL_MISMATCH));
+            env.close();
+            BEAST_EXPECT(ownerCount(env, issuer) == 0);
+            BEAST_EXPECT(ownerCount(env, minter) == 2);
+            BEAST_EXPECT(ownerCount(env, buyer) == 1);
+
+            // Since broker is the sell offer's destination, they can broker
+            // the two offers.
+            env(token::brokerOffers(
+                broker, offerBuyerToMinter, offerMinterToBroker));
+            env.close();
+            BEAST_EXPECT(ownerCount(env, issuer) == 0);
+            BEAST_EXPECT(ownerCount(env, minter) == 0);
+            BEAST_EXPECT(ownerCount(env, buyer) == 1);
+        }
+
+        // Show that brokered mode cannot complete a transfer where the
+        // Destination doesn't match, but can complete if the Destination
+        // does match.
+        {
+            uint256 const offerBuyerToMinter =
+                keylet::nftoffer(buyer, env.seq(buyer)).key;
+            env(token::createOffer(buyer, tokenID, drops(1)),
+                token::destination(minter),
+                txflags(tfSellToken));
+
+            uint256 const offerMinterToBuyer =
+                keylet::nftoffer(minter, env.seq(minter)).key;
+            env(token::createOffer(minter, tokenID, drops(1)),
+                token::owner(buyer));
+
+            uint256 const offerIssuerToBuyer =
                 keylet::nftoffer(issuer, env.seq(issuer)).key;
             env(token::createOffer(issuer, tokenID, drops(1)),
-                token::owner(minter));
+                token::owner(buyer));
 
             env.close();
             BEAST_EXPECT(ownerCount(env, issuer) == 1);
-            BEAST_EXPECT(ownerCount(env, minter) == 2);
-            BEAST_EXPECT(ownerCount(env, buyer) == 1);
+            BEAST_EXPECT(ownerCount(env, minter) == 1);
+            BEAST_EXPECT(ownerCount(env, buyer) == 2);
 
             // Cannot broker offers when the sell destination is not the buyer.
             env(token::brokerOffers(
-                    buyer, offerIssuerToMinter, offerMinterToBuyer),
+                    broker, offerIssuerToBuyer, offerBuyerToMinter),
                 ter(tecNFTOKEN_BUY_SELL_MISMATCH));
             env.close();
             BEAST_EXPECT(ownerCount(env, issuer) == 1);
-            BEAST_EXPECT(ownerCount(env, minter) == 2);
-            BEAST_EXPECT(ownerCount(env, buyer) == 1);
+            BEAST_EXPECT(ownerCount(env, minter) == 1);
+            BEAST_EXPECT(ownerCount(env, buyer) == 2);
 
             // Broker is successful when destination is buyer.
             env(token::brokerOffers(
-                issuer, offerBuyerToMinter, offerMinterToBuyer));
+                broker, offerMinterToBuyer, offerBuyerToMinter));
             env.close();
             BEAST_EXPECT(ownerCount(env, issuer) == 1);
-            BEAST_EXPECT(ownerCount(env, minter) == 0);
-            BEAST_EXPECT(ownerCount(env, buyer) == 1);
+            BEAST_EXPECT(ownerCount(env, minter) == 1);
+            BEAST_EXPECT(ownerCount(env, buyer) == 0);
         }
     }
 
