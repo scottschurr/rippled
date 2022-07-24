@@ -226,7 +226,8 @@ STTx::checkSign(
     return Unexpected("Internal signature check failure.");
 }
 
-Json::Value STTx::getJson(JsonOptions) const
+Json::Value
+STTx::getJson(JsonOptions) const
 {
     Json::Value ret = STObject::getJson(JsonOptions::none);
     ret[jss::hash] = to_string(getTransactionID());
@@ -421,6 +422,24 @@ STTx::checkMultiSign(
 
 //------------------------------------------------------------------------------
 
+// The only allowed characters for MemoType and MemoFormat are the
+// characters allowed in URLs per RFC 3986: alphanumerics and the
+// following symbols: -._~:/?#[]@!$&'()*+,;=%
+static constexpr std::array<char, 256> const allowedSymbols = []() {
+    std::array<char, 256> a{};
+
+    std::string_view symbols(
+        "0123456789"
+        "-._~:/?#[]@!$&'()*+,;=%"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz");
+
+    for (char c : symbols)
+        a[c] = c;
+
+    return a;
+}();
+
 static bool
 isMemoOkay(STObject const& st, std::string& reason)
 {
@@ -477,24 +496,6 @@ isMemoOkay(STObject const& st, std::string& reason)
 
             if (name == sfMemoData)
                 continue;
-
-            // The only allowed characters for MemoType and MemoFormat are the
-            // characters allowed in URLs per RFC 3986: alphanumerics and the
-            // following symbols: -._~:/?#[]@!$&'()*+,;=%
-            static std::array<char, 256> const allowedSymbols = [] {
-                std::array<char, 256> a;
-                a.fill(0);
-
-                std::string symbols(
-                    "0123456789"
-                    "-._~:/?#[]@!$&'()*+,;=%"
-                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                    "abcdefghijklmnopqrstuvwxyz");
-
-                for (char c : symbols)
-                    a[c] = 1;
-                return a;
-            }();
 
             for (auto c : *optData)
             {
