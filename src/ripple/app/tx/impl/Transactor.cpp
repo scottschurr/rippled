@@ -32,6 +32,7 @@
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/Protocol.h>
 #include <ripple/protocol/STAccount.h>
+#include <ripple/protocol/Ticket.h>
 #include <ripple/protocol/UintTypes.h>
 
 namespace ripple {
@@ -386,14 +387,15 @@ Transactor::ticketDelete(
 {
     // Delete the Ticket, adjust the account root ticket count, and
     // reduce the owner count.
-    SLE::pointer const sleTicket = view.peekSLE(keylet::ticket(ticketIndex));
-    if (!sleTicket)
+    std::optional<ripple::Tickets> ticket =
+        view.peek(keylet::ticket(ticketIndex));
+    if (!ticket)
     {
         JLOG(j.fatal()) << "Ticket disappeared from ledger.";
         return tefBAD_LEDGER;
     }
 
-    std::uint64_t const page{(*sleTicket)[sfOwnerNode]};
+    std::uint64_t const page{ticket->getOwnerPage()};
     if (!view.dirRemove(keylet::ownerDir(account), page, ticketIndex, true))
     {
         JLOG(j.fatal()) << "Unable to delete Ticket from owner.";
@@ -426,7 +428,7 @@ Transactor::ticketDelete(
     adjustOwnerCount(view, *acctRoot, -1, j);
 
     // Remove Ticket from ledger.
-    view.erase(sleTicket);
+    view.erase(*ticket);
     return tesSUCCESS;
 }
 

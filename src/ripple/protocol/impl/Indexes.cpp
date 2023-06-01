@@ -249,16 +249,16 @@ next_t::operator()(Keylet const& k) const
     return {ltDIR_NODE, getQualityNext(k.key)};
 }
 
-Keylet
+TicketKeylet
 ticket_t::operator()(AccountID const& id, std::uint32_t ticketSeq) const
 {
-    return {ltTICKET, getTicketIndex(id, ticketSeq)};
+    return TicketKeylet(getTicketIndex(id, ticketSeq));
 }
 
-Keylet
+TicketKeylet
 ticket_t::operator()(AccountID const& id, SeqProxy ticketSeq) const
 {
-    return {ltTICKET, getTicketIndex(id, ticketSeq)};
+    return TicketKeylet(getTicketIndex(id, ticketSeq));
 }
 
 // This function is presently static, since it's never accessed from anywhere

@@ -152,16 +152,16 @@ struct ticket_t
 {
     explicit ticket_t() = default;
 
-    Keylet
+    TicketKeylet
     operator()(AccountID const& id, std::uint32_t ticketSeq) const;
 
-    Keylet
+    TicketKeylet
     operator()(AccountID const& id, SeqProxy ticketSeq) const;
 
-    Keylet
+    TicketKeylet
     operator()(uint256 const& key) const
     {
-        return {ltTICKET, key};
+        return TicketKeylet(key);
     }
 };
 static ticket_t const ticket{};
