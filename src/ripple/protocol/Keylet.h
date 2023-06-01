@@ -96,6 +96,21 @@ static_assert(std::is_nothrow_destructible_v<Keylet>);
 #endif
 
 template <bool>
+class PayChanImpl;
+
+struct PayChanKeylet final : public KeyletBase
+{
+    template <bool Writable>
+    using TWrapped = PayChanImpl<Writable>;
+
+    using KeyletBase::check;
+
+    explicit PayChanKeylet(uint256 const& key) : KeyletBase(ltPAYCHAN, key)
+    {
+    }
+};
+
+template <bool>
 class AcctRootImpl;
 
 struct AccountRootKeylet final : public KeyletBase

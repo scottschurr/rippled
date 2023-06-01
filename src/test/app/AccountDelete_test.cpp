@@ -405,7 +405,7 @@ public:
         env(escrowCancel(becky, alice, escrowSeq));
         env.close();
 
-        Keylet const alicePayChanKey{
+        PayChanKeylet const alicePayChanKey{
             keylet::payChan(alice, becky, env.seq(alice))};
 
         env(payChanCreate(
@@ -426,7 +426,7 @@ public:
 
         // Lambda to close a PayChannel.
         auto payChanClose = [](jtx::Account const& account,
-                               Keylet const& payChanKeylet,
+                               KeyletBase const& payChanKeylet,
                                PublicKey const& pk) {
             Json::Value jv;
             jv[jss::TransactionType] = jss::PaymentChannelClaim;
@@ -447,7 +447,8 @@ public:
         // gw creates a PayChannel with alice as the destination.  With the
         // amendment passed this should prevent alice from deleting her
         // account.
-        Keylet const gwPayChanKey{keylet::payChan(gw, alice, env.seq(gw))};
+        PayChanKeylet const gwPayChanKey{
+            keylet::payChan(gw, alice, env.seq(gw))};
 
         env(payChanCreate(gw, alice, XRP(68), 4s, env.now() + 2s, alice.pk()));
         env.close();
@@ -492,7 +493,8 @@ public:
         BEAST_EXPECT(env.closed()->exists(beckyAcctKey));
 
         using namespace std::chrono_literals;
-        Keylet const payChanKey{keylet::payChan(alice, becky, env.seq(alice))};
+        PayChanKeylet const payChanKey{
+            keylet::payChan(alice, becky, env.seq(alice))};
         auto const payChanXRP = XRP(37);
 
         env(payChanCreate(

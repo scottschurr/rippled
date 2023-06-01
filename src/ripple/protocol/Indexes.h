@@ -222,7 +222,7 @@ Keylet
 escrow(AccountID const& src, std::uint32_t seq) noexcept;
 
 /** A PaymentChannel */
-Keylet
+PayChanKeylet
 payChan(AccountID const& src, AccountID const& dst, std::uint32_t seq) noexcept;
 
 /** NFT page keylets

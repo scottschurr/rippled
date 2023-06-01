@@ -44,6 +44,8 @@ struct PayChan_test : public beast::unit_test::suite
         return k.key;
     }
 
+    // Keshava: Modify this function to use read() after keylet::ownerDir has
+    // been updated. inOwnerDir(...) has a dependency on ltDirNode.
     static std::pair<uint256, std::shared_ptr<SLE const>>
     channelKeyAndSle(
         ReadView const& view,
@@ -81,8 +83,8 @@ struct PayChan_test : public beast::unit_test::suite
     static bool
     channelExists(ReadView const& view, uint256 const& chan)
     {
-        auto const slep = view.readSLE(Keylet(ltPAYCHAN, chan));
-        return bool(slep);
+        auto const slep = view.read(PayChanKeylet(chan));
+        return slep.has_value();
     }
 
     static STAmount

@@ -252,7 +252,7 @@ PayChanCreate::doApply()
     //
     // Note that we we use the value from the sequence or ticket as the
     // payChan sequence.  For more explanation see comments in SeqProxy.h.
-    Keylet const payChanKeylet =
+    PayChanKeylet const payChanKeylet =
         keylet::payChan(account, dst, ctx_.tx.getSeqProxy().value());
     auto const slep = std::make_shared<SLE>(payChanKeylet);
 

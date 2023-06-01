@@ -320,12 +320,11 @@ escrow(AccountID const& src, std::uint32_t seq) noexcept
     return {ltESCROW, indexHash(LedgerNameSpace::ESCROW, src, seq)};
 }
 
-Keylet
+PayChanKeylet
 payChan(AccountID const& src, AccountID const& dst, std::uint32_t seq) noexcept
 {
-    return {
-        ltPAYCHAN,
-        indexHash(LedgerNameSpace::XRP_PAYMENT_CHANNEL, src, dst, seq)};
+    return PayChanKeylet(
+        indexHash(LedgerNameSpace::XRP_PAYMENT_CHANNEL, src, dst, seq));
 }
 
 Keylet

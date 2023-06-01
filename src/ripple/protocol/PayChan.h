@@ -27,6 +27,39 @@
 
 namespace ripple {
 
+template <bool Writable>
+class PayChanImpl final : public LedgerEntryWrapper<Writable>
+{
+    using Base = LedgerEntryWrapper<Writable>;
+    using SleT = typename Base::SleT;
+    using Base::wrapped_;
+
+    // This constructor is private so only the factory functions can
+    // construct an PayChanImpl.
+    PayChanImpl(std::shared_ptr<SleT>&& w) : Base(std::move(w))
+    {
+    }
+
+    // Friend declarations of factory functions.
+    //
+    // For classes that contain factories we must declare the entire class
+    // as a friend unless the class declaration is visible at this point.
+    friend class ReadView;
+    friend class ApplyView;
+
+public:
+    // Conversion operator from PayChanImpl<true> to PayChanImpl<false>.
+    operator PayChanImpl<true>() const
+    {
+        return PayChanImpl<false>(
+            std::const_pointer_cast<std::shared_ptr<STLedgerEntry const>>(
+                wrapped_));
+    }
+};
+
+using PayChan = PayChanImpl<true>;
+using PayChanRd = PayChanImpl<false>;
+
 inline void
 serializePayChanAuthorization(
     Serializer& msg,
