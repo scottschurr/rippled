@@ -201,9 +201,11 @@ public:
     erase(std::shared_ptr<SLE> const& sle) = 0;
 
     template <class T>
-    requires(std::is_convertible_v<
-             decltype(std::declval<T>().slePtr()),
-             std::shared_ptr<SLE> const&>) void erase(T& wrapper)
+        requires(std::is_convertible_v<
+                 decltype(std::declval<T>().slePtr()),
+                 std::shared_ptr<SLE> const&>)
+    void
+    erase(T& wrapper)
     {
         erase(wrapper.slePtr());
     }
@@ -249,9 +251,11 @@ public:
     update(std::shared_ptr<SLE> const& sle) = 0;
 
     template <class T>
-    requires(std::is_convertible_v<
-             decltype(std::declval<T>().slePtr()),
-             std::shared_ptr<SLE> const&>) void update(T& wrapper)
+        requires(std::is_convertible_v<
+                 decltype(std::declval<T>().slePtr()),
+                 std::shared_ptr<SLE> const&>)
+    void
+    update(T& wrapper)
     {
         update(wrapper.slePtr());
     }

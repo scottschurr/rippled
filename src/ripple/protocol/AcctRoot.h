@@ -69,7 +69,8 @@ public:
     }
 
     void
-    setSequence(std::uint32_t seq) requires Writable
+    setSequence(std::uint32_t seq)
+        requires Writable
     {
         wrapped_->at(sfSequence) = seq;
     }
@@ -81,7 +82,8 @@ public:
     }
 
     void
-    setBalance(STAmount const& amount) requires Writable
+    setBalance(STAmount const& amount)
+        requires Writable
     {
         wrapped_->at(sfBalance) = amount;
     }
@@ -93,7 +95,8 @@ public:
     }
 
     void
-    setOwnerCount(std::uint32_t newCount) requires Writable
+    setOwnerCount(std::uint32_t newCount)
+        requires Writable
     {
         wrapped_->at(sfOwnerCount) = newCount;
     }
@@ -105,7 +108,8 @@ public:
     }
 
     void
-    setPreviousTxnID(uint256 prevTxID) requires Writable
+    setPreviousTxnID(uint256 prevTxID)
+        requires Writable
     {
         wrapped_->at(sfPreviousTxnID) = prevTxID;
     }
@@ -117,7 +121,8 @@ public:
     }
 
     void
-    setPreviousTxnLgrSeq(std::uint32_t prevTxLgrSeq) requires Writable
+    setPreviousTxnLgrSeq(std::uint32_t prevTxLgrSeq)
+        requires Writable
     {
         wrapped_->at(sfPreviousTxnLgrSeq) = prevTxLgrSeq;
     }
@@ -129,13 +134,15 @@ public:
     }
 
     void
-    setAccountTxnID(uint256 const& newAcctTxnID) requires Writable
+    setAccountTxnID(uint256 const& newAcctTxnID)
+        requires Writable
     {
         this->setOptional(sfAccountTxnID, newAcctTxnID);
     }
 
     void
-    clearAccountTxnID() requires Writable
+    clearAccountTxnID()
+        requires Writable
     {
         this->clearOptional(sfAccountTxnID);
     }
@@ -147,13 +154,15 @@ public:
     }
 
     void
-    setRegularKey(AccountID const& newRegKey) requires Writable
+    setRegularKey(AccountID const& newRegKey)
+        requires Writable
     {
         this->setOptional(sfRegularKey, newRegKey);
     }
 
     void
-    clearRegularKey() requires Writable
+    clearRegularKey()
+        requires Writable
     {
         this->clearOptional(sfRegularKey);
     }
@@ -165,7 +174,8 @@ public:
     }
 
     void
-    setEmailHash(uint128 const& newEmailHash) requires Writable
+    setEmailHash(uint128 const& newEmailHash)
+        requires Writable
     {
         this->setOrClearBaseUintIfZero(sfEmailHash, newEmailHash);
     }
@@ -177,7 +187,8 @@ public:
     }
 
     void
-    setWalletLocator(uint256 const& newWalletLocator) requires Writable
+    setWalletLocator(uint256 const& newWalletLocator)
+        requires Writable
     {
         this->setOrClearBaseUintIfZero(sfWalletLocator, newWalletLocator);
     }
@@ -195,7 +206,8 @@ public:
     }
 
     void
-    setMessageKey(Blob const& newMessageKey) requires Writable
+    setMessageKey(Blob const& newMessageKey)
+        requires Writable
     {
         this->setOrClearVLIfEmpty(sfMessageKey, newMessageKey);
     }
@@ -207,13 +219,15 @@ public:
     }
 
     void
-    setTransferRate(std::uint32_t newTransferRate) requires Writable
+    setTransferRate(std::uint32_t newTransferRate)
+        requires Writable
     {
         this->setOptional(sfTransferRate, newTransferRate);
     }
 
     void
-    clearTransferRate() requires Writable
+    clearTransferRate()
+        requires Writable
     {
         this->clearOptional(sfTransferRate);
     }
@@ -225,7 +239,8 @@ public:
     }
 
     void
-    setDomain(Blob const& newDomain) requires Writable
+    setDomain(Blob const& newDomain)
+        requires Writable
     {
         this->setOrClearVLIfEmpty(sfDomain, newDomain);
     }
@@ -237,13 +252,15 @@ public:
     }
 
     void
-    setTickSize(std::uint8_t newTickSize) requires Writable
+    setTickSize(std::uint8_t newTickSize)
+        requires Writable
     {
         this->setOptional(sfTickSize, newTickSize);
     }
 
     void
-    clearTickSize() requires Writable
+    clearTickSize()
+        requires Writable
     {
         this->clearOptional(sfTickSize);
     }
@@ -255,13 +272,15 @@ public:
     }
 
     void
-    setTicketCount(std::uint32_t newTicketCount) requires Writable
+    setTicketCount(std::uint32_t newTicketCount)
+        requires Writable
     {
         this->setOptional(sfTicketCount, newTicketCount);
     }
 
     void
-    clearTicketCount() requires Writable
+    clearTicketCount()
+        requires Writable
     {
         this->clearOptional(sfTicketCount);
     }
@@ -273,13 +292,15 @@ public:
     }
 
     void
-    setNFTokenMinter(AccountID const& newMinter) requires Writable
+    setNFTokenMinter(AccountID const& newMinter)
+        requires Writable
     {
         this->setOptional(sfNFTokenMinter, newMinter);
     }
 
     void
-    clearNFTokenMinter() requires Writable
+    clearNFTokenMinter()
+        requires Writable
     {
         this->clearOptional(sfNFTokenMinter);
     }
@@ -291,7 +312,8 @@ public:
     }
 
     void
-    setMintedNFTokens(std::uint32_t newMintedCount) requires Writable
+    setMintedNFTokens(std::uint32_t newMintedCount)
+        requires Writable
     {
         this->setOptional(sfMintedNFTokens, newMintedCount);
     }
@@ -303,7 +325,8 @@ public:
     }
 
     void
-    setBurnedNFTokens(std::uint32_t newBurnedCount) requires Writable
+    setBurnedNFTokens(std::uint32_t newBurnedCount)
+        requires Writable
     {
         this->setOptional(sfBurnedNFTokens, newBurnedCount);
     }

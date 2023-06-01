@@ -21,6 +21,7 @@
 #define RIPPLE_TX_CANCELCHECK_H_INCLUDED
 
 #include <ripple/app/tx/impl/Transactor.h>
+#include <ripple/protocol/Checks.h>
 
 namespace ripple {
 
