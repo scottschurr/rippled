@@ -42,7 +42,9 @@
 #include <ripple/core/SociDB.h>
 #include <ripple/json/to_string.h>
 #include <ripple/nodestore/Database.h>
+#include <ripple/nodestore/impl/DatabaseNodeImp.h>
 #include <ripple/protocol/Feature.h>
+#include <ripple/protocol/FeesLedgerObj.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/PublicKey.h>
@@ -50,13 +52,10 @@
 #include <ripple/protocol/UintTypes.h>
 #include <ripple/protocol/digest.h>
 #include <ripple/protocol/jss.h>
-#include <boost/optional.hpp>
+
 #include <cassert>
 #include <utility>
 #include <vector>
-
-#include <ripple/nodestore/impl/DatabaseNodeImp.h>
-#include <ripple/protocol/Fees.h>
 
 namespace ripple {
 

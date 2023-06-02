@@ -96,22 +96,6 @@ static_assert(std::is_nothrow_destructible_v<Keylet>);
 #endif
 
 template <bool>
-class FeesImpl;
-
-struct FeesKeylet final : public KeyletBase
-{
-    template <bool Writable>
-    using TWrapped = FeesImpl<Writable>;
-
-    using KeyletBase::check;
-
-    explicit FeesKeylet(uint256 const& key)
-        : KeyletBase(ltFEE_SETTINGS, key)
-    {
-    }
-};
-
-template <bool>
 class AcctRootImpl;
 
 struct AccountRootKeylet final : public KeyletBase
@@ -135,6 +119,21 @@ static_assert(std::is_copy_assignable_v<AccountRootKeylet>);
 static_assert(std::is_move_assignable_v<AccountRootKeylet>);
 static_assert(std::is_nothrow_destructible_v<AccountRootKeylet>);
 #endif
+
+template <bool>
+class FeesLedgerObjImpl;
+
+struct FeesKeylet final : public KeyletBase
+{
+    template <bool Writable>
+    using TWrapped = FeesLedgerObjImpl<Writable>;
+
+    using KeyletBase::check;
+
+    explicit FeesKeylet(uint256 const& key) : KeyletBase(ltFEE_SETTINGS, key)
+    {
+    }
+};
 
 }  // namespace ripple
 

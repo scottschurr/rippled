@@ -23,8 +23,8 @@
 #include <ripple/basics/base_uint.h>
 #include <ripple/beast/unit_test.h>
 #include <ripple/ledger/View.h>
+#include <ripple/protocol/FeesLedgerObj.h>
 #include <test/jtx.h>
-#include <ripple/protocol/Fees.h>
 
 namespace ripple {
 namespace test {

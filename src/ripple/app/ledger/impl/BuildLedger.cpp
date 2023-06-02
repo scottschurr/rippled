@@ -25,6 +25,7 @@
 #include <ripple/app/misc/CanonicalTXSet.h>
 #include <ripple/app/tx/apply.h>
 #include <ripple/protocol/Feature.h>
+#include <ripple/protocol/FeesLedgerObj.h>
 
 namespace ripple {
 

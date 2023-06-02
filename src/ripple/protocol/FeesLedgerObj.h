@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of rippled: https://github.com/ripple/rippled
-    Copyright (c) 2021 Ripple Labs Inc.
+    Copyright (c) 2023 Ripple Labs Inc.
 
     Permission to use, copy, modify, and/or distribute this software for any
     purpose  with  or without fee is hereby granted, provided that the above
@@ -17,16 +17,15 @@
 */
 //==============================================================================
 
-#ifndef RIPPLE_PROTOCOL_FEES_H_INCLUDED
-#define RIPPLE_PROTOCOL_FEES_H_INCLUDED
+#ifndef RIPPLE_PROTOCOL_FEES_LEDGER_OBJ_H_INCLUDED
+#define RIPPLE_PROTOCOL_FEES_LEDGER_OBJ_H_INCLUDED
 
 #include <ripple/protocol/LedgerEntryWrapper.h>
 
 namespace ripple {
 
-
 template <bool Writable>
-class FeesImpl final : public LedgerEntryWrapper<Writable>
+class FeesLedgerObjImpl final : public LedgerEntryWrapper<Writable>
 {
 private:
     using Base = LedgerEntryWrapper<Writable>;
@@ -34,8 +33,8 @@ private:
     using Base::wrapped_;
 
     // This constructor is private so only the factory functions can
-    // construct an FeesImpl.
-    FeesImpl(std::shared_ptr<SleT>&& w) : Base(std::move(w))
+    // construct an FeesLedgerObjImpl.
+    FeesLedgerObjImpl(std::shared_ptr<SleT>&& w) : Base(std::move(w))
     {
     }
 
@@ -47,54 +46,55 @@ private:
     friend class ApplyView;
 
 public:
-    // Conversion operator from FeesImpl<true> to FeesImpl<false>.
-    operator FeesImpl<true>() const
+    // Conversion operator from FeesLedgerObjImpl<true> to
+    // FeesLedgerObjImpl<false>.
+    operator FeesLedgerObjImpl<true>() const
     {
-        return FeesImpl<false>(
+        return FeesLedgerObjImpl<false>(
             std::const_pointer_cast<std::shared_ptr<STLedgerEntry const>>(
                 wrapped_));
     }
 
-    [[nodiscard]] auto
+    [[nodiscard]] std::optional<STAmount>
     baseFeeDrops() const
     {
         return wrapped_->at(~sfBaseFeeDrops);
     }
 
-    [[nodiscard]] auto
+    [[nodiscard]] std::optional<std::uint64_t>
     baseFee() const
     {
         return wrapped_->at(~sfBaseFee);
     }
 
-    [[nodiscard]] auto
+    [[nodiscard]] std::optional<std::uint32_t>
     reserveBase() const
     {
         return wrapped_->at(~sfReserveBase);
     }
 
-    [[nodiscard]] auto
+    [[nodiscard]] std::optional<std::uint32_t>
     reserveIncrement() const
     {
         return wrapped_->at(~sfReserveIncrement);
     }
 
-    [[nodiscard]] auto
+    [[nodiscard]] std::optional<STAmount>
     reserveBaseDrops() const
     {
         return wrapped_->at(~sfReserveBaseDrops);
     }
 
-    [[nodiscard]] auto
+    [[nodiscard]] std::optional<STAmount>
     reserveIncrementDrops() const
     {
         return wrapped_->at(~sfReserveIncrementDrops);
     }
 };
 
-using FeesLgrObjectRd = FeesImpl<false>;
-using FeesLgrObject = FeesImpl<true>;
+using FeesLedgerObjRd = FeesLedgerObjImpl<false>;
+using FeesLedgerObj = FeesLedgerObjImpl<true>;
 
 }  // namespace ripple
 
-#endif  // RIPPLE_PROTOCOL_FEES_H_INCLUDED
+#endif  // RIPPLE_PROTOCOL_FEES_LEDGER_OBJ_H_INCLUDED

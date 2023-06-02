@@ -350,8 +350,9 @@ Change::applyFee()
 {
     auto const k = keylet::fees();
 
-    // It is advantageous to let feeObject be a SLE instead of FeesLgrObject
-    // SLE is optimised for set operations
+    // We use a SLE instead of a FeesLedgerObj because it allows us to
+    // programmatically ensure the correspondence between the SField names
+    // in the transaction with the SField names in the ledger object.
     SLE::pointer feeObject = view().peekSLE(k);
 
     if (!feeObject)
