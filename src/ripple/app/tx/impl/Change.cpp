@@ -18,9 +18,6 @@
 //==============================================================================
 
 #include <ripple/app/ledger/Ledger.h>
-#include <ripple/app/main/Application.h>
-#include <ripple/app/misc/AmendmentTable.h>
-#include <ripple/app/misc/NetworkOPs.h>
 #include <ripple/app/tx/impl/Change.h>
 #include <ripple/basics/Log.h>
 #include <ripple/ledger/Sandbox.h>
@@ -350,6 +347,9 @@ Change::applyFee()
 {
     auto const k = keylet::fees();
 
+    // We use a SLE instead of a FeesLedgerObj because it allows us to
+    // programmatically ensure the correspondence between the SField names
+    // in the transaction with the SField names in the ledger object.
     SLE::pointer feeObject = view().peekSLE(k);
 
     if (!feeObject)

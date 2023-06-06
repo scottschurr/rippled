@@ -25,6 +25,7 @@
 #include <ripple/nodestore/Manager.h>
 #include <ripple/nodestore/impl/DeterministicShard.h>
 #include <ripple/nodestore/impl/Shard.h>
+#include <ripple/protocol/FeesLedgerObj.h>
 #include <ripple/protocol/digest.h>
 
 namespace ripple {
@@ -690,7 +691,7 @@ Shard::finalize(bool writeSQLite, std::optional<uint256> const& referenceHash)
         ledger->txMap().setLedgerSeq(ledgerSeq);
         assert(
             ledger->info().seq < XRP_LEDGER_EARLIEST_FEES ||
-            ledger->readSLE(keylet::fees()));
+            ledger->read(keylet::fees()));
         ledger->setImmutable();
         if (!ledger->stateMap().fetchRoot(
                 SHAMapHash{ledger->info().accountHash}, nullptr))

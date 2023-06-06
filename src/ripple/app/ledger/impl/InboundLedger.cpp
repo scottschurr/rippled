@@ -25,9 +25,9 @@
 #include <ripple/app/main/Application.h>
 #include <ripple/app/misc/NetworkOPs.h>
 #include <ripple/basics/Log.h>
-#include <ripple/core/JobQueue.h>
 #include <ripple/nodestore/DatabaseShard.h>
 #include <ripple/overlay/Overlay.h>
+#include <ripple/protocol/FeesLedgerObj.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/jss.h>
 #include <ripple/resource/Fees.h>
@@ -157,7 +157,7 @@ InboundLedger::init(ScopedLockType& collectionLock)
                            << " local store. " << hash_;
     assert(
         mLedger->info().seq < XRP_LEDGER_EARLIEST_FEES ||
-        mLedger->readSLE(keylet::fees()));
+        mLedger->read(keylet::fees()));
     mLedger->setImmutable();
 
     if (mReason == Reason::HISTORY || mReason == Reason::SHARD)
@@ -421,7 +421,7 @@ InboundLedger::tryDB(NodeStore::Database& srcDB)
         complete_ = true;
         assert(
             mLedger->info().seq < XRP_LEDGER_EARLIEST_FEES ||
-            mLedger->readSLE(keylet::fees()));
+            mLedger->read(keylet::fees()));
         mLedger->setImmutable();
     }
 }
@@ -521,7 +521,7 @@ InboundLedger::done()
     {
         assert(
             mLedger->info().seq < XRP_LEDGER_EARLIEST_FEES ||
-            mLedger->readSLE(keylet::fees()));
+            mLedger->read(keylet::fees()));
         mLedger->setImmutable();
         switch (mReason)
         {

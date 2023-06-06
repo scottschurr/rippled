@@ -25,6 +25,7 @@
 #include <ripple/app/misc/CanonicalTXSet.h>
 #include <ripple/app/tx/apply.h>
 #include <ripple/protocol/Feature.h>
+#include <ripple/protocol/FeesLedgerObj.h>
 
 namespace ripple {
 
@@ -77,7 +78,7 @@ buildLedgerImpl(
     // Accept ledger
     assert(
         built->info().seq < XRP_LEDGER_EARLIEST_FEES ||
-        built->readSLE(keylet::fees()));
+        built->read(keylet::fees()));
     built->setAccepted(closeTime, closeResolution, closeTimeCorrect);
 
     return built;

@@ -35,7 +35,6 @@
 #include <ripple/app/main/LoadManager.h>
 #include <ripple/app/main/NodeIdentity.h>
 #include <ripple/app/main/NodeStoreScheduler.h>
-#include <ripple/app/main/Tuning.h>
 #include <ripple/app/misc/AmendmentTable.h>
 #include <ripple/app/misc/HashRouter.h>
 #include <ripple/app/misc/LoadFeeTrack.h>
@@ -53,7 +52,6 @@
 #include <ripple/basics/PerfLog.h>
 #include <ripple/basics/ResolverAsio.h>
 #include <ripple/basics/random.h>
-#include <ripple/basics/safe_cast.h>
 #include <ripple/beast/asio/io_latency_probe.h>
 #include <ripple/beast/core/LexicalCast.h>
 #include <ripple/core/DatabaseCon.h>
@@ -67,6 +65,7 @@
 #include <ripple/overlay/make_Overlay.h>
 #include <ripple/protocol/BuildInfo.h>
 #include <ripple/protocol/Feature.h>
+#include <ripple/protocol/FeesLedgerObj.h>
 #include <ripple/protocol/Protocol.h>
 #include <ripple/protocol/STParsedJSON.h>
 #include <ripple/resource/Fees.h>
@@ -82,13 +81,11 @@
 #include <date/date.h>
 
 #include <chrono>
-#include <condition_variable>
 #include <cstring>
 #include <iostream>
 #include <limits>
 #include <mutex>
 #include <optional>
-#include <sstream>
 #include <utility>
 #include <variant>
 
@@ -1712,7 +1709,7 @@ ApplicationImp::startGenesisLedger()
     next->updateSkipList();
     assert(
         next->info().seq < XRP_LEDGER_EARLIEST_FEES ||
-        next->readSLE(keylet::fees()));
+        next->read(keylet::fees()));
     next->setImmutable();
     openLedger_.emplace(next, cachedSLEs_, logs_->journal("OpenLedger"));
     m_ledgerMaster->storeLedger(next);
@@ -1733,7 +1730,7 @@ ApplicationImp::getLastFullLedger()
 
         assert(
             ledger->info().seq < XRP_LEDGER_EARLIEST_FEES ||
-            ledger->readSLE(keylet::fees()));
+            ledger->read(keylet::fees()));
         ledger->setImmutable();
 
         if (getLedgerMaster().haveLedger(seq))
@@ -1887,7 +1884,7 @@ ApplicationImp::loadLedgerFromFile(std::string const& name)
 
         assert(
             loadLedger->info().seq < XRP_LEDGER_EARLIEST_FEES ||
-            loadLedger->readSLE(keylet::fees()));
+            loadLedger->read(keylet::fees()));
         loadLedger->setAccepted(
             closeTime, closeTimeResolution, !closeTimeEstimated);
 

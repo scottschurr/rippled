@@ -167,11 +167,10 @@ amendments() noexcept
     return ret;
 }
 
-Keylet const&
+FeesKeylet const&
 fees() noexcept
 {
-    static Keylet const ret{
-        ltFEE_SETTINGS, indexHash(LedgerNameSpace::FEE_SETTINGS)};
+    static FeesKeylet const ret(indexHash(LedgerNameSpace::FEE_SETTINGS));
     return ret;
 }
 

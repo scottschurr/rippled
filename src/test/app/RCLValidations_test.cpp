@@ -19,11 +19,10 @@
 
 #include <ripple/app/consensus/RCLValidations.h>
 #include <ripple/app/ledger/Ledger.h>
-#include <ripple/basics/Log.h>
-#include <ripple/basics/StringUtilities.h>
 #include <ripple/basics/base_uint.h>
 #include <ripple/beast/unit_test.h>
 #include <ripple/ledger/View.h>
+#include <ripple/protocol/FeesLedgerObj.h>
 #include <test/jtx.h>
 
 namespace ripple {
@@ -106,7 +105,7 @@ class RCLValidations_test : public beast::unit_test::suite
                 *prev, env.app().timeKeeper().closeTime());
             // Force a different hash on the first iteration
             next->updateSkipList();
-            BEAST_EXPECT(next->readSLE(keylet::fees()));
+            BEAST_EXPECT(next->read(keylet::fees()));
             if (forceHash)
             {
                 next->setImmutable();

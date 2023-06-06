@@ -21,15 +21,10 @@
 #include <ripple/app/reporting/ReportingETL.h>
 
 #include <ripple/beast/core/CurrentThreadName.h>
-#include <ripple/json/json_reader.h>
-#include <ripple/json/json_writer.h>
-#include <boost/asio/connect.hpp>
+#include <ripple/protocol/FeesLedgerObj.h>
 #include <boost/asio/ip/tcp.hpp>
-#include <boost/beast/core.hpp>
-#include <boost/beast/websocket.hpp>
 #include <cctype>
 #include <charconv>
-#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <variant>
@@ -191,7 +186,7 @@ ReportingETL::flushLedger(std::shared_ptr<Ledger>& ledger)
 
     assert(
         ledger->info().seq < XRP_LEDGER_EARLIEST_FEES ||
-        ledger->readSLE(keylet::fees()));
+        ledger->read(keylet::fees()));
     ledger->setImmutable(false);
     auto start = std::chrono::system_clock::now();
 
