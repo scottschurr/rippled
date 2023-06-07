@@ -18,6 +18,7 @@
 //==============================================================================
 
 #include <ripple/ledger/ReadView.h>
+#include <ripple/protocol/Amendments.h>
 
 namespace ripple {
 
@@ -76,13 +77,16 @@ makeRulesGivenLedger(
     DigestAwareReadView const& ledger,
     std::unordered_set<uint256, beast::uhash<>> const& presets)
 {
-    Keylet const k = keylet::amendments();
+    AmendmentsKeylet const k = keylet::amendments();
     std::optional digest = ledger.digest(k.key);
     if (digest)
     {
-        auto const sle = ledger.readSLE(k);
-        if (sle)
-            return Rules(presets, digest, sle->getFieldV256(sfAmendments));
+        auto const amendsObj = ledger.read(k);
+        if (amendsObj)
+            return Rules(
+                presets,
+                digest,
+                amendsObj->slePtr()->getFieldV256(sfAmendments));
     }
     return Rules(presets);
 }

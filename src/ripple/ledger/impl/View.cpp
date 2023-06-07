@@ -22,6 +22,7 @@
 #include <ripple/basics/contract.h>
 #include <ripple/ledger/ReadView.h>
 #include <ripple/ledger/View.h>
+#include <ripple/protocol/Amendments.h>
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/Protocol.h>
 #include <ripple/protocol/Quality.h>
@@ -607,11 +608,11 @@ getEnabledAmendments(ReadView const& view)
 {
     std::set<uint256> amendments;
 
-    if (auto const sle = view.readSLE(keylet::amendments()))
+    if (auto const amendsObj = view.read(keylet::amendments()))
     {
-        if (sle->isFieldPresent(sfAmendments))
+        if (amendsObj->slePtr()->isFieldPresent(sfAmendments))
         {
-            auto const& v = sle->getFieldV256(sfAmendments);
+            auto const& v = amendsObj->slePtr()->getFieldV256(sfAmendments);
             amendments.insert(v.begin(), v.end());
         }
     }
@@ -624,14 +625,15 @@ getMajorityAmendments(ReadView const& view)
 {
     majorityAmendments_t ret;
 
-    if (auto const sle = view.readSLE(keylet::amendments()))
+    if (auto const amendsObj = view.read(keylet::amendments()))
     {
-        if (sle->isFieldPresent(sfMajorities))
+        if (amendsObj->slePtr()->isFieldPresent(sfMajorities))
         {
             using tp = NetClock::time_point;
             using d = tp::duration;
 
-            auto const majorities = sle->getFieldArray(sfMajorities);
+            auto const majorities =
+                amendsObj->slePtr()->getFieldArray(sfMajorities);
 
             for (auto const& m : majorities)
                 ret[m.getFieldH256(sfAmendment)] =

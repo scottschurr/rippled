@@ -54,7 +54,7 @@ AccountRootKeylet
 account(AccountID const& id) noexcept;
 
 /** The index of the amendment table */
-Keylet const&
+AmendmentsKeylet const&
 amendments() noexcept;
 
 /** Any item that can be in an owner dir. */

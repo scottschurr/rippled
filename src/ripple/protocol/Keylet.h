@@ -96,6 +96,22 @@ static_assert(std::is_nothrow_destructible_v<Keylet>);
 #endif
 
 template <bool>
+class AmendmentsImpl;
+
+struct AmendmentsKeylet final : public KeyletBase
+{
+    template <bool Writable>
+    using TWrapped = AmendmentsImpl<Writable>;
+
+    using KeyletBase::check;
+
+    explicit AmendmentsKeylet(uint256 const& key)
+        : KeyletBase(ltAMENDMENTS, key)
+    {
+    }
+};
+
+template <bool>
 class AcctRootImpl;
 
 struct AccountRootKeylet final : public KeyletBase

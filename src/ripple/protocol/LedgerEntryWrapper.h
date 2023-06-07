@@ -66,9 +66,8 @@ protected:
     // Helper functions that are useful to some derived classes.
     template <typename SF, typename T>
     void
-    setOptional(
-        SF const& field,
-        T const& value) requires Writable&& std::is_base_of_v<SField, SF>
+    setOptional(SF const& field, T const& value)
+        requires Writable && std::is_base_of_v<SField, SF>
     {
         if (!wrapped_->isFieldPresent(field))
             wrapped_->makeFieldPresent(field);
@@ -78,8 +77,8 @@ protected:
 
     template <typename SF>
     void
-    clearOptional(
-        SF const& field) requires Writable&& std::is_base_of_v<SField, SF>
+    clearOptional(SF const& field)
+        requires Writable && std::is_base_of_v<SField, SF>
     {
         if (wrapped_->isFieldPresent(field))
             wrapped_->makeFieldAbsent(field);
@@ -96,10 +95,8 @@ protected:
 
     template <typename SF, std::size_t Bits, class Tag>
     void
-    setOrClearBaseUintIfZero(
-        SF const& field,
-        base_uint<Bits, Tag> const&
-            value) requires Writable&& std::is_base_of_v<SField, SF>
+    setOrClearBaseUintIfZero(SF const& field, base_uint<Bits, Tag> const& value)
+        requires Writable && std::is_base_of_v<SField, SF>
     {
         if (value.signum() == 0)
             return clearOptional(field);
@@ -111,7 +108,8 @@ protected:
     }
 
     void
-    setOrClearVLIfEmpty(SF_VL const& field, Blob const& value) requires Writable
+    setOrClearVLIfEmpty(SF_VL const& field, Blob const& value)
+        requires Writable
     {
         if (value.empty())
             return clearOptional(field);
@@ -137,7 +135,8 @@ public:
     }
 
     [[nodiscard]] std::shared_ptr<STLedgerEntry> const&
-    slePtr() requires Writable
+    slePtr()
+        requires Writable
     {
         return wrapped_;
     }
@@ -155,19 +154,22 @@ public:
     }
 
     void
-    replaceAllFlags(std::uint32_t newFlags) requires Writable
+    replaceAllFlags(std::uint32_t newFlags)
+        requires Writable
     {
         wrapped_->at(sfFlags) = newFlags;
     }
 
     void
-    setFlag(std::uint32_t flagsToSet) requires Writable
+    setFlag(std::uint32_t flagsToSet)
+        requires Writable
     {
         replaceAllFlags(flags() | flagsToSet);
     }
 
     void
-    clearFlag(std::uint32_t flagsToClear) requires Writable
+    clearFlag(std::uint32_t flagsToClear)
+        requires Writable
     {
         replaceAllFlags(flags() & ~flagsToClear);
     }

@@ -159,11 +159,10 @@ skip(LedgerIndex ledger) noexcept
             std::uint32_t(static_cast<std::uint32_t>(ledger) >> 16))};
 }
 
-Keylet const&
+AmendmentsKeylet const&
 amendments() noexcept
 {
-    static Keylet const ret{
-        ltAMENDMENTS, indexHash(LedgerNameSpace::AMENDMENTS)};
+    static AmendmentsKeylet const ret(indexHash(LedgerNameSpace::AMENDMENTS));
     return ret;
 }
 
