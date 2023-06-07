@@ -19,11 +19,10 @@
 
 #include <ripple/app/tx/impl/SetAccount.h>
 #include <ripple/basics/Log.h>
-#include <ripple/core/Config.h>
 #include <ripple/ledger/View.h>
-#include <ripple/protocol/AcctRoot.h>
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/Indexes.h>
+#include <ripple/protocol/MultiSigners.h>
 #include <ripple/protocol/PublicKey.h>
 #include <ripple/protocol/Quality.h>
 #include <ripple/protocol/st.h>
@@ -321,7 +320,7 @@ SetAccount::doApply()
         }
 
         if ((!acctRoot->regularKey()) &&
-            (!view().peekSLE(keylet::signers(account_))))
+            (!view().peek(keylet::signers(account_))))
         {
             // Account has no regular key or multi-signer signer list.
             return tecNO_ALTERNATIVE_KEY;

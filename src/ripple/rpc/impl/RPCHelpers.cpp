@@ -134,7 +134,7 @@ isRelatedToAccount(
     }
     else if (sle->getType() == ltSIGNER_LIST)
     {
-        Keylet const accountSignerList = keylet::signers(accountID);
+        SignersKeylet const accountSignerList = keylet::signers(accountID);
         return sle->key() == accountSignerList.key;
     }
     else if (sle->getType() == ltNFTOKEN_OFFER)

@@ -182,7 +182,7 @@ removeSignersFromLedger(
     ApplyView& view,
     AccountRootKeylet const& accountKeylet,
     Keylet const& ownerDirKeylet,
-    Keylet const& signerListKeylet,
+    SignersKeylet const& signerListKeylet,
     beast::Journal j)
 {
     // We have to examine the current SignerList so we know how much to

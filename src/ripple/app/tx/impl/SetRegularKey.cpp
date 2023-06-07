@@ -20,6 +20,7 @@
 #include <ripple/app/tx/impl/SetRegularKey.h>
 #include <ripple/basics/Log.h>
 #include <ripple/protocol/Feature.h>
+#include <ripple/protocol/MultiSigners.h>
 #include <ripple/protocol/TxFlags.h>
 
 namespace ripple {
@@ -90,7 +91,7 @@ SetRegularKey::doApply()
     {
         // Account has disabled master key and no multi-signer signer list.
         if (acctRoot->isFlag(lsfDisableMaster) &&
-            !view().peekSLE(keylet::signers(account_)))
+            !view().peek(keylet::signers(account_)))
             return tecNO_ALTERNATIVE_KEY;
 
         acctRoot->clearRegularKey();

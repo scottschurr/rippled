@@ -264,14 +264,14 @@ ticket_t::operator()(AccountID const& id, SeqProxy ticketSeq) const
 // This function is presently static, since it's never accessed from anywhere
 // else. If we ever support multiple pages of signer lists, this would be the
 // keylet used to locate them.
-static Keylet
+static SignersKeylet
 signers(AccountID const& account, std::uint32_t page) noexcept
 {
-    return {
-        ltSIGNER_LIST, indexHash(LedgerNameSpace::SIGNER_LIST, account, page)};
+    return SignersKeylet(
+        indexHash(LedgerNameSpace::SIGNER_LIST, account, page));
 }
 
-Keylet
+SignersKeylet
 signers(AccountID const& account) noexcept
 {
     return signers(account, 0);

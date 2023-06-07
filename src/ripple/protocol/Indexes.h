@@ -167,7 +167,7 @@ struct ticket_t
 static ticket_t const ticket{};
 
 /** A SignerList */
-Keylet
+SignersKeylet
 signers(AccountID const& account) noexcept;
 
 /** A Check */

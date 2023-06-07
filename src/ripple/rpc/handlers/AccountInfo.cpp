@@ -23,6 +23,7 @@
 #include <ripple/ledger/ReadView.h>
 #include <ripple/protocol/ErrorCodes.h>
 #include <ripple/protocol/Indexes.h>
+#include <ripple/protocol/MultiSigners.h>
 #include <ripple/protocol/UintTypes.h>
 #include <ripple/protocol/jss.h>
 #include <ripple/rpc/Context.h>
@@ -138,9 +139,10 @@ doAccountInfo(RPC::JsonContext& context)
 
             // This code will need to be revisited if in the future we support
             // multiple SignerLists on one account.
-            auto const sleSigners = ledger->readSLE(keylet::signers(accountID));
-            if (sleSigners)
-                jvSignerList.append(sleSigners->getJson(JsonOptions::none));
+            const std::optional<SignersImpl<false>> signerList =
+                ledger->read(keylet::signers(accountID));
+            if (signerList)
+                jvSignerList.append(signerList->getJson(JsonOptions::none));
 
             // Documentation states this is returned as part of the account_info
             // response, but previously the code put it under account_data. We
