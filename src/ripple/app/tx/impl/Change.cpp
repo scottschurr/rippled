@@ -425,11 +425,11 @@ Change::applyUNLModify()
                     << " validator data:" << strHex(validator);
 
     auto const k = keylet::negativeUNL();
-    SLE::pointer negUnlObject = view().peekSLE(k);
+    std::optional<NegUNL> negUnlObject = view().peek(k);
     if (!negUnlObject)
     {
-        negUnlObject = std::make_shared<SLE>(k);
-        view().insert(negUnlObject);
+        negUnlObject = NegUNL(std::make_shared<SLE>(k));
+        view().insert(negUnlObject->slePtr());
     }
 
     bool const found = [&] {
@@ -508,7 +508,7 @@ Change::applyUNLModify()
         negUnlObject->setFieldVL(sfValidatorToReEnable, validator);
     }
 
-    view().update(negUnlObject);
+    view().update(*negUnlObject);
     return tesSUCCESS;
 }
 

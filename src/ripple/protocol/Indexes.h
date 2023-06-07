@@ -87,7 +87,7 @@ Keylet const&
 fees() noexcept;
 
 /** The (fixed) index of the object containing the ledger negativeUNL. */
-Keylet const&
+NegUNLKeylet const&
 negativeUNL() noexcept;
 
 /** The beginning of an order book */

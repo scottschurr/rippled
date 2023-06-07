@@ -23,6 +23,7 @@
 #include <ripple/basics/base_uint.h>
 #include <ripple/protocol/AcctRoot.h>
 #include <ripple/protocol/LedgerFormats.h>
+#include <ripple/protocol/NegativeUNL.h>
 
 namespace ripple {
 
@@ -94,6 +95,21 @@ static_assert(std::is_copy_assignable_v<Keylet>);
 static_assert(std::is_move_assignable_v<Keylet>);
 static_assert(std::is_nothrow_destructible_v<Keylet>);
 #endif
+
+template <bool>
+class NegUNLImpl;
+
+struct NegUNLKeylet final : public KeyletBase
+{
+    template <bool Writable>
+    using TWrapped = NegUNLImpl<Writable>;
+
+    using KeyletBase::check;
+
+    explicit NegUNLKeylet(uint256 const& key) : KeyletBase(ltNEGATIVE_UNL, key)
+    {
+    }
+};
 
 template <bool>
 class AcctRootImpl;

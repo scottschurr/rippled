@@ -712,10 +712,12 @@ hash_set<PublicKey>
 Ledger::negativeUNL() const
 {
     hash_set<PublicKey> negUnl;
-    if (auto sle = readSLE(keylet::negativeUNL());
-        sle && sle->isFieldPresent(sfDisabledValidators))
+    if (std::optional<NegUNLImpl<false>> nUNLLedgerObj =
+            read(keylet::negativeUNL());
+        nUNLLedgerObj && nUNLLedgerObj->isFieldPresent(sfDisabledValidators))
     {
-        auto const& nUnlData = sle->getFieldArray(sfDisabledValidators);
+        STArray const& nUnlData =
+            nUNLLedgerObj->getFieldArray(sfDisabledValidators);
         for (auto const& n : nUnlData)
         {
             if (n.isFieldPresent(sfPublicKey))
@@ -737,10 +739,11 @@ Ledger::negativeUNL() const
 std::optional<PublicKey>
 Ledger::validatorToDisable() const
 {
-    if (auto sle = readSLE(keylet::negativeUNL());
-        sle && sle->isFieldPresent(sfValidatorToDisable))
+    if (std::optional<NegUNLImpl<false>> nUNLLedgerObj =
+            read(keylet::negativeUNL());
+        nUNLLedgerObj && nUNLLedgerObj->isFieldPresent(sfValidatorToDisable))
     {
-        auto d = sle->getFieldVL(sfValidatorToDisable);
+        auto d = nUNLLedgerObj->getFieldVL(sfValidatorToDisable);
         auto s = makeSlice(d);
         if (publicKeyType(s))
             return PublicKey(s);

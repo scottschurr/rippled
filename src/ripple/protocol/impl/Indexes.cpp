@@ -175,11 +175,10 @@ fees() noexcept
     return ret;
 }
 
-Keylet const&
+NegUNLKeylet const&
 negativeUNL() noexcept
 {
-    static Keylet const ret{
-        ltNEGATIVE_UNL, indexHash(LedgerNameSpace::NEGATIVE_UNL)};
+    static NegUNLKeylet const ret(indexHash(LedgerNameSpace::NEGATIVE_UNL));
     return ret;
 }
 
