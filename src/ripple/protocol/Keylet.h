@@ -120,6 +120,21 @@ static_assert(std::is_move_assignable_v<AccountRootKeylet>);
 static_assert(std::is_nothrow_destructible_v<AccountRootKeylet>);
 #endif
 
+template <bool>
+class EscrowImpl;
+
+struct EscrowKeylet final : public KeyletBase
+{
+    template <bool Writable>
+    using TWrapped = EscrowImpl<Writable>;
+
+    using KeyletBase::check;
+
+    EscrowKeylet(uint256 const& key) : KeyletBase(ltESCROW, key)
+    {
+    }
+};
+
 }  // namespace ripple
 
 #endif

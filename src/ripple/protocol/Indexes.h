@@ -218,7 +218,7 @@ page(Keylet const& root, std::uint64_t index = 0) noexcept
 /** @} */
 
 /** An escrow entry */
-Keylet
+EscrowKeylet
 escrow(AccountID const& src, std::uint32_t seq) noexcept;
 
 /** A PaymentChannel */

@@ -314,10 +314,10 @@ page(uint256 const& key, std::uint64_t index) noexcept
     return {ltDIR_NODE, indexHash(LedgerNameSpace::DIR_NODE, key, index)};
 }
 
-Keylet
+EscrowKeylet
 escrow(AccountID const& src, std::uint32_t seq) noexcept
 {
-    return {ltESCROW, indexHash(LedgerNameSpace::ESCROW, src, seq)};
+    return {indexHash(LedgerNameSpace::ESCROW, src, seq)};
 }
 
 Keylet
