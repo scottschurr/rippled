@@ -22,6 +22,7 @@
 
 #include <ripple/basics/base_uint.h>
 #include <ripple/protocol/AcctRoot.h>
+#include <ripple/protocol/DepPreAuth.h>
 #include <ripple/protocol/LedgerFormats.h>
 
 namespace ripple {
@@ -119,6 +120,22 @@ static_assert(std::is_copy_assignable_v<AccountRootKeylet>);
 static_assert(std::is_move_assignable_v<AccountRootKeylet>);
 static_assert(std::is_nothrow_destructible_v<AccountRootKeylet>);
 #endif
+
+template <bool>
+class DepPreAuthImpl;
+
+struct DepPreAuthKeylet final : public KeyletBase
+{
+    template <bool Writable>
+    using TWrapped = DepPreAuthImpl<Writable>;
+
+    using KeyletBase::check;
+
+    explicit DepPreAuthKeylet(uint256 const& key)
+        : KeyletBase(ltDEPOSIT_PREAUTH, key)
+    {
+    }
+};
 
 }  // namespace ripple
 

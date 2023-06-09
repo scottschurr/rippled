@@ -101,9 +101,9 @@ doDepositAuthorized(RPC::JsonContext& context)
         if (destAcctRoot->isFlag(lsfDepositAuth))
         {
             // See if a preauthorization entry is in the ledger.
-            auto const sleDepositAuth =
-                ledger->readSLE(keylet::depositPreauth(dstAcct, srcAcct));
-            depositAuthorized = static_cast<bool>(sleDepositAuth);
+            depositAuthorized =
+                ledger->read(keylet::depositPreauth(dstAcct, srcAcct))
+                    .has_value();
         }
     }
     result[jss::source_account] = params[jss::source_account].asString();

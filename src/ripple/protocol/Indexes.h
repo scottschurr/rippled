@@ -184,13 +184,13 @@ check(uint256 const& key) noexcept
 
 /** A DepositPreauth */
 /** @{ */
-Keylet
+DepPreAuthKeylet
 depositPreauth(AccountID const& owner, AccountID const& preauthorized) noexcept;
 
-inline Keylet
+inline DepPreAuthKeylet
 depositPreauth(uint256 const& key) noexcept
 {
-    return {ltDEPOSIT_PREAUTH, key};
+    return DepPreAuthKeylet(key);
 }
 /** @} */
 
