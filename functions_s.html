@@ -253,7 +253,7 @@ $(function() {
 </li>
 <li>secure()
 : <a class="el" href="structripple_1_1Port.html#a1e7146f5835b2fb7aa25479310dfaea0">ripple::Port</a>
-, <a class="el" href="structripple_1_1ServerHandlerImp_1_1Setup_1_1client__t.html#a44fccc2b575144cf16688e0510446bd4">ripple::ServerHandlerImp::Setup::client_t</a>
+, <a class="el" href="structripple_1_1ServerHandler_1_1Setup_1_1client__t.html#a37975fda00ae09a0db0edaa34a2b1420">ripple::ServerHandler::Setup::client_t</a>
 </li>
 <li>secure_gateway_nets_v4
 : <a class="el" href="structripple_1_1ParsedPort.html#af6352ba8e1ca2026696d5f38447753da">ripple::ParsedPort</a>
@@ -328,7 +328,8 @@ $(function() {
 : <a class="el" href="classbeast_1_1SemanticVersion.html#ab10dfaa6c9c66701308e6cf9b64f6878">beast::SemanticVersion</a>
 </li>
 <li>send()
-: <a class="el" href="classripple_1_1BaseWSPeer.html#a95efb377404ff6fd4197e48c879668f3">ripple::BaseWSPeer&lt; Handler, Impl &gt;</a>
+: <a class="el" href="classripple_1_1AMMOffer.html#a1e5bdbacd99624d69a544b22fc3b9973">ripple::AMMOffer&lt; TIn, TOut &gt;</a>
+, <a class="el" href="classripple_1_1BaseWSPeer.html#a95efb377404ff6fd4197e48c879668f3">ripple::BaseWSPeer&lt; Handler, Impl &gt;</a>
 , <a class="el" href="classripple_1_1InfoSub.html#a171fe2aec5426ca4c8eba74fbc0ffc17">ripple::InfoSub</a>
 , <a class="el" href="classripple_1_1Peer.html#a3c89dbf867ba814f0bf2417757d5a0f4">ripple::Peer</a>
 , <a class="el" href="classripple_1_1PeerImp.html#aa349eb9f7a80300fcfc951ed514cb658">ripple::PeerImp</a>
@@ -340,6 +341,7 @@ $(function() {
 , <a class="el" href="classripple_1_1test_1_1TestPeer.html#a49a0c65115d326e7fbd38be43a800f8d">ripple::test::TestPeer</a>
 , <a class="el" href="classripple_1_1test_1_1tx__reduce__relay__test_1_1PeerTest.html#a8acefb03a28d2d12b5d56f59a3b77905">ripple::test::tx_reduce_relay_test::PeerTest</a>
 , <a class="el" href="classripple_1_1test_1_1Validator.html#ac24116098b70562626a8a5d508d8a293">ripple::test::Validator</a>
+, <a class="el" href="classripple_1_1TOffer.html#ac4817fe90d1bd96d989ec0461c8cc520">ripple::TOffer&lt; TIn, TOut &gt;</a>
 , <a class="el" href="classripple_1_1WSInfoSub.html#a87dcd526a719062bb601399efddbaff3">ripple::WSInfoSub</a>
 , <a class="el" href="structripple_1_1WSSession.html#a8e7e0b568ae4bcced108341224dec263">ripple::WSSession</a>
 </li>
@@ -561,12 +563,15 @@ $(function() {
 <li>ServerFeeSummary()
 : <a class="el" href="structripple_1_1NetworkOPsImp_1_1ServerFeeSummary.html#a5e2cd4d290ade2bc58af23f9a6bf8eff">ripple::NetworkOPsImp::ServerFeeSummary</a>
 </li>
+<li>ServerHandler()
+: <a class="el" href="classripple_1_1ServerHandler.html#ac26a08a58e09059f5d210d95fbc610a1">ripple::ServerHandler</a>
+</li>
 <li>serverHandler_
 : <a class="el" href="classripple_1_1ApplicationImp.html#a8f07800d147c503bb9c2444de656eb97">ripple::ApplicationImp</a>
 , <a class="el" href="classripple_1_1OverlayImpl.html#ae5fe3dfe3daa120c09d5041b07104da6">ripple::OverlayImpl</a>
 </li>
-<li>ServerHandlerImp()
-: <a class="el" href="classripple_1_1ServerHandlerImp.html#ae60517d5b30cd75222a075792f10f665">ripple::ServerHandlerImp</a>
+<li>ServerHandlerCreator()
+: <a class="el" href="structripple_1_1ServerHandler_1_1ServerHandlerCreator.html#ac35941003332f82e1b2fb253280c1c04">ripple::ServerHandler::ServerHandlerCreator</a>
 </li>
 <li>ServerImpl()
 : <a class="el" href="classripple_1_1ServerImpl.html#adeab259dfa2a7360747d6500fe49cfa6">ripple::ServerImpl&lt; Handler &gt;</a>
@@ -677,6 +682,9 @@ $(function() {
 : <a class="el" href="classripple_1_1NetworkOPs.html#a3a1b507c5ec60a6dc64ed8e7fa9cfdcd">ripple::NetworkOPs</a>
 , <a class="el" href="classripple_1_1NetworkOPsImp.html#aa5b223f692b17e1ba412918ecd404647">ripple::NetworkOPsImp</a>
 </li>
+<li>setAMMUsed()
+: <a class="el" href="classripple_1_1AMMContext.html#a3137277698da3ced1735bd699c4e416c">ripple::AMMContext</a>
+</li>
 <li>setApplied()
 : <a class="el" href="classripple_1_1Transaction.html#a74e2ce571b5ca629c06dbb7161337ace">ripple::Transaction</a>
 </li>
@@ -749,6 +757,9 @@ $(function() {
 <li>setFieldH256()
 : <a class="el" href="classripple_1_1STObject.html#a4aee4efa6aeff63e0d5ff08d31730be2">ripple::STObject</a>
 </li>
+<li>setFieldIssue()
+: <a class="el" href="classripple_1_1STObject.html#a04f7b2ee945330e4d42ef13c32256b00">ripple::STObject</a>
+</li>
 <li>setFieldPathSet()
 : <a class="el" href="classripple_1_1STObject.html#a309347871ac021d8922708fcbbb0ed46">ripple::STObject</a>
 </li>
@@ -817,6 +828,7 @@ $(function() {
 </li>
 <li>setIssue()
 : <a class="el" href="classripple_1_1STAmount.html#a3758d676b17e36e61b94cb3fec90dcdf">ripple::STAmount</a>
+, <a class="el" href="classripple_1_1STIssue.html#a2679903898e77820a13826efab72b5ad">ripple::STIssue</a>
 </li>
 <li>setIssuer()
 : <a class="el" href="classripple_1_1STAmount.html#a532cc28fd8b3d99c5de749e7e78fd08d">ripple::STAmount</a>
@@ -869,6 +881,9 @@ $(function() {
 </li>
 <li>setMsgTimestamp()
 : <a class="el" href="classripple_1_1NodeStore_1_1ShardInfo.html#a53e63f65a02893ca838375319c6150a1">ripple::NodeStore::ShardInfo</a>
+</li>
+<li>setMultiPath()
+: <a class="el" href="classripple_1_1AMMContext.html#abcbd78fc21b665fcb32a30f29d392993">ripple::AMMContext</a>
 </li>
 <li>setName()
 : <a class="el" href="classripple_1_1LoadEvent.html#aa2043ee7c57c4b0486c9d3eb63a458cf">ripple::LoadEvent</a>
@@ -983,6 +998,9 @@ $(function() {
 , <a class="el" href="classripple_1_1TimeoutCounter.html#a3a01b0664f4479588f93e805ee9aaced">ripple::TimeoutCounter</a>
 , <a class="el" href="classripple_1_1ValidatorSite.html#a52cc0b9c9c22ec110dc2ff34abb4a7ec">ripple::ValidatorSite</a>
 </li>
+<li>setTokens()
+: <a class="el" href="classripple_1_1test_1_1jtx_1_1AMM.html#a5e0fca9fe28787aa7573d83ca74709fb">ripple::test::jtx::AMM</a>
+</li>
 <li>setTotalDrops()
 : <a class="el" href="classripple_1_1Ledger.html#ab2488927f55df32651c86e838106cd25">ripple::Ledger</a>
 </li>
@@ -1024,10 +1042,10 @@ $(function() {
 </li>
 <li>setup()
 : <a class="el" href="classripple_1_1OverlayImpl.html#a55c2ef9cc5b0abfbd143b1feea4f3c4b">ripple::OverlayImpl</a>
-, <a class="el" href="classripple_1_1ServerHandlerImp.html#ada3f9a7408b165b0755143181956b598">ripple::ServerHandlerImp</a>
+, <a class="el" href="classripple_1_1ServerHandler.html#ad08c6ebe6bede2bf1e3c35380eedc51c">ripple::ServerHandler</a>
 </li>
 <li>Setup()
-: <a class="el" href="structripple_1_1ServerHandlerImp_1_1Setup.html#a6f01bd957f2c56644c9055bbb3474e3b">ripple::ServerHandlerImp::Setup</a>
+: <a class="el" href="structripple_1_1ServerHandler_1_1Setup.html#a32503a6621be5459f562c8fe57d4ceeb">ripple::ServerHandler::Setup</a>
 </li>
 <li>setup()
 : <a class="el" href="classripple_1_1test_1_1TestOutputSuite.html#ace3f80b977e4ab4ecc39c30c36c55e65">ripple::test::TestOutputSuite</a>
@@ -1038,7 +1056,7 @@ $(function() {
 <li>setup_
 : <a class="el" href="classripple_1_1OverlayImpl.html#aea84682825b5a501b694feef477a350c">ripple::OverlayImpl</a>
 , <a class="el" href="classripple_1_1perf_1_1PerfLogImp.html#ac8aa2814945a4677e948d62836b34cc4">ripple::perf::PerfLogImp</a>
-, <a class="el" href="classripple_1_1ServerHandlerImp.html#af0b800c201469af253defea16bae0d96">ripple::ServerHandlerImp</a>
+, <a class="el" href="classripple_1_1ServerHandler.html#af67da01f8a58f471bc24134e78ba180e">ripple::ServerHandler</a>
 , <a class="el" href="classripple_1_1TxQ.html#ae4fdf7a241cbf86400de491da4b037fe">ripple::TxQ</a>
 </li>
 <li>setupCheckpointing()
@@ -1096,7 +1114,7 @@ $(function() {
 : <a class="el" href="classbeast_1_1Journal.html#ad1ad6a61a107239556832e8db81407cb">beast::Journal</a>
 </li>
 <li>SField()
-: <a class="el" href="classripple_1_1SField.html#a227e5bce1407595b25adff33a78c6b08">ripple::SField</a>
+: <a class="el" href="classripple_1_1SField.html#aebc4c4655a5cd6fcc7231eafb8360b81">ripple::SField</a>
 </li>
 <li>sField()
 : <a class="el" href="classripple_1_1SOElement.html#a3668ff9c521379a2a1e6963e91a466dd">ripple::SOElement</a>
@@ -1109,7 +1127,7 @@ $(function() {
 </li>
 <li>SHAMap
 : <a class="el" href="classripple_1_1SHAMap_1_1const__iterator.html#a1ffff693669cd9c4038491d5cc4cf6f3">ripple::SHAMap::const_iterator</a>
-, <a class="el" href="classripple_1_1SHAMap.html#a8a177ba2a59ac333da4a2e2b050b83ac">ripple::SHAMap</a>
+, <a class="el" href="classripple_1_1SHAMap.html#aa021481769cad215f208aacb1c37e28a">ripple::SHAMap</a>
 </li>
 <li>SHAMapAccountStateLeafNode()
 : <a class="el" href="classripple_1_1SHAMapAccountStateLeafNode.html#a4b2768112a4af374d7f1c4e74eb5d437">ripple::SHAMapAccountStateLeafNode</a>
@@ -1317,10 +1335,12 @@ $(function() {
 </li>
 <li>signal()
 : <a class="el" href="classripple_1_1test_1_1Coroutine__test_1_1gate.html#aed520993e13c7187cc9027c15d984185">ripple::test::Coroutine_test::gate</a>
+, <a class="el" href="classripple_1_1test_1_1jtx_1_1AMMTest_1_1gate.html#a22720e8295b35478cc46d1c4b1e65244">ripple::test::jtx::AMMTest::gate</a>
 , <a class="el" href="classripple_1_1test_1_1Path__test_1_1gate.html#a0e7e9e39673ac3d965f68922dc4e4f32">ripple::test::Path_test::gate</a>
 </li>
 <li>signaled_
 : <a class="el" href="classripple_1_1test_1_1Coroutine__test_1_1gate.html#a1d7b8eb59e60b3fe89ccf02b89e4cdb9">ripple::test::Coroutine_test::gate</a>
+, <a class="el" href="classripple_1_1test_1_1jtx_1_1AMMTest_1_1gate.html#a4b023593e882de402c895ea9cb89919b">ripple::test::jtx::AMMTest::gate</a>
 , <a class="el" href="classripple_1_1test_1_1Path__test_1_1gate.html#a843301da998a4bd64ae04ed70c84be27">ripple::test::Path_test::gate</a>
 </li>
 <li>signalStop()
@@ -1411,12 +1431,14 @@ $(function() {
 , <a class="el" href="classripple_1_1STAmount.html#aa068506da537548a864f80cf4128f7e9">ripple::STAmount</a>
 , <a class="el" href="classripple_1_1XRPAmount.html#a5f5a00512163351500d08fb545ad7933">ripple::XRPAmount</a>
 </li>
+<li>silent()
+: <a class="el" href="classripple_1_1Config.html#a05dcb3f47fef4f40439c186db93192fa">ripple::Config</a>
+</li>
 <li>SILENT
 : <a class="el" href="classripple_1_1Config.html#a46dbb4fab55ba6bd99cbe0e4eb24d2c3">ripple::Config</a>
 </li>
 <li>silent()
-: <a class="el" href="classripple_1_1Config.html#a05dcb3f47fef4f40439c186db93192fa">ripple::Config</a>
-, <a class="el" href="classripple_1_1Logs.html#a03f235fbdd422fa07ebf3fee57f27b99">ripple::Logs</a>
+: <a class="el" href="classripple_1_1Logs.html#a03f235fbdd422fa07ebf3fee57f27b99">ripple::Logs</a>
 </li>
 <li>silent_
 : <a class="el" href="classripple_1_1Logs.html#ad272276e3b9664bfb16150aafbc6908e">ripple::Logs</a>
@@ -1431,8 +1453,26 @@ $(function() {
 : <a class="el" href="classripple_1_1Consensus.html#a6d167e182528e6ba3192a40c8de4eae5">ripple::Consensus&lt; Adaptor &gt;</a>
 , <a class="el" href="classripple_1_1RCLConsensus.html#a41b5d07d847a52a3408b8e366b8ee53b">ripple::RCLConsensus</a>
 </li>
+<li>singleDeposit()
+: <a class="el" href="classripple_1_1AMMDeposit.html#a7242a93c72c9cb498849fb149ded3501">ripple::AMMDeposit</a>
+</li>
+<li>singleDepositEPrice()
+: <a class="el" href="classripple_1_1AMMDeposit.html#a5775a9ff666de25c0c0ad243b79b9d0e">ripple::AMMDeposit</a>
+</li>
+<li>singleDepositTokens()
+: <a class="el" href="classripple_1_1AMMDeposit.html#ad27c911271e84c57234e36978b8160bb">ripple::AMMDeposit</a>
+</li>
 <li>SingleMetrics()
 : <a class="el" href="structripple_1_1metrics_1_1SingleMetrics.html#a603661e5f74f98c3a38007474493bd62">ripple::metrics::SingleMetrics</a>
+</li>
+<li>singleWithdraw()
+: <a class="el" href="classripple_1_1AMMWithdraw.html#a41ba8cc3d6402d3babee02819a78fca4">ripple::AMMWithdraw</a>
+</li>
+<li>singleWithdrawEPrice()
+: <a class="el" href="classripple_1_1AMMWithdraw.html#ae118560969025af2963d994ea4247d7b">ripple::AMMWithdraw</a>
+</li>
+<li>singleWithdrawTokens()
+: <a class="el" href="classripple_1_1AMMWithdraw.html#a6e5584ff04fd7a09d3213d88372a88d8">ripple::AMMWithdraw</a>
 </li>
 <li>sink()
 : <a class="el" href="classbeast_1_1Journal.html#a9d7ebfc55a2461241b4eef61f6abf4b6">beast::Journal</a>
@@ -1680,7 +1720,7 @@ $(function() {
 , <a class="el" href="classripple_1_1SHAMapItem.html#a3f52867a7d3829faede60bf7dd5628ba">ripple::SHAMapItem</a>
 </li>
 <li>Slice()
-: <a class="el" href="classripple_1_1Slice.html#a5a14d5d1e5aac5e2c6300f04709aaa42">ripple::Slice</a>
+: <a class="el" href="classripple_1_1Slice.html#ada896db9af14b2b214876bebca5402fd">ripple::Slice</a>
 </li>
 <li>slot()
 : <a class="el" href="classripple_1_1PeerFinder_1_1RedirectHandouts.html#a047ae65a4d1979b21f41a0a046d02121">ripple::PeerFinder::RedirectHandouts</a>
@@ -1788,7 +1828,7 @@ $(function() {
 , <a class="el" href="classripple_1_1PeerImp.html#a5c3d6d5f4d539de10027f1fe08a48db2">ripple::PeerImp</a>
 , <a class="el" href="classripple_1_1PlainHTTPPeer.html#adadec56837d686d796d4b4515216debb">ripple::PlainHTTPPeer&lt; Handler &gt;</a>
 , <a class="el" href="classripple_1_1PlainWSPeer.html#ac49d0ce68be9a561568e92aff78e6847">ripple::PlainWSPeer&lt; Handler &gt;</a>
-, <a class="el" href="classripple_1_1ServerHandlerImp.html#a5f069e5cdf71bf232a00bd53b2d83aa0">ripple::ServerHandlerImp</a>
+, <a class="el" href="classripple_1_1ServerHandler.html#aa9929ad82bacf70dcdc02f4bb17ca661">ripple::ServerHandler</a>
 , <a class="el" href="classripple_1_1short__read__test.html#afd21c18d7792ab0d28f376664437fcce">ripple::short_read_test</a>
 , <a class="el" href="classripple_1_1SSLHTTPPeer.html#a0870baa152f0199b2caa2eacbe67ed4f">ripple::SSLHTTPPeer&lt; Handler &gt;</a>
 , <a class="el" href="classripple_1_1SSLWSPeer.html#a67d555feb28ca52e3afb48a4b8e3fbf4">ripple::SSLWSPeer&lt; Handler &gt;</a>
@@ -2021,7 +2061,7 @@ $(function() {
 : <a class="el" href="classripple_1_1RFC1751.html#a25a3b2c7ca08637f945bfb1f4c09f9d1">ripple::RFC1751</a>
 </li>
 <li>STArray()
-: <a class="el" href="classripple_1_1STArray.html#a46b1c2767cf7f395cbbb266e6d358afb">ripple::STArray</a>
+: <a class="el" href="classripple_1_1STArray.html#afae258affa5a4f3802afc69e993bcf3d">ripple::STArray</a>
 </li>
 <li>start()
 : <a class="el" href="structio__latency__probe__test_1_1test__sampler.html#a42b431a7b398eb4805857f209d986087">io_latency_probe_test::test_sampler</a>
@@ -2271,7 +2311,7 @@ $(function() {
 : <a class="el" href="classripple_1_1AsyncCallData.html#acc88eeb725ce1c0b90aa51301017498b">ripple::AsyncCallData</a>
 </li>
 <li>statusResponse()
-: <a class="el" href="classripple_1_1ServerHandlerImp.html#ad75e744ed8a9fda6d46bcc8d87b33a38">ripple::ServerHandlerImp</a>
+: <a class="el" href="classripple_1_1ServerHandler.html#a9c2c5ea609ff0d78bcb341a636ff8e4d">ripple::ServerHandler</a>
 </li>
 <li>STBase()
 : <a class="el" href="classripple_1_1STBase.html#aea414075baa486070261678730941dd6">ripple::STBase</a>
@@ -2317,6 +2357,7 @@ $(function() {
 </li>
 <li>steps
 : <a class="el" href="structripple_1_1PeerFinder_1_1Sim_1_1Params.html#abeafd41174dfab078a3fca1c490cfd72">ripple::PeerFinder::Sim::Params</a>
+, <a class="el" href="classripple_1_1test_1_1AMMCalc__test.html#abb15c2ab3ffc4b0c8c3e2a1fda78778c">ripple::test::AMMCalc_test</a>
 </li>
 <li>STExchange()
 : <a class="el" href="structripple_1_1STExchange_3_01STBlob_00_01Buffer_01_4.html#a9f2aac79ef1625d867091ba443e852f1">ripple::STExchange&lt; STBlob, Buffer &gt;</a>
@@ -2328,14 +2369,17 @@ $(function() {
 : <a class="el" href="classripple_1_1TransactionAcquire.html#a19169b2acca6d5bcc30b7babf13cb7e3">ripple::TransactionAcquire</a>
 </li>
 <li>STInteger()
-: <a class="el" href="classripple_1_1STInteger.html#a28c143e7620ec2cb6a10505335fa7309">ripple::STInteger&lt; Integer &gt;</a>
+: <a class="el" href="classripple_1_1STInteger.html#ab66d2debb005ab9f17d3f25680ba63a2">ripple::STInteger&lt; Integer &gt;</a>
+</li>
+<li>STIssue()
+: <a class="el" href="classripple_1_1STIssue.html#a293d6e07aa112548961d70e0e44cb48c">ripple::STIssue</a>
 </li>
 <li>STLedgerEntry()
-: <a class="el" href="classripple_1_1STLedgerEntry.html#a3da872e65161f28e6c4366bcca17bd02">ripple::STLedgerEntry</a>
+: <a class="el" href="classripple_1_1STLedgerEntry.html#a1de5e59a7d0de34760905ec1ba7c61cf">ripple::STLedgerEntry</a>
 </li>
 <li>STObject
 : <a class="el" href="classripple_1_1STObject_1_1OptionalProxy.html#a3d078850c695c0d606fe88c0fba7088f">ripple::STObject::OptionalProxy&lt; T &gt;</a>
-, <a class="el" href="classripple_1_1STObject.html#a36c953a93c5b8e9979099bb645afec09">ripple::STObject</a>
+, <a class="el" href="classripple_1_1STObject.html#ab367802039c6117b1529ca8291c41744">ripple::STObject</a>
 , <a class="el" href="classripple_1_1STObject_1_1ValueProxy.html#a3d078850c695c0d606fe88c0fba7088f">ripple::STObject::ValueProxy&lt; T &gt;</a>
 </li>
 <li>stop()
@@ -2381,7 +2425,7 @@ $(function() {
 , <a class="el" href="classripple_1_1Resolver.html#acbdf93b006ef3a857da30e63bf24415a">ripple::Resolver</a>
 , <a class="el" href="classripple_1_1ResolverAsioImpl.html#a3ffa0c94f4294501499a2877dd964ca3">ripple::ResolverAsioImpl</a>
 , <a class="el" href="classripple_1_1RPC_1_1ShardArchiveHandler.html#abfd788059fe248e08426657dbaef7f57">ripple::RPC::ShardArchiveHandler</a>
-, <a class="el" href="classripple_1_1ServerHandlerImp.html#a27375969856fc325e5345720870fbb2b">ripple::ServerHandlerImp</a>
+, <a class="el" href="classripple_1_1ServerHandler.html#ad829f79b977cc0d0966f8537b89a5db0">ripple::ServerHandler</a>
 , <a class="el" href="classripple_1_1SHAMapStore.html#a611a7f70fda14bd4fbff000385baaa59">ripple::SHAMapStore</a>
 , <a class="el" href="classripple_1_1SHAMapStoreImp.html#a7526140fe1abd6784e9ee844e578f1cb">ripple::SHAMapStoreImp</a>
 , <a class="el" href="structripple_1_1test_1_1csf_1_1SimDurationCollector.html#ac199b506e45e8ecf7af13aebfff9959a">ripple::test::csf::SimDurationCollector</a>
@@ -2417,7 +2461,7 @@ $(function() {
 </li>
 <li>stopped_
 : <a class="el" href="classripple_1_1JobQueue.html#a29510ba2ca7fb594aea5778bc661960f">ripple::JobQueue</a>
-, <a class="el" href="classripple_1_1ServerHandlerImp.html#a3792792db57e6304e1f9577cfce5989e">ripple::ServerHandlerImp</a>
+, <a class="el" href="classripple_1_1ServerHandler.html#aec902f9d496b7081d4f56ba09eea6310">ripple::ServerHandler</a>
 </li>
 <li>stopping
 : <a class="el" href="classripple_1_1SHAMapStoreImp.html#aaef701af5fbfe0fe8d445eddc7ccf7c8a648993c73fe27067b143d924a5cf681c">ripple::SHAMapStoreImp</a>
@@ -2478,7 +2522,7 @@ $(function() {
 </li>
 <li>storeLedger()
 : <a class="el" href="classripple_1_1LedgerMaster.html#adbb16e4fb8acf01bd535684e45d20051">ripple::LedgerMaster</a>
-, <a class="el" href="classripple_1_1NodeStore_1_1Database.html#a410587cb70ec38bb10cfab3218f54d16">ripple::NodeStore::Database</a>
+, <a class="el" href="classripple_1_1NodeStore_1_1Database.html#aad7aa12d0cc01006120761d23312d428">ripple::NodeStore::Database</a>
 , <a class="el" href="classripple_1_1NodeStore_1_1DatabaseNodeImp.html#a727c96f7f30d04345184be123dfe1137">ripple::NodeStore::DatabaseNodeImp</a>
 , <a class="el" href="classripple_1_1NodeStore_1_1DatabaseRotatingImp.html#a55502de7f83a364526263b38bc1fe709">ripple::NodeStore::DatabaseRotatingImp</a>
 , <a class="el" href="classripple_1_1NodeStore_1_1DatabaseShardImp.html#a2f242c02ca2541308788a558e747e21b">ripple::NodeStore::DatabaseShardImp</a>
@@ -2500,19 +2544,19 @@ $(function() {
 : <a class="el" href="classripple_1_1NodeStore_1_1Database.html#a5dbc9808c511caeaaa7ce5c6b27276e6">ripple::NodeStore::Database</a>
 </li>
 <li>STParsedJSONArray()
-: <a class="el" href="classripple_1_1STParsedJSONArray.html#aff64a5a6805ea010242118eecaab8436">ripple::STParsedJSONArray</a>
+: <a class="el" href="classripple_1_1STParsedJSONArray.html#af70e133b97807762bc1462fce2e54634">ripple::STParsedJSONArray</a>
 </li>
 <li>STParsedJSONObject()
-: <a class="el" href="classripple_1_1STParsedJSONObject.html#a734cbd3240d7031c0c5754dcd8ebe588">ripple::STParsedJSONObject</a>
+: <a class="el" href="classripple_1_1STParsedJSONObject.html#ac6d54a153bdf6911e71dcc98e8d3e180">ripple::STParsedJSONObject</a>
 </li>
 <li>STPath()
-: <a class="el" href="classripple_1_1STPath.html#a1a5d7508286da4e8f029ca1dfd91546d">ripple::STPath</a>
+: <a class="el" href="classripple_1_1STPath.html#a3e34d01101211250f996d521080d2cb2">ripple::STPath</a>
 </li>
 <li>STPathElement()
-: <a class="el" href="classripple_1_1STPathElement.html#a599436dd26ca3f1120659d1c8a9b8dab">ripple::STPathElement</a>
+: <a class="el" href="classripple_1_1STPathElement.html#ae95e0b7502495d0a222d884f9cac7d9a">ripple::STPathElement</a>
 </li>
 <li>STPathSet()
-: <a class="el" href="classripple_1_1STPathSet.html#a13611187b51384958e751f950ea4115a">ripple::STPathSet</a>
+: <a class="el" href="classripple_1_1STPathSet.html#a3519d5e461a5e126abed55f1656ecc9e">ripple::STPathSet</a>
 </li>
 <li>str
 : <a class="el" href="classripple_1_1test_1_1ClosureCounter__test_1_1TrackedString.html#aff0a73282a3722ce27d4e9a993966956">ripple::test::ClosureCounter_test::TrackedString</a>
@@ -2544,7 +2588,7 @@ $(function() {
 : <a class="el" href="classripple_1_1short__read__test.html#a49dde060f42062cc87d1729652bb1807">ripple::short_read_test</a>
 </li>
 <li>StrandContext()
-: <a class="el" href="structripple_1_1StrandContext.html#a097aac45f577b584145d4005dec223cd">ripple::StrandContext</a>
+: <a class="el" href="structripple_1_1StrandContext.html#acb42106b3095bae08d39db25ba118c22">ripple::StrandContext</a>
 </li>
 <li>strandDeliver
 : <a class="el" href="structripple_1_1StrandContext.html#a03b9f93d198f909b093bf62c00a9e7a0">ripple::StrandContext</a>
@@ -2556,7 +2600,7 @@ $(function() {
 : <a class="el" href="classripple_1_1BookStep.html#aca9d4f2a380bfab569355b12fbbab6ee">ripple::BookStep&lt; TIn, TOut, TDerived &gt;</a>
 </li>
 <li>StrandResult()
-: <a class="el" href="structripple_1_1StrandResult.html#a6db644aec626a02524fe13a7892b7e3f">ripple::StrandResult&lt; TInAmt, TOutAmt &gt;</a>
+: <a class="el" href="structripple_1_1StrandResult.html#af976cea690292c2f551b074ef401e38d">ripple::StrandResult&lt; TInAmt, TOutAmt &gt;</a>
 </li>
 <li>strandSize
 : <a class="el" href="structripple_1_1StrandContext.html#abf8cbe3f3e12efda21a694f5228a7a2d">ripple::StrandContext</a>
@@ -2578,7 +2622,7 @@ $(function() {
 </li>
 <li>stream()
 : <a class="el" href="classbeast_1_1PropertyStream_1_1Map.html#afde70ec30c76ba44525281db254070e8">beast::PropertyStream::Map</a>
-, <a class="el" href="classbeast_1_1PropertyStream_1_1Set.html#a0b6395cd2ef3d42789158eab07d0f138">beast::PropertyStream::Set</a>
+, <a class="el" href="classbeast_1_1PropertyStream_1_1Set.html#aee82be213d13b1a0486e48269883a686">beast::PropertyStream::Set</a>
 , <a class="el" href="classripple_1_1detail_1_1WorkPlain.html#a9005b56165599a6be25685b357add58c">ripple::detail::WorkPlain</a>
 , <a class="el" href="classripple_1_1detail_1_1WorkSSL.html#ac520506a36c9f10de91eec5f96132b5a">ripple::detail::WorkSSL</a>
 </li>
@@ -2610,7 +2654,7 @@ $(function() {
 , <a class="el" href="classripple_1_1Overlay.html#a026569223754f47e395f2cb65a48da9d">ripple::Overlay</a>
 , <a class="el" href="classripple_1_1PeerImp.html#a041ef87534482f1af97bfb9caa48fce2">ripple::PeerImp</a>
 , <a class="el" href="classripple_1_1PlainHTTPPeer.html#a9f76b3500867255834e8b43156bd63b4">ripple::PlainHTTPPeer&lt; Handler &gt;</a>
-, <a class="el" href="classripple_1_1ServerHandlerImp.html#a0ec639de9b8914a6e881589262f9739b">ripple::ServerHandlerImp</a>
+, <a class="el" href="classripple_1_1ServerHandler.html#af8b4a98f13f9bee67b0faa2748c7e363">ripple::ServerHandler</a>
 , <a class="el" href="classripple_1_1short__read__test.html#a4c727b48f2be6008ef8ad98057550ecc">ripple::short_read_test</a>
 , <a class="el" href="classripple_1_1SSLHTTPPeer.html#add591b4d2f027c67db99a5f6affedfb4">ripple::SSLHTTPPeer&lt; Handler &gt;</a>
 , <a class="el" href="classripple_1_1SSLWSPeer.html#a37ef59f3ed9883a9019577cad57debd9">ripple::SSLWSPeer&lt; Handler &gt;</a>
@@ -2656,7 +2700,7 @@ $(function() {
 </li>
 <li>strOperatingMode()
 : <a class="el" href="classripple_1_1NetworkOPs.html#ad4c27eb535691555917e3b1ae5ab2637">ripple::NetworkOPs</a>
-, <a class="el" href="classripple_1_1NetworkOPsImp.html#a93fd385c3230e808d5f04957dba64bd3">ripple::NetworkOPsImp</a>
+, <a class="el" href="classripple_1_1NetworkOPsImp.html#a0699107297f0a4cc80097eb37772b3e1">ripple::NetworkOPsImp</a>
 </li>
 <li>STTx()
 : <a class="el" href="classripple_1_1STTx.html#a1686ffd9d21cc9493a097d328381f062">ripple::STTx</a>
@@ -2666,13 +2710,13 @@ $(function() {
 , <a class="el" href="structripple_1_1test_1_1GRPCTestClientBase.html#ad7f22d68c721c8362822215819cf6162">ripple::test::GRPCTestClientBase</a>
 </li>
 <li>STValidation()
-: <a class="el" href="classripple_1_1STValidation.html#a2c47685a67b798f6aafb2e4f14faf240">ripple::STValidation</a>
+: <a class="el" href="classripple_1_1STValidation.html#a3c378199969a1776d68565d0083355fa">ripple::STValidation</a>
 </li>
 <li>STVar()
-: <a class="el" href="classripple_1_1detail_1_1STVar.html#a291576558884e4135deec3ed224e191e">ripple::detail::STVar</a>
+: <a class="el" href="classripple_1_1detail_1_1STVar.html#a822db5c72177b813e521935fa5cf6b44">ripple::detail::STVar</a>
 </li>
 <li>STVector256()
-: <a class="el" href="classripple_1_1STVector256.html#a2265491f105868975519141b277afd00">ripple::STVector256</a>
+: <a class="el" href="classripple_1_1STVector256.html#ad0fa70844a311e3932caaf8fa851edc8">ripple::STVector256</a>
 </li>
 <li>stx
 : <a class="el" href="structripple_1_1test_1_1jtx_1_1JTx.html#a471b9ef90d3d89403c8d3d0f92113d7f">ripple::test::jtx::JTx</a>
@@ -2746,6 +2790,7 @@ $(function() {
 <li>submit()
 : <a class="el" href="structripple_1_1test_1_1csf_1_1Peer.html#af97ac6ecf1795cd5e281de6b3342f13b">ripple::test::csf::Peer</a>
 , <a class="el" href="classripple_1_1test_1_1csf_1_1Submitter.html#a0dc64e18cff0ee4fe9efad5030cbb72e">ripple::test::csf::Submitter&lt; Distribution, Generator, Selector &gt;</a>
+, <a class="el" href="classripple_1_1test_1_1jtx_1_1AMM.html#a165d006b17159de10fb14fd03a74e0de">ripple::test::jtx::AMM</a>
 , <a class="el" href="classripple_1_1test_1_1jtx_1_1Env.html#ad6bef3419db7a94aa7028578f2f22371">ripple::test::jtx::Env</a>
 </li>
 <li>submitParams
@@ -2787,7 +2832,7 @@ $(function() {
 , <a class="el" href="classripple_1_1NetworkOPsImp.html#a45f98614f85844b56c2808ebd3bab0f7">ripple::NetworkOPsImp</a>
 </li>
 <li>Substitute()
-: <a class="el" href="classripple_1_1ClosureCounter_1_1Substitute.html#a0df76e1f995ded9fbdc675050741df3b">ripple::ClosureCounter&lt; Ret_t, Args_t &gt;::Substitute&lt; Closure &gt;</a>
+: <a class="el" href="classripple_1_1ClosureCounter_1_1Substitute.html#acfb01021bdbdcfacb2385a78115e1673">ripple::ClosureCounter&lt; Ret_t, Args_t &gt;::Substitute&lt; Closure &gt;</a>
 </li>
 <li>substr()
 : <a class="el" href="classripple_1_1Slice.html#a0789f9e98153bd7c63d63000decb3b1b">ripple::Slice</a>
@@ -2887,8 +2932,17 @@ $(function() {
 , <a class="el" href="classripple_1_1STArray.html#ae981854aaee3a5f3e849a7134e9913ac">ripple::STArray</a>
 </li>
 <li>swap_data()
-: <a class="el" href="classbeast_1_1detail_1_1aged__ordered__container.html#a9bca6b928ffcaf12a9d51a2b7e166e80">beast::detail::aged_ordered_container&lt; IsMulti, IsMap, Key, T, Clock, Compare, Allocator &gt;</a>
+: <a class="el" href="classbeast_1_1detail_1_1aged__ordered__container.html#a7f0c2594c5c7945311c2e1796d7751b8">beast::detail::aged_ordered_container&lt; IsMulti, IsMap, Key, T, Clock, Compare, Allocator &gt;</a>
 , <a class="el" href="classbeast_1_1detail_1_1aged__unordered__container.html#aa05bec969d8a8933651ecd9f48ab2496">beast::detail::aged_unordered_container&lt; IsMulti, IsMap, Key, T, Clock, Hash, KeyEqual, Allocator &gt;</a>
+</li>
+<li>swapargs
+: <a class="el" href="classripple_1_1test_1_1AMMCalc__test.html#ade5fe3d7fa2dcb65f1f6b2cc3cfe82ed">ripple::test::AMMCalc_test</a>
+</li>
+<li>swapIn()
+: <a class="el" href="classripple_1_1test_1_1AMMCalc__test.html#a1ddc6483d70bf544ecf60ad4c033a6b4">ripple::test::AMMCalc_test</a>
+</li>
+<li>swapOut()
+: <a class="el" href="classripple_1_1test_1_1AMMCalc__test.html#a1aa4f7defe7052f3bc16a5275ee33cc0">ripple::test::AMMCalc_test</a>
 </li>
 <li>sweep()
 : <a class="el" href="classripple_1_1detail_1_1BasicFullBelowCache.html#a39e7b4fe588f2d33e7f18204eaf3590c">ripple::detail::BasicFullBelowCache</a>
@@ -2943,7 +2997,7 @@ $(function() {
 , <a class="el" href="classripple_1_1NodeStore_1_1NullBackend.html#a48f53c890d50d72621ebaa72cba3214f">ripple::NodeStore::NullBackend</a>
 </li>
 <li>synchronized()
-: <a class="el" href="classripple_1_1test_1_1csf_1_1Sim.html#a2bd4536e47506d305db38691376a7ebe">ripple::test::csf::Sim</a>
+: <a class="el" href="classripple_1_1test_1_1csf_1_1Sim.html#aeb71423fcac731433cb10268322ce151">ripple::test::csf::Sim</a>
 </li>
 <li>syncing_duration
 : <a class="el" href="structripple_1_1NetworkOPsImp_1_1Stats.html#aa94618fe9107f5bc35767da4181f0514">ripple::NetworkOPsImp::Stats</a>
