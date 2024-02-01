@@ -23,6 +23,7 @@
 #include <ripple/basics/Log.h>
 #include <ripple/basics/StringUtilities.h>
 #include <ripple/protocol/AccountID.h>
+#include <ripple/protocol/Feature.h>
 #include <ripple/protocol/Indexes.h>
 #include <ripple/protocol/PublicKey.h>
 #include <ripple/protocol/SField.h>
@@ -96,10 +97,11 @@ AttestationBase::sameEventHelper(
 }
 
 bool
-AttestationBase::verify(STXChainBridge const& bridge) const
+AttestationBase::verify(STXChainBridge const& bridge, Rules const& rules) const
 {
     std::vector<std::uint8_t> msg = message(bridge);
-    return ripple::verify(publicKey, makeSlice(msg), signature);
+    return ripple::verify(
+        publicKey, makeSlice(msg), signature, cofactoredRules(rules));
 }
 
 AttestationBase::AttestationBase(STObject const& o)

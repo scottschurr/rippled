@@ -119,10 +119,8 @@ public:
     /** Check the signature.
         @return `true` if valid signature. If invalid, the error message string.
     */
-    enum class RequireFullyCanonicalSig : bool { no, yes };
     Expected<void, std::string>
-    checkSign(RequireFullyCanonicalSig requireCanonicalSig, Rules const& rules)
-        const;
+    checkSign(RequireFullyCanonicalSig canonicalSig, Rules const& rules) const;
 
     // SQL Functions with metadata.
     static std::string const&
@@ -141,12 +139,12 @@ public:
 
 private:
     Expected<void, std::string>
-    checkSingleSign(RequireFullyCanonicalSig requireCanonicalSig) const;
+    checkSingleSign(RequireFullyCanonicalSig canonicalSig, Rules const& rules)
+        const;
 
     Expected<void, std::string>
-    checkMultiSign(
-        RequireFullyCanonicalSig requireCanonicalSig,
-        Rules const& rules) const;
+    checkMultiSign(RequireFullyCanonicalSig canonicalSig, Rules const& rules)
+        const;
 
     STBase*
     copy(std::size_t n, void* buf) const override;

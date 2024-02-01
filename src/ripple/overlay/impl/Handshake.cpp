@@ -317,7 +317,11 @@ verifyHandshake(
 
         auto sig = base64_decode(iter->value());
 
-        if (!verifyDigest(publicKey, sharedValue, makeSlice(sig), false))
+        if (!verifyDigest(
+                publicKey,
+                sharedValue,
+                makeSlice(sig),
+                RequireFullyCanonicalSig::no))
             throw std::runtime_error("Failed to verify session");
     }
 

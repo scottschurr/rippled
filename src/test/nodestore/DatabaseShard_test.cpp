@@ -1756,7 +1756,11 @@ class DatabaseShard_test : public TestBase
 
         // Verify signature
         BEAST_EXPECT(verify(
-            PublicKey(slice), s.slice(), makeSlice(msg.signature()), false));
+            PublicKey(slice),
+            s.slice(),
+            makeSlice(msg.signature()),
+            Cofactored::no,
+            RequireFullyCanonicalSig::no));
 
         BEAST_EXPECT(msg.peerchain_size() == 0);
     }

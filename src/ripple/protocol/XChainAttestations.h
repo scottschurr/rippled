@@ -25,6 +25,7 @@
 #include <ripple/protocol/AccountID.h>
 #include <ripple/protocol/Issue.h>
 #include <ripple/protocol/PublicKey.h>
+#include <ripple/protocol/Rules.h>
 #include <ripple/protocol/SField.h>
 #include <ripple/protocol/STBase.h>
 #include <ripple/protocol/STXChainBridge.h>
@@ -80,7 +81,7 @@ struct AttestationBase
 
     // verify that the signature attests to the data.
     bool
-    verify(STXChainBridge const& bridge) const;
+    verify(STXChainBridge const& bridge, Rules const& rules) const;
 
 protected:
     explicit AttestationBase(STObject const& o);

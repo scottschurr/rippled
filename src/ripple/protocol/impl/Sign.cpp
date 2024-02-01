@@ -19,6 +19,8 @@
 
 #include <ripple/protocol/Sign.h>
 
+#include <ripple/protocol/Feature.h>
+
 namespace ripple {
 
 void
@@ -40,6 +42,7 @@ verify(
     STObject const& st,
     HashPrefix const& prefix,
     PublicKey const& pk,
+    Cofactored cofactored,
     SF_VL const& sigField)
 {
     auto const sig = get(st, sigField);
@@ -48,8 +51,12 @@ verify(
     Serializer ss;
     ss.add32(prefix);
     st.addWithoutSigningFields(ss);
+
     return verify(
-        pk, Slice(ss.data(), ss.size()), Slice(sig->data(), sig->size()));
+        pk,
+        Slice(ss.data(), ss.size()),
+        Slice(sig->data(), sig->size()),
+        cofactored);
 }
 
 // Questions regarding buildMultiSigningData:

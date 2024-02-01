@@ -924,7 +924,7 @@ ValidatorList::applyLists(
     std::uint32_t version,
     std::vector<ValidatorBlobInfo> const& blobs,
     std::string siteUri,
-    std::optional<uint256> const& hash /* = {} */)
+    std::optional<uint256> const& hash)
 {
     if (std::count(
             std::begin(supportedListVersions),
@@ -1290,7 +1290,8 @@ ValidatorList::verify(
         !ripple::verify(
             publisherManifests_.getSigningKey(pubKey),
             makeSlice(data),
-            makeSlice(*sig)))
+            makeSlice(*sig),
+            Cofactored::yes))
         return ListDisposition::invalid;
 
     Json::Reader r;

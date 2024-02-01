@@ -113,7 +113,8 @@ STValidation::isValid() const noexcept
             getSignerPublic(),
             getSigningHash(),
             makeSlice(getFieldVL(sfSignature)),
-            getFlags() & vfFullyCanonicalSig);
+            (getFlags() & vfFullyCanonicalSig) ? RequireFullyCanonicalSig::yes
+                                               : RequireFullyCanonicalSig::no);
     }
 
     return valid_.value();

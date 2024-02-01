@@ -17,12 +17,16 @@
 */
 //==============================================================================
 
+#include <ripple/protocol/PublicKey.h>
+
 #include <ripple/basics/contract.h>
 #include <ripple/basics/strHex.h>
-#include <ripple/protocol/PublicKey.h>
+#include <ripple/protocol/Feature.h>
 #include <ripple/protocol/digest.h>
 #include <ripple/protocol/impl/secp256k1.h>
+
 #include <boost/multiprecision/cpp_int.hpp>
+
 #include <ed25519.h>
 #include <type_traits>
 
@@ -223,14 +227,14 @@ verifyDigest(
     PublicKey const& publicKey,
     uint256 const& digest,
     Slice const& sig,
-    bool mustBeFullyCanonical) noexcept
+    RequireFullyCanonicalSig canonicalSig) noexcept
 {
     if (publicKeyType(publicKey) != KeyType::secp256k1)
         LogicError("sign: secp256k1 required for digest signing");
     auto const canonicality = ecdsaCanonicality(sig);
     if (!canonicality)
         return false;
-    if (mustBeFullyCanonical &&
+    if (canonicalSig == RequireFullyCanonicalSig::yes &&
         (*canonicality != ECDSACanonicality::fullyCanonical))
         return false;
 
@@ -268,19 +272,26 @@ verifyDigest(
                &pubkey_imp) == 1;
 }
 
+Cofactored
+cofactoredRules(Rules const& rules)
+{
+    return rules.enabled(featureCofactoredED25519) ? Cofactored::yes
+                                                   : Cofactored::no;
+}
+
 bool
 verify(
     PublicKey const& publicKey,
     Slice const& m,
     Slice const& sig,
-    bool mustBeFullyCanonical) noexcept
+    Cofactored cofactored,
+    RequireFullyCanonicalSig canonicalSig) noexcept
 {
     if (auto const type = publicKeyType(publicKey))
     {
         if (*type == KeyType::secp256k1)
         {
-            return verifyDigest(
-                publicKey, sha512Half(m), sig, mustBeFullyCanonical);
+            return verifyDigest(publicKey, sha512Half(m), sig, canonicalSig);
         }
         else if (*type == KeyType::ed25519)
         {
@@ -291,8 +302,18 @@ verify(
             // byte to distinguish them from secp256k1 keys
             // so when verifying the signature, we need to
             // first strip that prefix.
-            return ed25519_sign_open_cofactored(
-                       m.data(), m.size(), publicKey.data() + 1, sig.data()) == 0;
+            if (cofactored == Cofactored::no)
+                return ed25519_sign_open(
+                           m.data(),
+                           m.size(),
+                           publicKey.data() + 1,
+                           sig.data()) == 0;
+            else
+                return ed25519_sign_open_cofactored(
+                           m.data(),
+                           m.size(),
+                           publicKey.data() + 1,
+                           sig.data()) == 0;
         }
     }
     return false;

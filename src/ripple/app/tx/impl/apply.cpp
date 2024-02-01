@@ -51,8 +51,8 @@ checkValidity(
         // Don't know signature state. Check it.
         auto const requireCanonicalSig =
             rules.enabled(featureRequireFullyCanonicalSig)
-            ? STTx::RequireFullyCanonicalSig::yes
-            : STTx::RequireFullyCanonicalSig::no;
+            ? RequireFullyCanonicalSig::yes
+            : RequireFullyCanonicalSig::no;
 
         auto const sigVerify = tx.checkSign(requireCanonicalSig, rules);
         if (!sigVerify)

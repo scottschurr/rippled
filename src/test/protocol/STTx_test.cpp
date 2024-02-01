@@ -1594,7 +1594,7 @@ public:
         Rules defaultRules{{}};
 
         unexpected(
-            !j.checkSign(STTx::RequireFullyCanonicalSig::yes, defaultRules),
+            !j.checkSign(RequireFullyCanonicalSig::yes, defaultRules),
             "Transaction fails signature test");
 
         Serializer rawTxn;

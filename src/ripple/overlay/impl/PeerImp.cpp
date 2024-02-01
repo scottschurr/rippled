@@ -1393,7 +1393,12 @@ PeerImp::onMessage(std::shared_ptr<protocol::TMPeerShardInfoV2> const& m)
         return badData("Invalid public key");
 
     // Verify signature
-    if (!verify(publicKey, s.slice(), makeSlice(m->signature()), false))
+    if (!verify(
+            publicKey,
+            s.slice(),
+            makeSlice(m->signature()),
+            Cofactored::yes,
+            RequireFullyCanonicalSig::no))
         return badData("Invalid signature");
 
     // Forward the message if a peer chain exists

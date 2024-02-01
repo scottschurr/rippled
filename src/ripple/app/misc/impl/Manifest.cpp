@@ -194,11 +194,16 @@ Manifest::verify() const
 
     // Signing key and signature are not required for
     // master key revocations
-    if (!revoked() && !ripple::verify(st, HashPrefix::manifest, signingKey))
+    if (!revoked() &&
+        !ripple::verify(st, HashPrefix::manifest, signingKey, Cofactored::yes))
         return false;
 
     return ripple::verify(
-        st, HashPrefix::manifest, masterKey, sfMasterSignature);
+        st,
+        HashPrefix::manifest,
+        masterKey,
+        Cofactored::yes,
+        sfMasterSignature);
 }
 
 uint256

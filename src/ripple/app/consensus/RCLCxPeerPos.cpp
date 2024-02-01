@@ -48,7 +48,10 @@ bool
 RCLCxPeerPos::checkSign() const
 {
     return verifyDigest(
-        publicKey(), proposal_.signingHash(), signature(), false);
+        publicKey(),
+        proposal_.signingHash(),
+        signature(),
+        RequireFullyCanonicalSig::no);
 }
 
 Json::Value

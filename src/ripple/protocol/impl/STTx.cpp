@@ -207,9 +207,7 @@ STTx::sign(PublicKey const& publicKey, SecretKey const& secretKey)
 }
 
 Expected<void, std::string>
-STTx::checkSign(
-    RequireFullyCanonicalSig requireCanonicalSig,
-    Rules const& rules) const
+STTx::checkSign(RequireFullyCanonicalSig canonicalSig, Rules const& rules) const
 {
     try
     {
@@ -217,9 +215,8 @@ STTx::checkSign(
         // at the SigningPubKey.  If it's empty we must be
         // multi-signing.  Otherwise we're single-signing.
         Blob const& signingPubKey = getFieldVL(sfSigningPubKey);
-        return signingPubKey.empty()
-            ? checkMultiSign(requireCanonicalSig, rules)
-            : checkSingleSign(requireCanonicalSig);
+        return signingPubKey.empty() ? checkMultiSign(canonicalSig, rules)
+                                     : checkSingleSign(canonicalSig, rules);
     }
     catch (std::exception const&)
     {
@@ -307,7 +304,8 @@ STTx::getMetaSQL(
 }
 
 Expected<void, std::string>
-STTx::checkSingleSign(RequireFullyCanonicalSig requireCanonicalSig) const
+STTx::checkSingleSign(RequireFullyCanonicalSig canonicalSig, Rules const& rules)
+    const
 {
     // We don't allow both a non-empty sfSigningPubKey and an sfSigners.
     // That would allow the transaction to be signed two ways.  So if both
@@ -318,8 +316,8 @@ STTx::checkSingleSign(RequireFullyCanonicalSig requireCanonicalSig) const
     bool validSig = false;
     try
     {
-        bool const fullyCanonical = (getFlags() & tfFullyCanonicalSig) ||
-            (requireCanonicalSig == RequireFullyCanonicalSig::yes);
+        if (getFlags() & tfFullyCanonicalSig)
+            canonicalSig = RequireFullyCanonicalSig::yes;
 
         auto const spk = getFieldVL(sfSigningPubKey);
 
@@ -332,7 +330,8 @@ STTx::checkSingleSign(RequireFullyCanonicalSig requireCanonicalSig) const
                 PublicKey(makeSlice(spk)),
                 makeSlice(data),
                 makeSlice(signature),
-                fullyCanonical);
+                cofactoredRules(rules),
+                canonicalSig);
         }
     }
     catch (std::exception const&)
@@ -347,9 +346,8 @@ STTx::checkSingleSign(RequireFullyCanonicalSig requireCanonicalSig) const
 }
 
 Expected<void, std::string>
-STTx::checkMultiSign(
-    RequireFullyCanonicalSig requireCanonicalSig,
-    Rules const& rules) const
+STTx::checkMultiSign(RequireFullyCanonicalSig canonicalSig, Rules const& rules)
+    const
 {
     // Make sure the MultiSigners are present.  Otherwise they are not
     // attempting multi-signing and we just have a bad SigningPubKey.
@@ -377,8 +375,11 @@ STTx::checkMultiSign(
     auto const txnAccountID = getAccountID(sfAccount);
 
     // Determine whether signatures must be full canonical.
-    bool const fullyCanonical = (getFlags() & tfFullyCanonicalSig) ||
-        (requireCanonicalSig == RequireFullyCanonicalSig::yes);
+    if (getFlags() & tfFullyCanonicalSig)
+        canonicalSig = RequireFullyCanonicalSig::yes;
+
+    // Determine whether we are using cofactored verification.
+    Cofactored const cofactored = cofactoredRules(rules);
 
     // Signers must be in sorted order by AccountID.
     AccountID lastAccountID(beast::zero);
@@ -419,7 +420,8 @@ STTx::checkMultiSign(
                     PublicKey(makeSlice(spk)),
                     s.slice(),
                     makeSlice(signature),
-                    fullyCanonical);
+                    cofactored,
+                    canonicalSig);
             }
         }
         catch (std::exception const&)

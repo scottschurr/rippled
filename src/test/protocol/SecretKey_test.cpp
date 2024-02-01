@@ -99,10 +99,14 @@ public:
             BEAST_EXPECT(*canonicality != ECDSACanonicality::fullyCanonical);
         }
 
-        BEAST_EXPECT(verifyDigest(pk, digest, makeSlice(sig), false));
-        BEAST_EXPECT(verifyDigest(pk, digest, makeSlice(sig), true));
-        BEAST_EXPECT(verifyDigest(pk, digest, makeSlice(non), false));
-        BEAST_EXPECT(!verifyDigest(pk, digest, makeSlice(non), true));
+        BEAST_EXPECT(verifyDigest(
+            pk, digest, makeSlice(sig), RequireFullyCanonicalSig::no));
+        BEAST_EXPECT(verifyDigest(
+            pk, digest, makeSlice(sig), RequireFullyCanonicalSig::yes));
+        BEAST_EXPECT(verifyDigest(
+            pk, digest, makeSlice(non), RequireFullyCanonicalSig::no));
+        BEAST_EXPECT(!verifyDigest(
+            pk, digest, makeSlice(non), RequireFullyCanonicalSig::yes));
     }
 
     void
@@ -125,20 +129,24 @@ public:
                 auto sig = signDigest(pk, sk, digest);
 
                 BEAST_EXPECT(sig.size() != 0);
-                BEAST_EXPECT(verifyDigest(pk, digest, sig, true));
+                BEAST_EXPECT(verifyDigest(
+                    pk, digest, sig, RequireFullyCanonicalSig::yes));
 
                 // Wrong digest:
-                BEAST_EXPECT(!verifyDigest(pk, ~digest, sig, true));
+                BEAST_EXPECT(!verifyDigest(
+                    pk, ~digest, sig, RequireFullyCanonicalSig::yes));
 
                 // Slightly change the signature:
                 if (auto ptr = sig.data())
                     ptr[j % sig.size()]++;
 
                 // Wrong signature:
-                BEAST_EXPECT(!verifyDigest(pk, digest, sig, true));
+                BEAST_EXPECT(!verifyDigest(
+                    pk, digest, sig, RequireFullyCanonicalSig::yes));
 
                 // Wrong digest and signature:
-                BEAST_EXPECT(!verifyDigest(pk, ~digest, sig, true));
+                BEAST_EXPECT(!verifyDigest(
+                    pk, ~digest, sig, RequireFullyCanonicalSig::yes));
             }
         }
     }
@@ -163,7 +171,12 @@ public:
                 auto sig = sign(pk, sk, makeSlice(data));
 
                 BEAST_EXPECT(sig.size() != 0);
-                BEAST_EXPECT(verify(pk, makeSlice(data), sig, true));
+                BEAST_EXPECT(verify(
+                    pk,
+                    makeSlice(data),
+                    sig,
+                    Cofactored::no,
+                    RequireFullyCanonicalSig::yes));
 
                 // Construct wrong data:
                 auto badData = data;
@@ -174,17 +187,32 @@ public:
                     std::max_element(badData.begin(), badData.end()));
 
                 // Wrong data: should fail
-                BEAST_EXPECT(!verify(pk, makeSlice(badData), sig, true));
+                BEAST_EXPECT(!verify(
+                    pk,
+                    makeSlice(badData),
+                    sig,
+                    Cofactored::no,
+                    RequireFullyCanonicalSig::yes));
 
                 // Slightly change the signature:
                 if (auto ptr = sig.data())
                     ptr[j % sig.size()]++;
 
                 // Wrong signature: should fail
-                BEAST_EXPECT(!verify(pk, makeSlice(data), sig, true));
+                BEAST_EXPECT(!verify(
+                    pk,
+                    makeSlice(data),
+                    sig,
+                    Cofactored::no,
+                    RequireFullyCanonicalSig::yes));
 
                 // Wrong data and signature: should fail
-                BEAST_EXPECT(!verify(pk, makeSlice(badData), sig, true));
+                BEAST_EXPECT(!verify(
+                    pk,
+                    makeSlice(badData),
+                    sig,
+                    Cofactored::no,
+                    RequireFullyCanonicalSig::yes));
             }
         }
     }

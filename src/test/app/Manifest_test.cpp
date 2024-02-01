@@ -152,7 +152,12 @@ public:
             sfMasterSignature);
         BEAST_EXPECT(
             invalidSig ^
-            verify(st, HashPrefix::manifest, pk, sfMasterSignature));
+            verify(
+                st,
+                HashPrefix::manifest,
+                pk,
+                Cofactored::no,
+                sfMasterSignature));
 
         Serializer s;
         st.add(s);
@@ -178,7 +183,12 @@ public:
             sfMasterSignature);
         BEAST_EXPECT(
             invalidSig ^
-            verify(st, HashPrefix::manifest, pk, sfMasterSignature));
+            verify(
+                st,
+                HashPrefix::manifest,
+                pk,
+                Cofactored::no,
+                sfMasterSignature));
 
         Serializer s;
         st.add(s);
@@ -210,7 +220,7 @@ public:
         st[sfSigningPubKey] = spk;
 
         sign(st, HashPrefix::manifest, stype, ssk);
-        BEAST_EXPECT(verify(st, HashPrefix::manifest, spk));
+        BEAST_EXPECT(verify(st, HashPrefix::manifest, spk, Cofactored::no));
 
         sign(
             st,
@@ -220,7 +230,12 @@ public:
             sfMasterSignature);
         BEAST_EXPECT(
             invalidSig ^
-            verify(st, HashPrefix::manifest, pk, sfMasterSignature));
+            verify(
+                st,
+                HashPrefix::manifest,
+                pk,
+                Cofactored::no,
+                sfMasterSignature));
 
         Serializer s;
         st.add(s);

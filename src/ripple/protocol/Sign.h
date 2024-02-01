@@ -22,6 +22,7 @@
 
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/PublicKey.h>
+#include <ripple/protocol/Rules.h>
 #include <ripple/protocol/STObject.h>
 #include <ripple/protocol/SecretKey.h>
 #include <utility>
@@ -60,6 +61,7 @@ verify(
     STObject const& st,
     HashPrefix const& prefix,
     PublicKey const& pk,
+    Cofactored cofactored,
     SF_VL const& sigField = sfSignature);
 
 /** Return a Serializer suitable for computing a multisigning TxnSignature. */

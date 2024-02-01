@@ -1219,7 +1219,7 @@ attestationPreflight(PreflightContext const& ctx)
         return temMALFORMED;
 
     STXChainBridge const bridgeSpec = ctx.tx[sfXChainBridge];
-    if (!att->verify(bridgeSpec))
+    if (!att->verify(bridgeSpec, ctx.rules))
         return temXCHAIN_BAD_PROOF;
     if (!att->validAmounts())
         return temXCHAIN_BAD_PROOF;

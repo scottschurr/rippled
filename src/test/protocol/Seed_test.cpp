@@ -151,10 +151,12 @@ public:
 
             auto sig = sign(publicKey, secretKey, makeSlice(message1));
             BEAST_EXPECT(sig.size() != 0);
-            BEAST_EXPECT(verify(publicKey, makeSlice(message1), sig));
+            BEAST_EXPECT(
+                verify(publicKey, makeSlice(message1), sig, Cofactored::no));
 
             // Correct public key but wrong message
-            BEAST_EXPECT(!verify(publicKey, makeSlice(message2), sig));
+            BEAST_EXPECT(
+                !verify(publicKey, makeSlice(message2), sig, Cofactored::no));
 
             // Verify with incorrect public key
             {
@@ -163,7 +165,8 @@ public:
                     generateSecretKey(
                         KeyType::secp256k1, generateSeed("otherpassphrase")));
 
-                BEAST_EXPECT(!verify(otherPublicKey, makeSlice(message1), sig));
+                BEAST_EXPECT(!verify(
+                    otherPublicKey, makeSlice(message1), sig, Cofactored::no));
             }
 
             // Correct public key but wrong signature
@@ -172,7 +175,8 @@ public:
                 if (auto ptr = sig.data())
                     ptr[sig.size() / 2]++;
 
-                BEAST_EXPECT(!verify(publicKey, makeSlice(message1), sig));
+                BEAST_EXPECT(!verify(
+                    publicKey, makeSlice(message1), sig, Cofactored::no));
             }
         }
 
@@ -195,10 +199,12 @@ public:
 
             auto sig = sign(publicKey, secretKey, makeSlice(message1));
             BEAST_EXPECT(sig.size() != 0);
-            BEAST_EXPECT(verify(publicKey, makeSlice(message1), sig));
+            BEAST_EXPECT(
+                verify(publicKey, makeSlice(message1), sig, Cofactored::no));
 
             // Correct public key but wrong message
-            BEAST_EXPECT(!verify(publicKey, makeSlice(message2), sig));
+            BEAST_EXPECT(
+                !verify(publicKey, makeSlice(message2), sig, Cofactored::no));
 
             // Verify with incorrect public key
             {
@@ -207,7 +213,8 @@ public:
                     generateSecretKey(
                         KeyType::ed25519, generateSeed("otherpassphrase")));
 
-                BEAST_EXPECT(!verify(otherPublicKey, makeSlice(message1), sig));
+                BEAST_EXPECT(!verify(
+                    otherPublicKey, makeSlice(message1), sig, Cofactored::no));
             }
 
             // Correct public key but wrong signature
@@ -216,7 +223,8 @@ public:
                 if (auto ptr = sig.data())
                     ptr[sig.size() / 2]++;
 
-                BEAST_EXPECT(!verify(publicKey, makeSlice(message1), sig));
+                BEAST_EXPECT(!verify(
+                    publicKey, makeSlice(message1), sig, Cofactored::no));
             }
         }
 
@@ -238,18 +246,21 @@ public:
 
             auto sig = sign(pk, sk, makeSlice(message1));
             BEAST_EXPECT(sig.size() != 0);
-            BEAST_EXPECT(verify(pk, makeSlice(message1), sig));
+            BEAST_EXPECT(verify(pk, makeSlice(message1), sig, Cofactored::no));
 
             // Correct public key but wrong message
-            BEAST_EXPECT(!verify(pk, makeSlice(message2), sig));
+            BEAST_EXPECT(!verify(pk, makeSlice(message2), sig, Cofactored::no));
 
             // Verify with incorrect public key
             {
                 auto const otherKeyPair = generateKeyPair(
                     KeyType::secp256k1, generateSeed("otherpassphrase"));
 
-                BEAST_EXPECT(
-                    !verify(otherKeyPair.first, makeSlice(message1), sig));
+                BEAST_EXPECT(!verify(
+                    otherKeyPair.first,
+                    makeSlice(message1),
+                    sig,
+                    Cofactored::no));
             }
 
             // Correct public key but wrong signature
@@ -258,7 +269,8 @@ public:
                 if (auto ptr = sig.data())
                     ptr[sig.size() / 2]++;
 
-                BEAST_EXPECT(!verify(pk, makeSlice(message1), sig));
+                BEAST_EXPECT(
+                    !verify(pk, makeSlice(message1), sig, Cofactored::no));
             }
         }
 
@@ -280,18 +292,21 @@ public:
 
             auto sig = sign(pk, sk, makeSlice(message1));
             BEAST_EXPECT(sig.size() != 0);
-            BEAST_EXPECT(verify(pk, makeSlice(message1), sig));
+            BEAST_EXPECT(verify(pk, makeSlice(message1), sig, Cofactored::no));
 
             // Correct public key but wrong message
-            BEAST_EXPECT(!verify(pk, makeSlice(message2), sig));
+            BEAST_EXPECT(!verify(pk, makeSlice(message2), sig, Cofactored::no));
 
             // Verify with incorrect public key
             {
                 auto const otherKeyPair = generateKeyPair(
                     KeyType::ed25519, generateSeed("otherpassphrase"));
 
-                BEAST_EXPECT(
-                    !verify(otherKeyPair.first, makeSlice(message1), sig));
+                BEAST_EXPECT(!verify(
+                    otherKeyPair.first,
+                    makeSlice(message1),
+                    sig,
+                    Cofactored::no));
             }
 
             // Correct public key but wrong signature
@@ -300,7 +315,8 @@ public:
                 if (auto ptr = sig.data())
                     ptr[sig.size() / 2]++;
 
-                BEAST_EXPECT(!verify(pk, makeSlice(message1), sig));
+                BEAST_EXPECT(
+                    !verify(pk, makeSlice(message1), sig, Cofactored::no));
             }
         }
     }
