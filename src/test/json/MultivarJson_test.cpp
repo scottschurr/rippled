@@ -287,7 +287,7 @@ struct MultivarJson_test : beast::unit_test::suite
     }
 };
 
-BEAST_DEFINE_TESTSUITE(MultivarJson, ripple_basics, ripple);
+BEAST_DEFINE_TESTSUITE(MultivarJson, json, ripple);
 
 }  // namespace test
 }  // namespace ripple

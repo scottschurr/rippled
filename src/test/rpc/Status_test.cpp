@@ -94,7 +94,7 @@ public:
     }
 };
 
-BEAST_DEFINE_TESTSUITE(codeString, Status, RPC);
+BEAST_DEFINE_TESTSUITE(codeString, rpc, ripple);
 
 class fillJson_test : public beast::unit_test::suite
 {
@@ -218,7 +218,7 @@ public:
     }
 };
 
-BEAST_DEFINE_TESTSUITE(fillJson, rpc, RPC);
+BEAST_DEFINE_TESTSUITE(fillJson, rpc, ripple);
 
 }  // namespace RPC
 }  // namespace ripple

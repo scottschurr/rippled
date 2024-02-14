@@ -1019,7 +1019,7 @@ public:
     }
 };
 
-BEAST_DEFINE_TESTSUITE(Env, app, ripple);
+BEAST_DEFINE_TESTSUITE(Env, jtx, ripple);
 
 }  // namespace test
 }  // namespace ripple
