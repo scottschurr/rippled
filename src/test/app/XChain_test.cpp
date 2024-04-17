@@ -2603,7 +2603,7 @@ struct XChain_test : public beast::unit_test::suite,
                     dst,
                     alt_signers[3]);
                 att.removeMember(sfAttestationSignerAccount.getJsonName());
-                scEnv.tx(att, ter(temMALFORMED)).close();
+                scEnv.tx(att, ter(telENV_RPC_FAILED)).close();
                 BEAST_EXPECT(dstStartBalance == scEnv.env_.balance(dst));
                 att[sfAttestationSignerAccount.getJsonName()] =
                     alt_signers[3].account.human();

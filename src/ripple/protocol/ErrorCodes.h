@@ -211,6 +211,9 @@ struct ErrorInfo
 ErrorInfo const&
 get_error_info(error_code_i code);
 
+ErrorInfo const&
+get_error_info(std::optional<error_code_i> const& code);
+
 /** Add or update the json update to reflect the error code. */
 /** @{ */
 template <class JsonValue>

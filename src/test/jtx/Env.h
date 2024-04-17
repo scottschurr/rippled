@@ -123,14 +123,13 @@ public:
     /// Used by parseResult() and postConditions()
     struct ParsedResult
     {
-        TER ter;
-        // One way that RPC errors are returned
-        error_code_i rpcCode = rpcSUCCESS;
+        // Use an error code that is not used anywhere in the transaction
+        // engine to distinguish the case where no TER is returned.
+        TER ter = telENV_RPC_FAILED;
+        std::optional<error_code_i> rpcCode;
         std::string rpcMessage;
-        // Another way that RPC errors are returned
         std::string rpcError;
         std::string rpcException;
-        bool didApply;
     };
 
 private:

@@ -985,7 +985,7 @@ class NFTokenBaseUtil_test : public beast::unit_test::suite
         BEAST_EXPECT(ownerCount(env, buyer) == 1);
 
         // Provide neither offers to cancel nor a root index.
-        env(token::cancelOffer(buyer), ter(temMALFORMED));
+        env(token::cancelOffer(buyer), ter(telENV_RPC_FAILED));
         env.close();
         BEAST_EXPECT(ownerCount(env, buyer) == 1);
 

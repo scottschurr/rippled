@@ -220,10 +220,10 @@ public:
             env.fund(n, "alice");
             env.require(balance("alice", n));
             env(noop("alice"), fee(1), ter(telINSUF_FEE_P));
-            env(noop("alice"), seq(none), ter(temMALFORMED));
-            env(noop("alice"), seq(none), fee(10), ter(temMALFORMED));
-            env(noop("alice"), fee(none), ter(temMALFORMED));
-            env(noop("alice"), sig(none), ter(temMALFORMED));
+            env(noop("alice"), seq(none), ter(telENV_RPC_FAILED));
+            env(noop("alice"), seq(none), fee(10), ter(telENV_RPC_FAILED));
+            env(noop("alice"), fee(none), ter(telENV_RPC_FAILED));
+            env(noop("alice"), sig(none), ter(telENV_RPC_FAILED));
             env(noop("alice"), fee(autofill));
             env(noop("alice"), fee(autofill), seq(autofill));
             env(noop("alice"), fee(autofill), seq(autofill), sig(autofill));
@@ -309,11 +309,17 @@ public:
         env.require(balance("carol", XRP(10000)));
         env.require(balance(gw, XRP(10000)));
 
-        env(pay(env.master, "alice", XRP(1000)), fee(none), ter(temMALFORMED));
+        env(pay(env.master, "alice", XRP(1000)),
+            fee(none),
+            ter(telENV_RPC_FAILED));
         env(pay(env.master, "alice", XRP(1000)), fee(1), ter(telINSUF_FEE_P));
-        env(pay(env.master, "alice", XRP(1000)), seq(none), ter(temMALFORMED));
+        env(pay(env.master, "alice", XRP(1000)),
+            seq(none),
+            ter(telENV_RPC_FAILED));
         env(pay(env.master, "alice", XRP(1000)), seq(20), ter(terPRE_SEQ));
-        env(pay(env.master, "alice", XRP(1000)), sig(none), ter(temMALFORMED));
+        env(pay(env.master, "alice", XRP(1000)),
+            sig(none),
+            ter(telENV_RPC_FAILED));
         env(pay(env.master, "alice", XRP(1000)), sig("bob"), ter(tefBAD_AUTH));
 
         env(pay(env.master, "dilbert", XRP(1000)), sig(env.master));

@@ -276,9 +276,6 @@ Env::ParsedResult
 Env::parseResult(Json::Value const& jr)
 {
     auto error = [](ParsedResult& parsed, Json::Value const& object) {
-        // Use an error code that is not used anywhere in the transaction
-        // engine to distinguish this case.
-        parsed.ter = telENV_RPC_FAILED;
         // Extract information about the error
         if (!object.isObject())
             return;
@@ -304,7 +301,6 @@ Env::parseResult(Json::Value const& jr)
     else
         error(parsed, jr);
 
-    parsed.didApply = isTesSuccess(parsed.ter) || isTecClaim(parsed.ter);
     return parsed;
 }
 
@@ -312,7 +308,7 @@ void
 Env::submit(JTx const& jt)
 {
     ParsedResult parsedResult;
-    auto const jr = [&]() {
+    Json::Value const jr = [&]() {
         if (jt.stx)
         {
             txid_ = jt.stx->getTransactionID();
@@ -327,11 +323,7 @@ Env::submit(JTx const& jt)
         }
         else
         {
-            // Parsing failed or the JTx is
-            // otherwise missing the stx field.
-            parsedResult.ter = ter_ = temMALFORMED;
-            parsedResult.didApply = false;
-
+            // Parsing failed or the JTx is otherwise missing the stx field.
             return Json::Value();
         }
     }();

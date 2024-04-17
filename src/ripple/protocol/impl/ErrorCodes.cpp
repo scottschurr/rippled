@@ -177,6 +177,14 @@ get_error_info(error_code_i code)
     return detail::sortedErrorInfos[code - 1];
 }
 
+ErrorInfo const&
+get_error_info(std::optional<error_code_i> const& code)
+{
+    if (!code)
+        return detail::unknownError;
+    return get_error_info(*code);
+}
+
 Json::Value
 make_error(error_code_i code)
 {
